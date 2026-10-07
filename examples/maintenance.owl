@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE rdf:RDF [
+  <!ENTITY owl "http://www.w3.org/2002/07/owl#">
+  <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#">
+  <!ENTITY plant "urn:plant:">
+]>
+<!-- Asset inspection graph, written by hand from maintenance.nt: reading this
+     RDF/XML document gives the graph of maintenance.nt up to the renaming of
+     its blank node, and the declarations make it the RDF mapping of an OWL 2 DL
+     ontology. -->
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:owl="http://www.w3.org/2002/07/owl#"
+         xmlns:plant="urn:plant:">
+  <plant:Machine rdf:about="&plant;pump1">
+    <plant:hasPart>
+      <plant:FaultyPart>
+        <plant:serial rdf:datatype="&xsd;integer">01</plant:serial>
+        <rdfs:label xml:lang="de-DE">Antriebsmotor</rdfs:label>
+        <rdfs:label xml:lang="en">Drive motor</rdfs:label>
+      </plant:FaultyPart>
+    </plant:hasPart>
+    <plant:installedAt rdf:resource="&plant;buildingA"/>
+    <plant:inspectionNote>Check bearing
+Temperature: 81 °C</plant:inspectionNote>
+  </plant:Machine>
+  <owl:Class rdf:about="&plant;Machine"/>
+  <owl:Class rdf:about="&plant;FaultyPart"/>
+  <owl:Class rdf:about="&plant;NeedsInspection"/>
+  <owl:ObjectProperty rdf:about="&plant;hasPart"/>
+  <owl:DatatypeProperty rdf:about="&plant;serial"/>
+  <owl:ObjectProperty rdf:about="&plant;installedAt"/>
+  <owl:AnnotationProperty rdf:about="&plant;inspectionNote"/>
+</rdf:RDF>

@@ -21,7 +21,7 @@ use rowl_kernel::dl_validity::{check_ontology, DlCheck};
 use rowl_kernel::functional_annotations::AnnotationLimits;
 use rowl_kernel::functional_classes::ClassLimits;
 use rowl_kernel::functional_document::{DocumentError, DocumentLimits};
-use rowl_kernel::import_catalog::{Format, Source, SourceError};
+use rowl_kernel::import_catalog::{read_source, Format, Source, SourceError};
 use rowl_kernel::import_closure::{source_closure, ClosureError, Origin};
 use rowl_kernel::model::{
     AnnotatedAxiom, AnonymousIndividual, Axiom, Class, ClassExpression, Entity, Individual, Iri,
@@ -29,17 +29,24 @@ use rowl_kernel::model::{
 };
 use rowl_kernel::ntriples::{read, ReadError, ReadResult};
 use rowl_kernel::rdf_mapping::map_graph;
+use rowl_kernel::rdfxml;
 use rowl_kernel::roles::Role;
 use rowl_kernel::saturation;
 use rowl_kernel::source_reasoning::source_ontology;
 use rowl_kernel::turtle;
 use rowl_kernel::typing::EntityKind;
+use rowl_kernel::xml::XmlError;
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 /// The stack the verified kernel runs on. Its readers, mapping and queries
-/// recurse over the length of their input, so a large document needs far more
-/// than a thread's default stack; the memory is only committed as it is used.
+/// recurse over the length of their input (the XML reader once per character,
+/// about 160 bytes of stack per byte of an RDF/XML document), so a large
+/// document needs far more than a thread's default stack; the memory is only
+/// committed as it is used. 4 GiB reads RDF/XML documents of about 25 MB.
+#[cfg(target_pointer_width = "64")]
+const KERNEL_STACK: usize = 4 << 30;
+#[cfg(not(target_pointer_width = "64"))]
 const KERNEL_STACK: usize = 1 << 30;
 
 /// Run `work` on a thread with [`KERNEL_STACK`] bytes of stack and return its
@@ -88,6 +95,12 @@ pub enum LoadError {
     Triples(ReadError),
     /// The verified Turtle reader rejected the document.
     Turtle(turtle::ReadError),
+    /// The verified XML reader rejected an RDF/XML document.
+    Xml(XmlError),
+    /// The element tree of an RDF/XML document has no RDF/XML graph.
+    RdfXml(rdfxml::ErrorKind),
+    /// An RDF/XML document is too long for the reader's limits.
+    TooLong,
     /// The graph is not the RDF mapping of an ontology that the verified
     /// reverse mapping reads: an undeclared entity, an incomplete expression,
     /// an annotated axiom or a triple left over.
@@ -124,6 +137,9 @@ pub enum Syntax {
     /// Turtle, read as the OWL ontology its graph encodes; relative IRIs
     /// resolve against this base IRI until the document declares its own.
     Turtle(Vec<u8>),
+    /// RDF/XML, read as the OWL ontology its graph encodes; relative IRIs
+    /// resolve against this base IRI until `xml:base` gives another.
+    RdfXml(Vec<u8>),
 }
 
 /// A document of a catalog for [`Reasoner::from_documents`]: a name used in
@@ -322,6 +338,75 @@ fn axiom_text(
     }
 }
 
+/// The words for why the verified XML reader rejected a document.
+pub fn xml_error_words(error: &XmlError) -> String {
+    use rowl_kernel::xml::ErrorKind;
+    let what = match error.kind {
+        ErrorKind::MalformedUtf8 => "the bytes are not UTF-8",
+        ErrorKind::NonXmlCharacter => "a character that XML does not allow",
+        ErrorKind::UnsupportedEncoding => "an encoding other than UTF-8",
+        ErrorKind::UnexpectedEnd => "the text ends inside a construct",
+        ErrorKind::Syntax => "the text does not match the XML grammar",
+        ErrorKind::InvalidName => "a missing or invalid name",
+        ErrorKind::MismatchedEndTag => "an end tag that does not match its start tag",
+        ErrorKind::DuplicateAttribute => "an attribute given twice",
+        ErrorKind::UndeclaredPrefix => "a namespace prefix without a declaration",
+        ErrorKind::ReservedNamespace => "a reserved namespace prefix or name",
+        ErrorKind::InvalidCharacterReference => {
+            "a character reference to a character XML does not allow"
+        }
+        ErrorKind::UndeclaredEntity => "a reference to an undeclared, external or unparsed entity",
+        ErrorKind::RecursiveEntity => "an entity that refers to itself",
+        ErrorKind::EntityBoundary => "an entity whose content does not end inside it",
+        ErrorKind::UnsupportedDeclaration => "a DTD declaration other than an internal entity",
+        ErrorKind::ResourceLimit => "the entity expansion budget or a length limit",
+    };
+    format!("XML error at byte {}: {what}", error.offset)
+}
+
+/// The words for why an XML document has no RDF/XML graph.
+pub fn rdfxml_error_words(kind: rdfxml::ErrorKind) -> &'static str {
+    use rdfxml::ErrorKind;
+    match kind {
+        ErrorKind::InvalidName => {
+            "an element without namespace, or a name not allowed where it occurs"
+        }
+        ErrorKind::UnqualifiedAttribute => "an attribute without namespace",
+        ErrorKind::DuplicateAttribute => "two attributes that denote the same IRI",
+        ErrorKind::InvalidAttributes => "attributes that no RDF/XML production allows together",
+        ErrorKind::InvalidContent => "content that no RDF/XML production allows",
+        ErrorKind::InvalidId => "an rdf:ID or rdf:nodeID value that is not an NCName",
+        ErrorKind::DuplicateId => "an rdf:ID value given twice with the same base IRI",
+        ErrorKind::InvalidCharacter => "a code point that is not a Unicode scalar value",
+        ErrorKind::InvalidIri => {
+            "a value that is not an IRI reference, or a relative IRI without a base"
+        }
+        ErrorKind::InvalidLanguageTag => "an ill-formed language tag",
+        ErrorKind::InvalidDatatype => "rdf:datatype naming rdf:langString",
+        ErrorKind::UnsupportedParseType => {
+            "rdf:parseType=\"Literal\" (XML literals are not supported)"
+        }
+        ErrorKind::UnsupportedDatatype => {
+            "rdf:datatype on an empty property element with property attributes"
+        }
+        ErrorKind::ResourceLimit => "a term or the number of triples beyond the reader's limits",
+    }
+}
+
+/// Why the verified reader of one document rejected it, as a load error.
+fn source_error(error: SourceError) -> LoadError {
+    match error {
+        SourceError::Functional(error) => LoadError::Document(error),
+        SourceError::Unmapped => LoadError::Unsupported,
+        SourceError::Triples(error) => LoadError::Triples(error),
+        SourceError::Turtle(error) => LoadError::Turtle(error),
+        SourceError::Xml(error) => LoadError::Xml(error),
+        SourceError::RdfXml(kind) => LoadError::RdfXml(kind),
+        SourceError::TooLong => LoadError::TooLong,
+        SourceError::Graph => LoadError::Graph,
+    }
+}
+
 /// Why the verified assembly found no import closure, as a load error.
 fn closure_error(error: ClosureError, names: &[String]) -> LoadError {
     let name = |document: usize| {
@@ -333,13 +418,7 @@ fn closure_error(error: ClosureError, names: &[String]) -> LoadError {
     match error {
         ClosureError::Unread(unread) => LoadError::InDocument {
             document: name(unread.document),
-            error: Box::new(match unread.error {
-                SourceError::Functional(error) => LoadError::Document(error),
-                SourceError::Unmapped => LoadError::Unsupported,
-                SourceError::Triples(error) => LoadError::Triples(error),
-                SourceError::Turtle(error) => LoadError::Turtle(error),
-                SourceError::Graph => LoadError::Graph,
-            }),
+            error: Box::new(source_error(unread.error)),
         },
         ClosureError::MissingImport { document, iri } => LoadError::MissingImport {
             document: name(document),
@@ -536,6 +615,28 @@ impl Reasoner {
             }
         })
     }
+    /// Read an RDF/XML document from its bytes and the OWL ontology its graph
+    /// encodes by the verified reverse RDF mapping. The document has no base
+    /// IRI of its own, so a relative IRI needs an `xml:base` in force;
+    /// [`Reasoner::from_rdfxml_with_base`] supplies one.
+    pub fn from_rdfxml(bytes: &[u8]) -> Result<Reasoner, LoadError> {
+        Reasoner::from_rdfxml_with_base(bytes, b"")
+    }
+    /// Read an RDF/XML document whose relative IRIs resolve against `base`
+    /// until `xml:base` gives another, by the verified catalog reader
+    /// `import_catalog::read_source` with `import_catalog::rdfxml_limits`.
+    pub fn from_rdfxml_with_base(bytes: &[u8], base: &[u8]) -> Result<Reasoner, LoadError> {
+        on_kernel_stack(|| {
+            let source = Source {
+                format: Format::RdfXml(base.to_vec()),
+                bytes: bytes.to_vec(),
+            };
+            match read_source(&source, &default_limits(), &b"document".to_vec()) {
+                Ok(ontology) => Ok(Reasoner::new(ontology)),
+                Err(error) => Err(source_error(error)),
+            }
+        })
+    }
     /// Read the import closure of the document at position `root` of a
     /// catalog of documents (OWL 2 Structural Specification §3.4) and reason
     /// over its axiom closure. The verified `import_closure::source_closure`
@@ -558,6 +659,7 @@ impl Reasoner {
                     Syntax::Functional => Format::Functional,
                     Syntax::NTriples => Format::NTriples,
                     Syntax::Turtle(base) => Format::Turtle(base),
+                    Syntax::RdfXml(base) => Format::RdfXml(base),
                 },
                 bytes: document.bytes,
             });

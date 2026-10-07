@@ -11,7 +11,10 @@
 //! supported fragment or a limit was reached) or -2 (a null handle or text that
 //! is not UTF-8). Lists and the OWL 2 DL verdict come back as JSON text that
 //! the caller releases with [`rowl_string_free`].
-use rowl::reasoner::{default_limits, named, Classified, Document, LoadError, Reasoner, Syntax};
+use rowl::reasoner::{
+    default_limits, named, rdfxml_error_words, xml_error_words, Classified, Document, LoadError,
+    Reasoner, Syntax,
+};
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
@@ -46,6 +49,9 @@ pub const ROWL_SYNTAX_FUNCTIONAL: i32 = 0;
 pub const ROWL_SYNTAX_NTRIPLES: i32 = 1;
 /// The syntax code of a Turtle document of a catalog, read without a base IRI.
 pub const ROWL_SYNTAX_TURTLE: i32 = 2;
+/// The syntax code of an RDF/XML document of a catalog, read without a base
+/// IRI: relative IRIs need an `xml:base` in force.
+pub const ROWL_SYNTAX_RDFXML: i32 = 3;
 
 const INVALID_ARGUMENT: i32 = -2;
 
@@ -157,7 +163,12 @@ fn json_classification(classified: &[Classified]) -> String {
 /// The status code of a load error.
 fn status_of(error: &LoadError) -> i32 {
     match error {
-        LoadError::Document(_) | LoadError::Triples(_) | LoadError::Turtle(_) => ROWL_REJECTED,
+        LoadError::Document(_)
+        | LoadError::Triples(_)
+        | LoadError::Turtle(_)
+        | LoadError::Xml(_)
+        | LoadError::RdfXml(_)
+        | LoadError::TooLong => ROWL_REJECTED,
         LoadError::Graph => ROWL_UNMAPPED,
         LoadError::Unsupported => ROWL_UNSUPPORTED,
         LoadError::InDocument { error, .. } => status_of(error),
@@ -173,6 +184,9 @@ fn load_message(error: &LoadError) -> String {
         LoadError::Document(_) => "not a Functional Syntax document the verified reader accepts".into(),
         LoadError::Triples(error) => format!("N-Triples parse error at byte {}", error.offset),
         LoadError::Turtle(error) => format!("Turtle parse error at byte {}", error.offset),
+        LoadError::Xml(error) => xml_error_words(error),
+        LoadError::RdfXml(kind) => format!("not an RDF/XML graph: {}", rdfxml_error_words(*kind)),
+        LoadError::TooLong => "the document is too long for the RDF/XML reader's limits".into(),
         LoadError::Graph => {
             "the graph is not the RDF mapping of an OWL ontology the verified mapping reads".into()
         }
@@ -283,6 +297,62 @@ pub unsafe extern "C" fn rowl_reasoner_from_turtle(
     reasoner
 }
 
+/// Read a Turtle document whose relative IRIs resolve against the UTF-8 base
+/// IRI of `base_len` bytes at `base` until the document declares its own base.
+/// Returns a handle as [`rowl_reasoner_from_turtle`] does.
+///
+/// # Safety
+/// As for [`rowl_reasoner_from_functional`]; `base` must be null with length
+/// zero or point to `base_len` readable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn rowl_reasoner_from_turtle_with_base(
+    data: *const u8,
+    len: usize,
+    base: *const u8,
+    base_len: usize,
+    status: *mut i32,
+) -> *mut RowlReasoner {
+    // SAFETY: forwarded from the caller.
+    let (code, reasoner) = match unsafe { (bytes(data, len), bytes(base, base_len)) } {
+        (Some(source), Some(base)) => loaded(Reasoner::from_turtle_with_base(source, base)),
+        _ => (ROWL_INVALID, ptr::null_mut()),
+    };
+    if !status.is_null() {
+        // SAFETY: the caller guarantees that a non-null `status` is writable.
+        unsafe { *status = code };
+    }
+    reasoner
+}
+
+/// Read an RDF/XML document and the OWL ontology its graph encodes, with the
+/// verified XML and RDF/XML readers. Relative IRIs resolve against the UTF-8
+/// base IRI of `base_len` bytes at `base` (empty for none) until `xml:base`
+/// gives another. Returns a handle for the other functions, or null with
+/// `status` set to [`ROWL_REJECTED`], [`ROWL_UNMAPPED`], [`ROWL_UNSUPPORTED`]
+/// or [`ROWL_INVALID`].
+///
+/// # Safety
+/// As for [`rowl_reasoner_from_turtle_with_base`].
+#[no_mangle]
+pub unsafe extern "C" fn rowl_reasoner_from_rdfxml(
+    data: *const u8,
+    len: usize,
+    base: *const u8,
+    base_len: usize,
+    status: *mut i32,
+) -> *mut RowlReasoner {
+    // SAFETY: forwarded from the caller.
+    let (code, reasoner) = match unsafe { (bytes(data, len), bytes(base, base_len)) } {
+        (Some(source), Some(base)) => loaded(Reasoner::from_rdfxml_with_base(source, base)),
+        _ => (ROWL_INVALID, ptr::null_mut()),
+    };
+    if !status.is_null() {
+        // SAFETY: the caller guarantees that a non-null `status` is writable.
+        unsafe { *status = code };
+    }
+    reasoner
+}
+
 /// Read the import closure of the document at position `root` of a catalog
 /// of `count` documents: document `i` has the `lens[i]` bytes at `datas[i]`,
 /// the syntax code `syntaxes[i]` and, unless `names` is null, the UTF-8 name
@@ -374,6 +444,7 @@ unsafe fn catalog(
             ROWL_SYNTAX_FUNCTIONAL => Syntax::Functional,
             ROWL_SYNTAX_NTRIPLES => Syntax::NTriples,
             ROWL_SYNTAX_TURTLE => Syntax::Turtle(Vec::new()),
+            ROWL_SYNTAX_RDFXML => Syntax::RdfXml(Vec::new()),
             _ => return None,
         };
         let name = if names.is_null() {

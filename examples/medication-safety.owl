@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE rdf:RDF [
+  <!ENTITY owl "http://www.w3.org/2002/07/owl#">
+]>
+<!-- The medication-safety example as RDF/XML: the OWL 2 RDF mapping of
+     examples/medication-safety.ofn without its two axiom annotations. Reading
+     it gives the graph of medication-safety.nt up to the renaming of blank
+     nodes. -->
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:owl="http://www.w3.org/2002/07/owl#"
+         xmlns:med="https://example.org/medication/"
+         xml:base="https://example.org/medication/">
+  <owl:Ontology rdf:about="records">
+    <rdfs:label>Medication safety</rdfs:label>
+    <rdfs:comment>An illustration of allergy checking, not clinical guidance.</rdfs:comment>
+  </owl:Ontology>
+
+  <owl:Class rdf:about="Penicillin">
+    <owl:disjointWith rdf:resource="Macrolide"/>
+  </owl:Class>
+  <owl:Class rdf:about="Amoxicillin">
+    <rdfs:subClassOf rdf:resource="Penicillin"/>
+  </owl:Class>
+  <owl:Class rdf:about="Macrolide"/>
+  <owl:Class rdf:about="Azithromycin">
+    <rdfs:subClassOf rdf:resource="Macrolide"/>
+  </owl:Class>
+  <owl:Class rdf:about="PenicillinAllergy"/>
+  <owl:Class rdf:about="AllergyAlert"/>
+
+  <owl:ObjectProperty rdf:about="contains">
+    <rdf:type rdf:resource="&owl;TransitiveProperty"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="hasActiveIngredient">
+    <rdfs:subPropertyOf rdf:resource="contains"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="receives"/>
+  <owl:ObjectProperty rdf:about="hasAllergy"/>
+
+  <!-- Whoever has a penicillin allergy and receives something that contains
+       a penicillin needs an allergy alert. -->
+  <owl:Class>
+    <owl:intersectionOf rdf:parseType="Collection">
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="hasAllergy"/>
+        <owl:someValuesFrom rdf:resource="PenicillinAllergy"/>
+      </owl:Restriction>
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="receives"/>
+        <owl:someValuesFrom>
+          <owl:Restriction>
+            <owl:onProperty rdf:resource="contains"/>
+            <owl:someValuesFrom rdf:resource="Penicillin"/>
+          </owl:Restriction>
+        </owl:someValuesFrom>
+      </owl:Restriction>
+    </owl:intersectionOf>
+    <rdfs:subClassOf rdf:resource="AllergyAlert"/>
+  </owl:Class>
+
+  <owl:NamedIndividual rdf:about="alice">
+    <rdf:type>
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="hasAllergy"/>
+        <owl:someValuesFrom rdf:resource="PenicillinAllergy"/>
+      </owl:Restriction>
+    </rdf:type>
+    <med:receives rdf:resource="comboPack"/>
+  </owl:NamedIndividual>
+  <owl:NamedIndividual rdf:about="bob">
+    <med:receives rdf:resource="comboPack"/>
+  </owl:NamedIndividual>
+  <owl:NamedIndividual rdf:about="comboPack">
+    <med:contains rdf:resource="capsule"/>
+  </owl:NamedIndividual>
+  <owl:NamedIndividual rdf:about="capsule">
+    <rdf:type>
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="hasActiveIngredient"/>
+        <owl:someValuesFrom rdf:resource="Amoxicillin"/>
+      </owl:Restriction>
+    </rdf:type>
+  </owl:NamedIndividual>
+  <owl:NamedIndividual rdf:about="carol">
+    <rdf:type>
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="hasAllergy"/>
+        <owl:someValuesFrom rdf:resource="PenicillinAllergy"/>
+      </owl:Restriction>
+    </rdf:type>
+    <med:receives rdf:resource="tablet"/>
+  </owl:NamedIndividual>
+  <owl:NamedIndividual rdf:about="tablet">
+    <rdf:type>
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="hasActiveIngredient"/>
+        <owl:someValuesFrom rdf:resource="Azithromycin"/>
+      </owl:Restriction>
+    </rdf:type>
+  </owl:NamedIndividual>
+</rdf:RDF>

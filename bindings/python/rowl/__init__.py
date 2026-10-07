@@ -107,6 +107,10 @@ _lib.rowl_reasoner_from_ntriples.argtypes = [_text, _size, ctypes.POINTER(ctypes
 _lib.rowl_reasoner_from_ntriples.restype = _handle
 _lib.rowl_reasoner_from_turtle.argtypes = [_text, _size, ctypes.POINTER(ctypes.c_int32)]
 _lib.rowl_reasoner_from_turtle.restype = _handle
+_lib.rowl_reasoner_from_turtle_with_base.argtypes = [_text, _size, _text, _size, ctypes.POINTER(ctypes.c_int32)]
+_lib.rowl_reasoner_from_turtle_with_base.restype = _handle
+_lib.rowl_reasoner_from_rdfxml.argtypes = [_text, _size, _text, _size, ctypes.POINTER(ctypes.c_int32)]
+_lib.rowl_reasoner_from_rdfxml.restype = _handle
 _lib.rowl_reasoner_from_documents.argtypes = [
     ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(_size), ctypes.POINTER(ctypes.c_int32),
     ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(_size), _size, _size,
@@ -130,12 +134,12 @@ _lib.rowl_string_free.restype = None
 
 _LOADED, _REJECTED, _UNSUPPORTED, _UNMAPPED = 0, 1, 2, 4
 _MISSING_IMPORT, _AMBIGUOUS_IMPORT, _CLOSURE = 5, 6, 7
-_SYNTAX_CODES = {"functional": 0, "ntriples": 1, "turtle": 2}
-_SUFFIXES = {".ofn": "functional", ".nt": "ntriples", ".ttl": "turtle"}
+_SYNTAX_CODES = {"functional": 0, "ntriples": 1, "turtle": 2, "rdfxml": 3}
+_SUFFIXES = {".ofn": "functional", ".nt": "ntriples", ".ttl": "turtle", ".owl": "rdfxml", ".rdf": "rdfxml"}
 
 
 def _syntax_of(path: Path) -> str:
-    return {".nt": "ntriples", ".ttl": "turtle"}.get(path.suffix, "functional")
+    return {".nt": "ntriples", ".ttl": "turtle", ".owl": "rdfxml", ".rdf": "rdfxml"}.get(path.suffix, "functional")
 
 
 def library_version() -> str:
@@ -160,12 +164,13 @@ def _utf8(text: str) -> bytes:
 
 
 class Reasoner:
-    """An OWL Functional Syntax, N-Triples or Turtle document read once.
+    """An OWL Functional Syntax, N-Triples, Turtle or RDF/XML document read once.
 
-    ``syntax`` is ``"functional"`` (the default), ``"ntriples"`` or
-    ``"turtle"``; an N-Triples or Turtle graph is read as the OWL ontology it
-    encodes by the verified reverse RDF mapping. A relative IRI in Turtle needs
-    an ``@base`` or ``BASE`` directive before it.
+    ``syntax`` is ``"functional"`` (the default), ``"ntriples"``, ``"turtle"``
+    or ``"rdfxml"``; an N-Triples, Turtle or RDF/XML graph is read as the OWL
+    ontology it encodes by the verified reverse RDF mapping. Relative IRIs in
+    Turtle and RDF/XML resolve against ``base`` (a string or bytes) until the
+    document declares a base of its own (``@base``, ``BASE`` or ``xml:base``).
 
     >>> r = Reasoner.from_file("examples/medication-safety.ofn")  # doctest: +SKIP
     >>> r.subsumed("https://example.org/medication/Amoxicillin",
@@ -173,8 +178,10 @@ class Reasoner:
     True
     """
 
-    def __init__(self, source: Union[str, bytes], syntax: str = "functional"):
+    def __init__(self, source: Union[str, bytes], syntax: str = "functional",
+                 base: Optional[Union[str, bytes]] = None):
         data = source.encode("utf-8") if isinstance(source, str) else bytes(source)
+        base_bytes = b"" if base is None else (base.encode("utf-8") if isinstance(base, str) else bytes(base))
         status = ctypes.c_int32(-1)
         if syntax == "functional":
             handle = _lib.rowl_reasoner_from_functional(data, len(data), ctypes.byref(status))
@@ -183,10 +190,15 @@ class Reasoner:
             handle = _lib.rowl_reasoner_from_ntriples(data, len(data), ctypes.byref(status))
             rejected = "not an N-Triples document the verified reader accepts"
         elif syntax == "turtle":
-            handle = _lib.rowl_reasoner_from_turtle(data, len(data), ctypes.byref(status))
+            handle = _lib.rowl_reasoner_from_turtle_with_base(
+                data, len(data), base_bytes, len(base_bytes), ctypes.byref(status))
             rejected = "not a Turtle document the verified reader accepts"
+        elif syntax == "rdfxml":
+            handle = _lib.rowl_reasoner_from_rdfxml(
+                data, len(data), base_bytes, len(base_bytes), ctypes.byref(status))
+            rejected = "not an RDF/XML document the verified readers accept"
         else:
-            raise ValueError("syntax must be 'functional', 'ntriples' or 'turtle'")
+            raise ValueError("syntax must be 'functional', 'ntriples', 'turtle' or 'rdfxml'")
         if not handle:
             if status.value == _REJECTED:
                 raise DocumentRejected(rejected)
@@ -206,17 +218,18 @@ class Reasoner:
         imports: Optional[Iterable[Union[str, os.PathLike]]] = None,
     ) -> "Reasoner":
         """Read a document from a file: N-Triples for a ``.nt`` file, Turtle
-        for a ``.ttl`` file and Functional Syntax otherwise, unless ``syntax``
-        says which.
+        for a ``.ttl`` file, RDF/XML for a ``.owl`` or ``.rdf`` file and
+        Functional Syntax otherwise, unless ``syntax`` says which. Relative
+        IRIs in Turtle and RDF/XML resolve against the file's ``file:`` URI.
 
         With ``imports``, read the import closure of the document instead, from
         a catalog of it and the given files; a directory contributes its
-        ``.ofn``, ``.nt`` and ``.ttl`` files. An import IRI must be the ontology
+        ``.ofn``, ``.nt``, ``.ttl``, ``.owl`` and ``.rdf`` files. An import IRI must be the ontology
         IRI or version IRI of exactly one document of the catalog; nothing is
         fetched."""
         path = Path(path)
         if imports is None:
-            return cls(path.read_bytes(), syntax or _syntax_of(path))
+            return cls(path.read_bytes(), syntax or _syntax_of(path), base=path.resolve().as_uri())
         documents = [(str(path), path.read_bytes(), syntax or _syntax_of(path))]
         root = path.resolve()
         for entry in imports:
@@ -233,8 +246,8 @@ class Reasoner:
                        root: int = 0) -> "Reasoner":
         """Read the import closure of ``documents[root]`` from a catalog of
         ``(name, content, syntax)`` documents, ``syntax`` being
-        ``"functional"``, ``"ntriples"`` or ``"turtle"`` (Turtle without a base
-        IRI). The verified assembly follows the import IRIs through the catalog
+        ``"functional"``, ``"ntriples"``, ``"turtle"`` or ``"rdfxml"`` (Turtle
+        and RDF/XML without a base IRI). The verified assembly follows the import IRIs through the catalog
         and keeps each document's anonymous individuals apart; nothing is
         fetched. Errors name the document and, for an import, the IRI."""
         count = len(documents)
@@ -243,7 +256,7 @@ class Reasoner:
         codes = []
         for _, _, syntax in documents:
             if syntax not in _SYNTAX_CODES:
-                raise ValueError("syntax must be 'functional', 'ntriples' or 'turtle'")
+                raise ValueError("syntax must be 'functional', 'ntriples', 'turtle' or 'rdfxml'")
             codes.append(_SYNTAX_CODES[syntax])
         status = ctypes.c_int32(-1)
         message = ctypes.c_void_p()

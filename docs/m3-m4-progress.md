@@ -6192,3 +6192,56 @@ keys declined).
 This block adds 9 public theorems, no definitions and 1 Rust regression.
 Totals are 5398 audited theorems, 1793 definitions, 641 Rust regressions and
 5591 ledger obligations.
+
+## M3: reasoning over RDF/XML documents
+
+The verified XML and RDF/XML readers now feed the reasoner. The catalog reader
+`import_catalog::read_source` gains the format `RdfXml(base)`: `read_rdfxml`
+reads a document with `rdfxml::read_with_limits` under `rdfxml_limits` (an
+entity expansion budget and term limit of 2^24 and an item limit of
+`usize::MAX / 2`), after checking that the byte length plus the budget fits in
+`usize` (`TooLong` otherwise), and maps the graph with the verified reverse RDF
+mapping. `ReadAs` and `RejectedAs` say what it returns, independently of the
+Rust code: an ontology that the mapping reads from a graph whose statements are
+those the RDF/XML grammar (`RdfXmlGrammar.Graph`) determines for the element
+tree the XML grammar (`XmlGrammar.Read`) reads from the bytes, or the XML
+error exactly when the XML grammar reads no tree, the RDF/XML error exactly when
+the tree has no graph within the limits, `Graph` when the mapping reads none,
+and `TooLong` exactly for documents too long for the budget.
+`read_source_correct` keeps its statement and now covers the RDF/XML arm,
+composing `RdfXml.read_total` and `RdfXml.read_correct`.
+
+`Reasoner::from_rdfxml` and `from_rdfxml_with_base` read a document through the
+same `read_source`, and catalogs take `Syntax::RdfXml(base)`, so import closures
+can mix RDF/XML with the other syntaxes. The CLI reads `.owl` and `.rdf` files as
+RDF/XML, also in `--imports` directories, and resolves the relative IRIs of
+Turtle and RDF/XML files against the file's `file:` IRI (percent-encoded), as a
+document without `@base` or `xml:base` expects. The C interface adds
+`rowl_reasoner_from_rdfxml` and `rowl_reasoner_from_turtle_with_base` (both with
+a base IRI) and the catalog syntax code `ROWL_SYNTAX_RDFXML`; the Python package
+reads `.owl` and `.rdf` files, and `Reasoner(..., syntax="rdfxml", base=...)`.
+Load errors name the XML or RDF/XML fault in words.
+
+Regressions: `examples/maintenance.owl` and `examples/medication-safety.owl`
+read to the graphs of their N-Triples versions up to blank-node renaming, and
+answer every query as those do; a relative IRI resolves against a supplied base
+and fails without one; malformed XML, `parseType="Literal"` and undeclared
+graphs give their distinct errors; an import closure of a Functional Syntax
+document and an RDF/XML vocabulary answers instance questions across them; the
+CLI and Python read `.owl` files; every example, `.ttl` and `.owl` included, is
+OWL 2 DL. The W3C RDF/XML suite (the ignored test
+`official_w3c_rdfxml_cases`, run with `ROWL_RDFXML_SUITE_DIR`) passes every
+evaluation and negative case except the three that use XML literals.
+
+The XML reader decodes and scans by recursion once per character, which the
+compiler does not turn into loops, so it needs about 160 bytes of stack per
+byte of input. The reasoner's kernel stack grows from 1 GiB to 4 GiB on 64-bit
+targets (committed only as used), which reads RDF/XML documents of about
+25 MB. Classifying the generated 20 000-class EL ontology takes 2.1 s from its
+7.9 MB RDF/XML form (1.3 GB peak, mostly stack), against 0.65 s from N-Triples
+and 0.54 s from Turtle, with identical answers. Rewriting the per-character
+recursions of the readers as loops, so that the stack no longer grows with the
+input, is the next step for large documents.
+
+This block adds no public theorems or definitions. Totals are 5398 audited
+theorems, 1793 definitions, 649 Rust regressions and 5591 ledger obligations.

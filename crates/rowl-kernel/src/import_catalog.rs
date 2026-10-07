@@ -3,8 +3,9 @@
 //!
 //! The caller supplies every document, as bytes with their syntax; nothing is
 //! fetched. Each document is read whole by its verified reader: Functional
-//! Syntax by `source_reasoning::source_ontology`, N-Triples by `ntriples::read`
-//! and Turtle by `turtle::read`, each followed by the reverse RDF mapping
+//! Syntax by `source_reasoning::source_ontology`, N-Triples by `ntriples::read`,
+//! Turtle by `turtle::read` and RDF/XML by `rdfxml::read_with_limits` with
+//! `rdfxml_limits`, each followed by the reverse RDF mapping
 //! `rdf_mapping::map_graph`. Its node IDs or blank nodes become anonymous
 //! individuals of a scope of its own, the eight bytes of its position in the
 //! catalog, so that the anonymous individuals of different documents stay
@@ -24,8 +25,10 @@ use crate::model::{Iri, OntologyIdentity, RawOntology};
 use crate::ntriples::{read, ReadError, ReadResult};
 use crate::rdf::RawGraph;
 use crate::rdf_mapping::map_graph;
+use crate::rdfxml;
 use crate::source_reasoning::source_ontology;
 use crate::turtle;
+use crate::xml::XmlError;
 
 /// The syntax of a document.
 pub enum Format {
@@ -36,6 +39,9 @@ pub enum Format {
     /// A Turtle document of the RDF graph of an ontology, whose relative IRIs
     /// resolve against this base IRI until the document declares its own.
     Turtle(Vec<u8>),
+    /// An RDF/XML document of the RDF graph of an ontology, whose relative
+    /// IRIs resolve against this base IRI until `xml:base` gives another.
+    RdfXml(Vec<u8>),
 }
 
 /// A document of the catalog: its syntax and its bytes.
@@ -55,6 +61,14 @@ pub enum SourceError {
     Triples(ReadError),
     /// The verified Turtle reader rejected the document.
     Turtle(turtle::ReadError),
+    /// The verified XML reader rejected an RDF/XML document.
+    Xml(XmlError),
+    /// The element tree of an RDF/XML document has no RDF/XML graph within
+    /// `rdfxml_limits`.
+    RdfXml(rdfxml::ErrorKind),
+    /// An RDF/XML document is too long for the entity expansion budget of
+    /// `rdfxml_limits` to fit in `usize`.
+    TooLong,
     /// The graph is not the RDF mapping of an ontology that the verified
     /// reverse mapping reads.
     Graph,
@@ -132,6 +146,44 @@ fn read_turtle(
     }
 }
 
+/// The limits of RDF/XML documents: an entity expansion budget of 2^24, terms,
+/// base IRIs and names of at most 2^24 bytes or code points, and at most
+/// `usize::MAX / 2` triples, generated blank nodes and rdf:ID values.
+pub fn rdfxml_limits() -> rdfxml::Limits {
+    rdfxml::Limits {
+        expansion: 16777216,
+        term_bytes: 16777216,
+        items: usize::MAX / 2,
+    }
+}
+
+/// The ontology of a read RDF/XML document, or why there is none.
+fn rdfxml_ontology(result: rdfxml::ReadResult) -> Result<RawOntology, SourceError> {
+    match result {
+        rdfxml::ReadResult::Graph(graph) => graph_ontology(&graph),
+        rdfxml::ReadResult::XmlError(error) => Err(SourceError::Xml(error)),
+        rdfxml::ReadResult::Error(kind) => Err(SourceError::RdfXml(kind)),
+    }
+}
+
+/// The ontology of an RDF/XML document read against `base`.
+fn read_rdfxml(
+    bytes: &Vec<u8>,
+    scope: &Vec<u8>,
+    base: &Vec<u8>,
+) -> Result<RawOntology, SourceError> {
+    if bytes.len() <= usize::MAX - 16777216 {
+        rdfxml_ontology(rdfxml::read_with_limits(
+            bytes,
+            base,
+            scope,
+            &rdfxml_limits(),
+        ))
+    } else {
+        Err(SourceError::TooLong)
+    }
+}
+
 /// Read one document with its verified reader; its node IDs or blank nodes
 /// become anonymous individuals of `scope`.
 pub fn read_source(
@@ -143,6 +195,7 @@ pub fn read_source(
         Format::Functional => read_functional(&source.bytes, limits, scope),
         Format::NTriples => read_ntriples(&source.bytes, scope),
         Format::Turtle(base) => read_turtle(&source.bytes, scope, base),
+        Format::RdfXml(base) => read_rdfxml(&source.bytes, scope, base),
     }
 }
 

@@ -122,8 +122,15 @@ progress. Full OWL parsing and executable reasoning are still future work.
   term and item limits, and an error exactly when it derives none; from bytes,
   `read_with_limits` returns a graph exactly when the XML grammar reads a tree
   that has one, with those triples. `rdf:parseType="Literal"` is declined with a
-  typed error, since XML literals need XML canonicalization. The reasoner, the
-  CLI and the bindings do not read RDF/XML yet.
+  typed error, since XML literals need XML canonicalization. Catalogs read
+  RDF/XML documents through `import_catalog::read_source` with `rdfxml_limits`
+  (an entity expansion budget and term limit of 2^24, at most `usize::MAX / 2`
+  triples), proved by `read_source_correct` against the XML and RDF/XML
+  grammars, and `Reasoner::from_rdfxml`, the CLI (`.owl` and `.rdf` files,
+  relative IRIs resolved against the file's `file:` IRI), the C interface and
+  Python read RDF/XML through it. The W3C RDF/XML evaluation and negative cases
+  pass except the three with XML literals. The XML reader recurses once per
+  character, so the kernel stack (4 GiB) bounds documents to about 25 MB.
 - M3 compiled regular grammars. `compiled::compile` turns an expression into a
   table of nodes whose parts come before them, and the matcher keeps a state of
   continuation stacks of node indices, so it never copies the grammar. Against
@@ -1273,8 +1280,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 641 Rust regression tests and 18 Python binding tests, plus separately fetched
-  W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
+- 649 Rust regression tests and 21 Python binding tests, plus separately fetched
+  W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
+  cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
   lazy unfolding with absorption (unfoldings indexed by their triggering

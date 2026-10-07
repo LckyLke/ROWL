@@ -26,6 +26,8 @@ fn every_example_document_is_owl_2_dl() {
         let loaded = match path.extension().and_then(|extension| extension.to_str()) {
             Some("ofn") => Reasoner::from_functional(&bytes, &default_limits()),
             Some("nt") => Reasoner::from_ntriples(&bytes),
+            Some("ttl") => Reasoner::from_turtle(&bytes),
+            Some("owl") => Reasoner::from_rdfxml(&bytes),
             _ => continue,
         };
         let reasoner = loaded

@@ -1,6 +1,9 @@
 use rowl::experimental::ntriples;
 use rowl::experimental::{decide, Atom, Decision, Formula};
-use rowl::reasoner::{default_limits, named, Document, LoadError, Reasoner, Syntax};
+use rowl::reasoner::{
+    default_limits, named, rdfxml_error_words, xml_error_words, Document, LoadError, Reasoner,
+    Syntax,
+};
 
 fn answer(value: Option<bool>) -> &'static str {
     match value {
@@ -10,12 +13,31 @@ fn answer(value: Option<bool>) -> &'static str {
     }
 }
 
-/// The syntax of a file: N-Triples for a `.nt` file, Turtle for a `.ttl` file
-/// and Functional Syntax otherwise.
+/// The `file:` IRI of a file, the base of its relative IRIs: its absolute
+/// path with every byte outside the RFC 3986 path characters percent-encoded.
+fn file_iri(path: &std::path::Path) -> Vec<u8> {
+    let absolute = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut iri = b"file://".to_vec();
+    for byte in absolute.to_string_lossy().bytes() {
+        let plain = byte.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=:@/".contains(&byte);
+        if plain {
+            iri.push(byte);
+        } else {
+            iri.extend_from_slice(format!("%{byte:02X}").as_bytes());
+        }
+    }
+    iri
+}
+
+/// The syntax of a file: N-Triples for a `.nt` file, Turtle for a `.ttl` file,
+/// RDF/XML for a `.owl` or `.rdf` file and Functional Syntax otherwise. Turtle
+/// and RDF/XML documents resolve relative IRIs against the file's `file:` IRI
+/// until they declare a base of their own.
 fn syntax_of(path: &std::path::Path) -> Syntax {
     match path.extension().and_then(|extension| extension.to_str()) {
         Some("nt") => Syntax::NTriples,
-        Some("ttl") => Syntax::Turtle(Vec::new()),
+        Some("ttl") => Syntax::Turtle(file_iri(path)),
+        Some("owl" | "rdf") => Syntax::RdfXml(file_iri(path)),
         _ => Syntax::Functional,
     }
 }
@@ -28,6 +50,9 @@ fn load_message(path: &str, error: LoadError) -> String {
         }
         LoadError::Triples(error) => format!("{path}: N-Triples parse error at byte {}", error.offset),
         LoadError::Turtle(error) => format!("{path}: Turtle parse error at byte {}", error.offset),
+        LoadError::Xml(error) => format!("{path}: {}", xml_error_words(&error)),
+        LoadError::RdfXml(kind) => format!("{path}: not an RDF/XML graph: {}", rdfxml_error_words(kind)),
+        LoadError::TooLong => format!("{path}: the document is too long for the RDF/XML reader's limits"),
         LoadError::Graph => format!(
             "{path}: the graph is not the RDF mapping of an OWL ontology the verified mapping reads"
         ),
@@ -49,7 +74,7 @@ fn load_message(path: &str, error: LoadError) -> String {
     }
 }
 
-/// The `.ofn`, `.nt` and `.ttl` files of a directory, sorted by name.
+/// The `.ofn`, `.nt`, `.ttl`, `.owl` and `.rdf` files of a directory, sorted by name.
 fn catalog_files(directory: &str) -> Result<Vec<std::path::PathBuf>, String> {
     let entries = std::fs::read_dir(directory).map_err(|e| format!("{directory}: {e}"))?;
     let mut files = Vec::new();
@@ -57,7 +82,7 @@ fn catalog_files(directory: &str) -> Result<Vec<std::path::PathBuf>, String> {
         let path = entry.map_err(|e| format!("{directory}: {e}"))?.path();
         let known = matches!(
             path.extension().and_then(|extension| extension.to_str()),
-            Some("ofn" | "nt" | "ttl")
+            Some("ofn" | "nt" | "ttl" | "owl" | "rdf")
         );
         if known && path.is_file() {
             files.push(path);
@@ -68,15 +93,16 @@ fn catalog_files(directory: &str) -> Result<Vec<std::path::PathBuf>, String> {
 }
 
 /// Read a document. With `--imports` directories, read the import closure of
-/// the document from a catalog of it and every `.ofn`, `.nt` and `.ttl` file of
-/// the directories; nothing is fetched.
+/// the document from a catalog of it and every `.ofn`, `.nt`, `.ttl`, `.owl` and
+/// `.rdf` file of the directories; nothing is fetched.
 fn load(path: &str, imports: &[String]) -> Result<Reasoner, String> {
     let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
     let root = std::path::Path::new(path);
     if imports.is_empty() {
         let loaded = match syntax_of(root) {
             Syntax::NTriples => Reasoner::from_ntriples(&source),
-            Syntax::Turtle(_) => Reasoner::from_turtle(&source),
+            Syntax::Turtle(base) => Reasoner::from_turtle_with_base(&source, &base),
+            Syntax::RdfXml(base) => Reasoner::from_rdfxml_with_base(&source, &base),
             Syntax::Functional => Reasoner::from_functional(&source, &default_limits()),
         };
         let reasoner = loaded.map_err(|error| load_message(path, error))?;
@@ -261,6 +287,7 @@ fn main() -> std::process::ExitCode {
             println!("N-Triples reading and experimental export are available; writer laws and canonical import scopes remain pending.");
             println!("The OWL ontology of an N-Triples graph is read by the reverse OWL RDF mapping, proved to read back exactly the graph of the ontology it returns for axioms without annotations; check, classify and instances accept .nt files.");
             println!("RDF 1.1 Turtle documents are read with proved byte-to-graph totality and complete acceptance, relative IRIs resolved against the base in force; all 313 W3C Turtle cases pass. check, classify and instances accept .ttl files through the same RDF mapping.");
+            println!("RDF/XML documents (.owl, .rdf) are read by the verified XML and RDF/XML readers, proved against the XML 1.0 and RDF 1.1 XML Syntax grammars, with relative IRIs resolved against the file's IRI; rdf:parseType=\"Literal\" is declined.");
             println!("Complete raw role-fact collection is proved: oriented nodes, hierarchy edges, composite seeds, nested simple-role requirements and ordered chains. Non-simple classification and the whole-closure simple-role restriction checker are proved total and complete; full property-hierarchy regularity is also proved, returning a concrete permitted order or an unavoidable conflict.");
             println!("Anonymous positional checking includes recursive annotations on prohibited axiom types. The raw-closure forest checker is proved exact, with scoped byte identities, self-loop and undirected-cycle diagnostics. Distinct annotated-assertion multiplicity and the component-wide named-boundary rule are proved exact, using recursive unordered annotation equivalence. The composed check_anonymous library operation decides all anonymous-individual restrictions and preserves diagnostic priority; byte-derived scopes and other DL validity remain pending.");
             println!("All six raw data-range constructors have total exact structural comparisons with recursive unordered associations. Datatype definitions have proved availability/uniqueness and exact dependency-order checking. The full custom-datatype positional traversal is proved, including literal and restriction-base positions, nested classes/ranges, all axiom forms and recursive annotations. check_structural_datatypes composes definition rules and positions with exact acceptance, original failures and checked priority. Supplied ontology annotations are included; imported ontology annotations require the same complete definition closure. Concrete lexical/facet/value validation remains pending.");
@@ -340,7 +367,7 @@ fn main() -> std::process::ExitCode {
         }
         _ => {
             eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|validate FILE|check-nt FILE|export-nt FILE> [--imports DIR]...");
-            eprintln!("check, classify, instances and validate read N-Triples for a .nt FILE, Turtle for a .ttl FILE and Functional Syntax otherwise.");
+            eprintln!("check, classify, instances and validate read N-Triples for a .nt FILE, Turtle for a .ttl FILE, RDF/XML for a .owl or .rdf FILE and Functional Syntax otherwise.");
             eprintln!("With --imports DIR they read the import closure of FILE from a catalog of FILE and every .ofn, .nt and .ttl file of each DIR; an import IRI must be the ontology or version IRI of exactly one of them. Nothing is fetched.");
             eprintln!("validate prints whether the document is OWL 2 DL or its first violation, and exits with status 1 when it is not.");
             eprintln!("export-nt writes N-Triples to standard output.");

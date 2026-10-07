@@ -2,6 +2,7 @@ import Rowl.Imports
 import Rowl.SourceReasoning
 import Rowl.NTriples
 import Rowl.Turtle
+import Rowl.RdfXml
 import Rowl.DlValidity
 
 /-!
@@ -164,7 +165,12 @@ theorem document_scope_correct (index : Usize) :
     the read document. An N-Triples or Turtle document is read to the ontology
     that the reverse RDF mapping reads from the graph whose triples the bytes
     denote, in order, by the N-Triples or the Turtle grammar (Turtle against the
-    base IRI of the format). -/
+    base IRI of the format). An RDF/XML document is read to the ontology that the
+    reverse RDF mapping reads from a graph whose statements are those the RDF/XML
+    grammar of RDF 1.1 XML Syntax §7 determines for the element tree the XML
+    grammar reads from the bytes, against the base IRI of the format, within the
+    limits of `rdfxml_limits`: an entity expansion budget and term limit of 2^24
+    and an item limit of `usize::MAX / 2`. -/
 def ReadAs (limits : functional_document.DocumentLimits) (scope : alloc.vec.Vec U8) (source : Source)
     (o : RawOntology) : Prop :=
   match source.format with
@@ -176,6 +182,11 @@ def ReadAs (limits : functional_document.DocumentLimits) (scope : alloc.vec.Vec 
   | .Turtle base => ∃ graph mapped,
       Rowl.Turtle.Document source.bytes.val scope.val base.val Usize.max Usize.max
         (graph.triples.val.map Rowl.Turtle.spo) ∧
+      rdf_mapping.map_graph graph = .ok (some mapped) ∧ mapped.ontology = o
+  | .RdfXml base => ∃ root graph mapped,
+      Rowl.XmlGrammar.Read source.bytes.val 16777216 root ∧
+      Rowl.RdfXmlGrammar.Graph base.val scope.val 16777216 (Usize.max / 2) root
+        (Rowl.RdfXml.graphStatements graph) ∧
       rdf_mapping.map_graph graph = .ok (some mapped) ∧ mapped.ontology = o
 
 /-- Why reading failed: the first error of the reader, or a graph that the
@@ -191,13 +202,27 @@ def RejectedAs (limits : functional_document.DocumentLimits) (scope : alloc.vec.
   | .Turtle error => ∃ base, source.format = .Turtle base ∧
       Rowl.Turtle.DocumentError source.bytes.val scope.val base.val Usize.max Usize.max
         (Rowl.TurtleTokens.faultOf error)
+  | .Xml _ => ∃ base, source.format = .RdfXml base ∧
+      source.bytes.val.length + 16777216 ≤ Usize.max ∧
+      ∀ root, ¬ Rowl.XmlGrammar.Read source.bytes.val 16777216 root
+  | .RdfXml _ => ∃ base, source.format = .RdfXml base ∧
+      source.bytes.val.length + 16777216 ≤ Usize.max ∧
+      ∃ root, Rowl.XmlGrammar.Read source.bytes.val 16777216 root ∧
+        ∀ ts, ¬ Rowl.RdfXmlGrammar.Graph base.val scope.val 16777216 (Usize.max / 2) root ts
+  | .TooLong => ∃ base, source.format = .RdfXml base ∧
+      Usize.max < source.bytes.val.length + 16777216
   | .Graph =>
       (source.format = .NTriples ∧ ∃ graph,
         Rowl.NTriples.Document source.bytes.val scope.val source.bytes.val.length source.bytes.val.length
           graph.triples.val ∧ rdf_mapping.map_graph graph = .ok none) ∨
       (∃ base, source.format = .Turtle base ∧ ∃ graph,
         Rowl.Turtle.Document source.bytes.val scope.val base.val Usize.max Usize.max
-          (graph.triples.val.map Rowl.Turtle.spo) ∧ rdf_mapping.map_graph graph = .ok none)
+          (graph.triples.val.map Rowl.Turtle.spo) ∧ rdf_mapping.map_graph graph = .ok none) ∨
+      (∃ base, source.format = .RdfXml base ∧ ∃ root graph,
+        Rowl.XmlGrammar.Read source.bytes.val 16777216 root ∧
+        Rowl.RdfXmlGrammar.Graph base.val scope.val 16777216 (Usize.max / 2) root
+          (Rowl.RdfXml.graphStatements graph) ∧
+        rdf_mapping.map_graph graph = .ok none)
 
 /-- What `read_source` returns: an ontology read from the bytes, or why not. -/
 def ReadCorrect (limits : functional_document.DocumentLimits) (scope : alloc.vec.Vec U8) (source : Source) :
@@ -277,12 +302,67 @@ theorem read_source_correct (source : Source) (limits : functional_document.Docu
         exact ⟨graph, mapped, correct, mapRun, rfl⟩
       · subst same
         simp only [ReadCorrect, RejectedAs]
-        exact .inr ⟨base, rfl, graph, correct, mapRun⟩
+        exact .inr (.inl ⟨base, rfl, graph, correct, mapRun⟩)
     | Error e =>
       simp only [bind_ok] at ran
       cases Result.ok_injective ran
       simp only [ReadCorrect, RejectedAs]
       exact ⟨base, rfl, correct⟩
+  | RdfXml base =>
+    obtain ⟨m, mRun, mValue⟩ := WP.spec_imp_exists
+      (Usize.sub_spec (x := core.num.Usize.MAX) (y := 16777216#usize)
+        (by simp [core.num.Usize.MAX]; scalar_tac))
+    have mIs : m.val = Usize.max - 16777216 := by
+      simp [core.num.Usize.MAX] at mValue; exact mValue.1
+    simp only [import_catalog.read_source, import_catalog.read_rdfxml, mRun, bind_ok] at ran
+    by_cases room : bytes.val.length + 16777216 ≤ Usize.max
+    · have guard : alloc.vec.Vec.len bytes ≤ m := by
+        simp [UScalar.le_equiv, alloc.vec.Vec.len_val, mIs]; omega
+      obtain ⟨half, halfRun, halfValue⟩ := WP.spec_imp_exists
+        (Usize.div_spec core.num.Usize.MAX (y := 2#usize) (by simp))
+      have halfIs : half.val = Usize.max / 2 := by
+        simp [core.num.Usize.MAX] at halfValue; exact halfValue
+      have limitsRun : import_catalog.rdfxml_limits =
+          .ok { expansion := 16777216#usize, term_bytes := 16777216#usize, items := half } := by
+        simp [import_catalog.rdfxml_limits, halfRun]
+      simp only [guard, if_true, limitsRun, bind_ok] at ran
+      have small : (16777216#usize : Usize).val < Usize.max / 8 := by simp; scalar_tac
+      have pos : 0 < (16777216#usize : Usize).val := by simp
+      have room' : bytes.val.length + (16777216#usize : Usize).val ≤ Usize.max := by simpa using room
+      obtain ⟨rr, rrRun⟩ := Rowl.RdfXml.read_total bytes base scope
+        { expansion := 16777216#usize, term_bytes := 16777216#usize, items := half } small pos
+      obtain ⟨sound, -, xmlIff, errorIff⟩ := Rowl.RdfXml.read_correct bytes base scope
+        { expansion := 16777216#usize, term_bytes := 16777216#usize, items := half } room' small pos
+      simp only at sound xmlIff errorIff
+      rw [halfIs] at sound errorIff
+      rw [rrRun, bind_ok] at ran
+      cases rr with
+      | Graph graph =>
+        simp only [import_catalog.rdfxml_ontology] at ran
+        obtain ⟨root, read, statements⟩ := sound graph rrRun
+        rcases graph_ontology_correct graph result ran with ⟨mapped, mapRun, same⟩ | ⟨mapRun, same⟩
+        · subst same
+          exact ⟨root, graph, mapped, by simpa using read, by simpa using statements, mapRun, rfl⟩
+        · subst same
+          simp only [ReadCorrect, RejectedAs]
+          exact .inr (.inr ⟨base, rfl, root, graph, by simpa using read, by simpa using statements, mapRun⟩)
+      | XmlError e =>
+        simp only [import_catalog.rdfxml_ontology] at ran
+        cases Result.ok_injective ran
+        simp only [ReadCorrect, RejectedAs]
+        exact ⟨base, rfl, room, by simpa using xmlIff.mp ⟨e, rrRun⟩⟩
+      | Error k =>
+        simp only [import_catalog.rdfxml_ontology] at ran
+        cases Result.ok_injective ran
+        simp only [ReadCorrect, RejectedAs]
+        exact ⟨base, rfl, room, by simpa using errorIff.mp ⟨k, rrRun⟩⟩
+    · have big : 16777216 ≤ Usize.max := by scalar_tac
+      have guard : ¬ alloc.vec.Vec.len bytes ≤ m := by
+        simp [UScalar.le_equiv, alloc.vec.Vec.len_val, mIs]; omega
+      simp only [guard, if_false] at ran
+      cases Result.ok_injective ran
+      simp only [ReadCorrect, RejectedAs]
+      exact ⟨base, rfl, by omega⟩
 
 /-- Reading a Functional Syntax document always returns. -/
 theorem read_source_functional_total (source : Source) (limits : functional_document.DocumentLimits)

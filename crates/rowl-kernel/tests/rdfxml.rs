@@ -1,7 +1,9 @@
 //! Regression tests for the RDF/XML reader: the examples of RDF 1.1 XML
 //! Syntax section 2, its productions and the documents it does not accept.
+use rowl_kernel::import_catalog::rdfxml_limits;
 use rowl_kernel::rdf::{BlankNode, LiteralKind, Object, RawGraph, RdfIri, Subject};
 use rowl_kernel::rdfxml::{read_with_limits, ErrorKind, Limits, ReadResult};
+use rowl_kernel::{ntriples, turtle};
 
 const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 const XSD: &str = "http://www.w3.org/2001/XMLSchema#";
@@ -492,4 +494,260 @@ fn limits_are_errors() {
         small(20, 1),
         ReadResult::Error(ErrorKind::ResourceLimit)
     ));
+}
+
+/// A term of a test graph, independent of the reader's types.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum Term {
+    Iri(Vec<u8>),
+    Blank(usize),
+    Literal(Vec<u8>, bool, Vec<u8>),
+}
+
+type Set = std::collections::BTreeSet<(Term, Term, Term)>;
+
+/// How often each blank node occurs as a subject and as an object.
+type Degrees = [(usize, usize)];
+
+/// The triples of a raw graph as a set, with blank nodes numbered by identity
+/// and language tags in lower case.
+fn graph_set(raw: &RawGraph) -> (Set, usize) {
+    let mut blanks: std::collections::BTreeMap<(Vec<u8>, Vec<u8>), usize> = Default::default();
+    let mut node = |b: &BlankNode| {
+        let next = blanks.len();
+        Term::Blank(
+            *blanks
+                .entry((b.scope.clone(), b.label.clone()))
+                .or_insert(next),
+        )
+    };
+    let mut set = Set::new();
+    for triple in &raw.triples {
+        let subject = match &triple.subject {
+            Subject::Iri(value) => Term::Iri(value.spelling.clone()),
+            Subject::Blank(b) => node(b),
+        };
+        let object = match &triple.object {
+            Object::Iri(value) => Term::Iri(value.spelling.clone()),
+            Object::Blank(b) => node(b),
+            Object::Literal(literal) => match &literal.kind {
+                LiteralKind::Datatype(datatype) => {
+                    Term::Literal(literal.lexical.clone(), false, datatype.spelling.clone())
+                }
+                LiteralKind::Language(tag) => {
+                    Term::Literal(literal.lexical.clone(), true, tag.to_ascii_lowercase())
+                }
+            },
+        };
+        set.insert((
+            subject,
+            Term::Iri(triple.predicate.spelling.clone()),
+            object,
+        ));
+    }
+    (set, blanks.len())
+}
+
+/// Whether two graphs are equal up to a renaming of blank nodes: a bijection
+/// of their blank nodes maps one triple set onto the other. Backtracking over
+/// candidates that occur equally often as subjects and as objects, which
+/// suffices for the small graphs of the tests.
+fn isomorphic(a: &RawGraph, b: &RawGraph) -> bool {
+    let (left, left_blanks) = graph_set(a);
+    let (right, right_blanks) = graph_set(b);
+    if left.len() != right.len() || left_blanks != right_blanks {
+        return false;
+    }
+    let degrees = |graph: &Set, count: usize| {
+        let mut degrees = vec![(0usize, 0usize); count];
+        for (s, _, o) in graph {
+            if let Term::Blank(n) = s {
+                degrees[*n].0 += 1;
+            }
+            if let Term::Blank(n) = o {
+                degrees[*n].1 += 1;
+            }
+        }
+        degrees
+    };
+    let left_degrees = degrees(&left, left_blanks);
+    let right_degrees = degrees(&right, right_blanks);
+    fn image(term: &Term, map: &[Option<usize>]) -> Option<Term> {
+        match term {
+            Term::Blank(n) => map[*n].map(Term::Blank),
+            other => Some(other.clone()),
+        }
+    }
+    fn consistent(left: &Set, right: &Set, map: &[Option<usize>]) -> bool {
+        left.iter()
+            .all(|(s, p, o)| match (image(s, map), image(o, map)) {
+                (Some(s), Some(o)) => right.contains(&(s, p.clone(), o)),
+                _ => true,
+            })
+    }
+    fn search(
+        index: usize,
+        map: &mut Vec<Option<usize>>,
+        used: &mut Vec<bool>,
+        sets: (&Set, &Set),
+        degrees: (&Degrees, &Degrees),
+    ) -> bool {
+        if index == map.len() {
+            return consistent(sets.0, sets.1, map);
+        }
+        for candidate in 0..used.len() {
+            if !used[candidate] && degrees.0[index] == degrees.1[candidate] {
+                map[index] = Some(candidate);
+                used[candidate] = true;
+                if consistent(sets.0, sets.1, map) && search(index + 1, map, used, sets, degrees) {
+                    return true;
+                }
+                used[candidate] = false;
+                map[index] = None;
+            }
+        }
+        false
+    }
+    let mut map = vec![None; left_blanks];
+    let mut used = vec![false; right_blanks];
+    search(
+        0,
+        &mut map,
+        &mut used,
+        (&left, &right),
+        (&left_degrees, &right_degrees),
+    )
+}
+
+fn example(name: &str) -> Vec<u8> {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples")
+        .join(name);
+    std::fs::read(path).expect("example file")
+}
+
+fn ntriples_graph(bytes: &[u8]) -> RawGraph {
+    match ntriples::read(&bytes.to_vec(), &b"nt".to_vec()) {
+        ntriples::ReadResult::Graph(graph) => graph,
+        ntriples::ReadResult::Error(error) => panic!("N-Triples error at byte {}", error.offset),
+    }
+}
+
+#[test]
+fn examples_are_their_ntriples_graphs() {
+    for (owl, nt, triples) in [
+        ("maintenance.owl", "maintenance.nt", 15),
+        ("medication-safety.owl", "medication-safety.nt", 60),
+    ] {
+        let graph = match read_with_limits(
+            &example(owl),
+            &Vec::new(),
+            &b"owl".to_vec(),
+            &rdfxml_limits(),
+        ) {
+            ReadResult::Graph(graph) => graph,
+            ReadResult::XmlError(error) => panic!("{owl}: XML error at byte {}", error.offset),
+            ReadResult::Error(kind) => panic!("{owl}: {}", name(kind)),
+        };
+        assert_eq!(graph.triples.len(), triples, "{owl}");
+        assert!(isomorphic(&graph, &ntriples_graph(&example(nt))), "{owl}");
+    }
+}
+
+/// The evaluation tests whose documents use XML literals, which the reader
+/// declines.
+const XML_LITERAL_CASES: [&str; 3] = [
+    "rdf-containers-syntax-vs-schema/test004.rdf",
+    "xml-canon/test001.rdf",
+    "xml-canon/test002.rdf",
+];
+
+#[test]
+#[ignore = "requires the official W3C RDF/XML suite in ROWL_RDFXML_SUITE_DIR"]
+fn official_w3c_rdfxml_cases() {
+    let directory = std::path::PathBuf::from(
+        std::env::var_os("ROWL_RDFXML_SUITE_DIR").expect("suite directory required"),
+    );
+    // Each document is read against its own URL, the suite's base.
+    let source = "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/";
+    let bytes = |name: &str| std::fs::read(directory.join(name)).unwrap();
+    // The manifest is Turtle, read by the verified Turtle reader.
+    let turtle::ReadResult::Graph(manifest) = turtle::read(
+        &bytes("manifest.ttl"),
+        &b"manifest".to_vec(),
+        &format!("{source}manifest.ttl").into_bytes(),
+    ) else {
+        panic!("the manifest is Turtle")
+    };
+    let rdft = "http://www.w3.org/ns/rdftest#";
+    let mf = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#";
+    let value = |subject: &Subject, predicate: &str| {
+        manifest.triples.iter().find_map(|triple| {
+            let same = match (&triple.subject, subject) {
+                (Subject::Iri(a), Subject::Iri(b)) => a.spelling == b.spelling,
+                _ => false,
+            };
+            match &triple.object {
+                Object::Iri(object)
+                    if same && triple.predicate.spelling == predicate.as_bytes() =>
+                {
+                    Some(text(&object.spelling))
+                }
+                _ => None,
+            }
+        })
+    };
+    let mut counts = std::collections::BTreeMap::new();
+    let mut failures = Vec::new();
+    for triple in &manifest.triples {
+        let Object::Iri(kind) = &triple.object else {
+            continue;
+        };
+        if triple.predicate.spelling != format!("{RDF}type").into_bytes() {
+            continue;
+        }
+        let kind = text(&kind.spelling);
+        let Some(kind) = kind.strip_prefix(rdft) else {
+            continue;
+        };
+        let action = value(&triple.subject, &format!("{mf}action")).expect("an action");
+        let name = action
+            .strip_prefix(source)
+            .expect("a suite file")
+            .to_string();
+        let result = read_with_limits(
+            &bytes(&name),
+            &action.clone().into_bytes(),
+            &b"suite".to_vec(),
+            &rdfxml_limits(),
+        );
+        let passed = match kind {
+            "TestXMLNegativeSyntax" => !matches!(result, ReadResult::Graph(_)),
+            "TestXMLEval" => {
+                let expected = value(&triple.subject, &format!("{mf}result")).expect("a result");
+                let expected = expected.strip_prefix(source).expect("a suite file");
+                match &result {
+                    ReadResult::Graph(graph) => {
+                        isomorphic(graph, &ntriples_graph(&bytes(expected)))
+                    }
+                    _ => false,
+                }
+            }
+            other => panic!("unknown test type {other}"),
+        };
+        *counts.entry(kind.to_string()).or_insert(0) += 1;
+        if !passed {
+            failures.push(name);
+        }
+    }
+    failures.sort();
+    assert_eq!(
+        failures, XML_LITERAL_CASES,
+        "exactly the cases with XML literals fail"
+    );
+    assert_eq!(
+        counts.values().sum::<usize>(),
+        166,
+        "manifest was incomplete or unexpectedly changed: {counts:?}"
+    );
 }

@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[3]
 MEDICATION = ROOT / "examples" / "medication-safety.ofn"
 MEDICATION_NT = ROOT / "examples" / "medication-safety.nt"
 MEDICATION_TTL = ROOT / "examples" / "medication-safety.ttl"
+MEDICATION_OWL = ROOT / "examples" / "medication-safety.owl"
 IRI = "https://example.org/medication/"
 
 
@@ -71,7 +72,7 @@ class NTriples(unittest.TestCase):
         with self.assertRaises(rowl.DocumentRejected):
             rowl.Reasoner(undeclared, syntax="ntriples")
         with self.assertRaises(ValueError):
-            rowl.Reasoner("", syntax="rdfxml")
+            rowl.Reasoner("", syntax="manchester")
 
 
 class Turtle(unittest.TestCase):
@@ -93,6 +94,35 @@ class Turtle(unittest.TestCase):
         with self.assertRaises(rowl.DocumentRejected):
             rowl.Reasoner(undeclared, syntax="turtle")
 
+
+class RdfXml(unittest.TestCase):
+    def test_same_answers_as_functional_syntax(self):
+        with rowl.Reasoner.from_file(MEDICATION) as functional, \
+                rowl.Reasoner.from_file(MEDICATION_OWL) as rdfxml:
+            self.assertEqual(rdfxml.classes(), functional.classes())
+            self.assertEqual(rdfxml.individuals(), functional.individuals())
+            self.assertEqual(rdfxml.classify(), functional.classify())
+            alert = IRI + "AllergyAlert"
+            for person in ["alice", "bob", "carol"]:
+                self.assertIs(rdfxml.instance_of(IRI + person, alert),
+                              functional.instance_of(IRI + person, alert))
+
+    def test_relative_iris_resolve_against_the_base(self):
+        document = ('<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" '
+                    'xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" '
+                    'xmlns:owl="http://www.w3.org/2002/07/owl#">'
+                    '<owl:Class rdf:about="#Drug"/>'
+                    '<owl:Class rdf:about="#Opioid"><rdfs:subClassOf rdf:resource="#Drug"/></owl:Class>'
+                    '</rdf:RDF>')
+        with self.assertRaises(rowl.DocumentRejected):
+            rowl.Reasoner(document, syntax="rdfxml")
+        with rowl.Reasoner(document, syntax="rdfxml", base="https://example.org/drugs") as reasoner:
+            self.assertIs(reasoner.subsumed("https://example.org/drugs#Opioid",
+                                            "https://example.org/drugs#Drug"), True)
+
+    def test_rejected_documents(self):
+        with self.assertRaises(rowl.DocumentRejected):
+            rowl.Reasoner("<a></b>", syntax="rdfxml")
 
 class Errors(unittest.TestCase):
     def test_rejected_document(self):
