@@ -2438,12 +2438,56 @@ theorem fuel_cells {triples : alloc.vec.Vec rdf.Triple} {cells : List rdf.BlankN
     cells.length ≤ (alloc.vec.Vec.len triples).val := by
   rw [List.length_append, list_of_length cells nodes lengths] at h; omega
 
+/-- How `annotate` treats an axiom read from the triple at `a`: an axiom with
+    one main triple, or an axiom that a blank node of its block represents. -/
+def ShapeOk (triples : alloc.vec.Vec rdf.Triple) (a : Usize) (ax : model.Axiom) (fresh : Supply) : Prop :=
+  (rdf_mapping.main_triples ax = .ok 1#u8 ∧ a.val < triples.val.length) ∨
+    (rdf_mapping.main_triples ax = .ok 0#u8 ∧
+      ∃ (t : rdf.Triple) (x : rdf.BlankNode), triples.val[a.val]? = some t ∧ t.subject = .Blank x ∧ x ∈ fresh)
+
+/-- `read_axiom` reads `ax` from the first position of its block, using exactly
+    the positions of the block and recording exactly its blank nodes, whatever
+    the source index holds. -/
+def BlockReadsCore (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds) (ax : model.Axiom)
+    (s0 : Supply) (ps : List Pattern) (s1 : Supply) : Prop :=
+  ∀ (fresh : Supply), s0 = fresh ++ s1 → fresh.Nodup →
+  ∀ (s : rdf_mapping.State) (a : Usize) (pos : List Nat), Ready triples s (a.val :: pos) ps fresh →
+    ∃ s', rdf_mapping.read_axiom triples kinds a s (alloc.vec.Vec.len triples) = .ok (.Found ax s') ∧
+      Marked s s' (fun i => i ∈ a.val :: pos) fresh ∧ ShapeOk triples a ax fresh
+
+theorem core_plain {triples : alloc.vec.Vec rdf.Triple} {kinds : rdf_mapping.Kinds} {ax : model.Axiom}
+    {s s' : rdf_mapping.State} {a : Usize} {pos : List Nat} {ps : List Pattern} {fresh : Supply}
+    (ready : Ready triples s (a.val :: pos) ps fresh) (shape : rdf_mapping.main_triples ax = .ok 1#u8)
+    (read : rdf_mapping.read_axiom triples kinds a s (alloc.vec.Vec.len triples) = .ok (.Found ax s'))
+    (marked : Marked s s' (fun i => i ∈ a.val :: pos) fresh) :
+    ∃ s', rdf_mapping.read_axiom triples kinds a s (alloc.vec.Vec.len triples) = .ok (.Found ax s') ∧
+      Marked s s' (fun i => i ∈ a.val :: pos) fresh ∧ ShapeOk triples a ax fresh := by
+  have inside : a.val < triples.val.length := by
+    cases ps with
+    | nil => have := at_length ready.holds; simp at this
+    | cons p rest =>
+      obtain ⟨t, at_t, -, -⟩ := ready_main ready
+      exact (List.getElem?_eq_some_iff.mp at_t).1
+  exact ⟨s', read, marked, Or.inl ⟨shape, inside⟩⟩
+
+theorem core_blank {triples : alloc.vec.Vec rdf.Triple} {kinds : rdf_mapping.Kinds} {ax : model.Axiom}
+    {s s' : rdf_mapping.State} {a : Usize} {pos : List Nat} {x : rdf.BlankNode} {T : List U8}
+    {rest : List Pattern} {fresh : Supply}
+    (ready : Ready triples s (a.val :: pos) (⟨.blank x, rdfType, .iri T⟩ :: rest) fresh) (inFresh : x ∈ fresh)
+    (shape : rdf_mapping.main_triples ax = .ok 0#u8)
+    (read : rdf_mapping.read_axiom triples kinds a s (alloc.vec.Vec.len triples) = .ok (.Found ax s'))
+    (marked : Marked s s' (fun i => i ∈ a.val :: pos) fresh) :
+    ∃ s', rdf_mapping.read_axiom triples kinds a s (alloc.vec.Vec.len triples) = .ok (.Found ax s') ∧
+      Marked s s' (fun i => i ∈ a.val :: pos) fresh ∧ ShapeOk triples a ax fresh := by
+  obtain ⟨t, at_t, fits, -⟩ := ready_main ready
+  exact ⟨s', read, marked, Or.inr ⟨shape, t, x, at_t, subject_blank fits.1, inFresh⟩⟩
+
 /-- **Every readable axiom is read back from the triples of its forward
     mapping.** For an axiom that the reverse mapping reads back, whose IRIs the
     ontology types and allows, `read_axiom` reads it from the first position of
     its block, using exactly the positions of the block and recording exactly
-    its blank nodes in order, and `annotate` adds no annotations. -/
-theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+    its blank nodes in order, whatever the source index holds. -/
+theorem axiom_reads_core (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     {axioms : List model.AnnotatedAxiom} (hk : KindsOf kinds axioms) {ax : model.Axiom} {s0 : Supply}
     {ps : List Pattern} {s1 : Supply} (tax : TAxiom ax s0 ps s1) (readable : AxiomReadable axioms ax)
     (allowed : ∀ row ∈ Rowl.Collection.axiomUses ax, Rowl.Vocabulary.EntityAllowed row.1 row.2)
@@ -2451,8 +2495,8 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
     (notReifier : ∀ p sub v, ax = .AnnotationAssertion p sub v → ∀ x, annotationSubjectNode sub = .blank x →
       ∀ (i : Nat) (t : rdf.Triple), triples.val[i]? = some t → subjectView t.subject = .blank x →
       t.predicate.spelling.val = rdfType → ∀ K ∈ reifierTypes, objectView t.object ≠ .iri K) :
-    BlockReads triples kinds ax s0 ps s1 := by
-  intro fresh split nodup st a pos ready empty
+    BlockReadsCore triples kinds ax s0 ps s1 := by
+  intro fresh split nodup st a pos ready
   have fuelOk := fuel_of_ready ready
   have usesTyped : UsesTyped kinds (Rowl.Collection.axiomUses ax) := uses_typed_of hk typed
   cases readable with
@@ -2462,7 +2506,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       have none : fresh = [] := by simpa using split
       subst none
       obtain ⟨s', run, marked⟩ := declaration_complete triples kinds e st a pos ready _
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples]) run marked
+      exact core_plain ready (by simp [rdf_mapping.main_triples]) run marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | subClassOf c1 c2 r1 r2 =>
     cases tax with
@@ -2472,7 +2516,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := sub_class_complete triples kinds tce1 tce2 (class_reads triples kinds tce1 r1 u1)
         (class_reads triples kinds tce2 r2 u2) split nodup st a pos ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_sub_class triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | equivalentClasses xs emptyRest members =>
@@ -2494,7 +2538,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         (class_reads triples kinds tce1 r1 u1) (class_reads triples kinds tce2 r2 u2) classTyped split nodup st a pos
         ready' _ (fuel_rest (fuel_of_ready ready'))
       rw [two_ext emptyRest] at run
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
         (by rw [read_axiom_equivalent_class triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | disjointClasses xs members =>
@@ -2509,7 +2553,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         (class_reads triples kinds tce1 r1 (uMembers c1 (by simp [members2])))
         (class_reads triples kinds tce2 r2 (uMembers c2 (by simp [members2]))) split nodup st a pos ready _
         (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_new_not_pos])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_new_not_pos])
         (by rw [read_axiom_disjoint_class triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | allDisjointClasses _ x cells _ _ nodes eps many cellsLen tces =>
       obtain ⟨f, eqf, -⟩ := tces_fresh tces
@@ -2520,7 +2564,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s'', run, marked⟩ := all_disjoint_classes_complete triples kinds xs x cells _ _ nodes eps many cellsLen
         (classes_read triples kinds tces members uMembers) split nodup st a pos ready _ (fuel_rest (fuel_rest fuelOk))
-      exact finish_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
+      exact core_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_all_disjoint_classes triples kinds a st _ t at_t fits.2.2]
@@ -2535,7 +2579,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s'', run, marked⟩ := disjoint_union_complete triples kinds c xs cells _ _ nodes eps cellsLen
         (classes_read triples kinds tces members uMembers) split nodup st a pos ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_disjoint_union triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | subObjectProperty sub sup =>
@@ -2545,7 +2589,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨u1, -⟩ := uses_typed_append.mp usesTyped
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := sub_object_property_complete triples kinds tope1 tope2 u1 split nodup st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_sub_property triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | propertyChain chain _ cells _ _ _ n nodes p eps topeSup cellsLen topes =>
       simp only [Rowl.Collection.axiomUses, Rowl.Collection.subObjectUses, elements_members] at usesTyped
@@ -2558,7 +2602,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         omega
       obtain ⟨s4, run, marked⟩ := property_chain_complete triples kinds chain _ cells _ _ _ n nodes p eps topeSup
         cellsLen topes (uses_flat uChain) split nodup st a pos ready _ cellsFuel
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_property_chain triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | equivalentObjectProperties xs emptyRest =>
@@ -2573,7 +2617,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨s', run, marked⟩ := equivalent_object_properties_complete triples kinds tope1 tope2
         (uses_flat usesTyped xs.first (by simp)) split nodup st a pos ready'
       rw [two_ext emptyRest] at run
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
         (by rw [read_axiom_equivalent_property triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | disjointObjectProperties xs =>
@@ -2584,7 +2628,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := disjoint_object_properties_complete triples kinds tope1 tope2
         (uMembers e1 (by simp [members2])) split nodup st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_new_not_pos])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_new_not_pos])
         (by rw [read_axiom_disjoint_property triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | allDisjointObjectProperties _ x cells _ _ nodes eps many cellsLen topes =>
       obtain ⟨f, eqf, -⟩ := topes_fresh topes
@@ -2596,7 +2640,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s'', run, marked⟩ := all_disjoint_object_properties_complete triples kinds xs x cells _ _ nodes eps
         many cellsLen topes uMembers split nodup st a pos ready _ (fuel_cells lengths (fuel_rest (fuel_rest fuelOk)))
-      exact finish_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
+      exact core_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_all_disjoint_properties triples kinds a st _ t at_t fits.2.2]
@@ -2608,7 +2652,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       cases tope1
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := inverse_properties_complete triples p tope2 split nodup st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_inverse_properties triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | objectDomain role c r =>
@@ -2619,7 +2663,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := object_domain_range_complete triples kinds false tope tce u1
         (class_reads triples kinds tce r u2) split nodup st a pos _ ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_domain triples kinds a st _ t at_t fits.2.1]; simpa using run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | objectRange role c r =>
@@ -2630,7 +2674,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := object_domain_range_complete triples kinds true tope tce u1
         (class_reads triples kinds tce r u2) split nodup st a pos _ ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_range triples kinds a st _ t at_t fits.2.1]; simpa using run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | functional role =>
@@ -2642,7 +2686,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := characteristic_complete triples kinds (.FunctionalObjectProperty role) 0#u8 tope usesTyped
         (fun _ => by simp) split st a pos _ ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1, typing_functional triples kinds a st _ t at_t fits.2.2]
           exact run) marked
@@ -2655,7 +2699,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := characteristic_complete triples kinds (.InverseFunctionalObjectProperty role) 1#u8 tope usesTyped
         (fun _ => by simp) split st a pos _ ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_inverse_functional triples kinds a st _ t at_t fits.2.2]
@@ -2669,7 +2713,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := characteristic_complete triples kinds (.ReflexiveObjectProperty role) 2#u8 tope usesTyped
         (fun _ => by simp) split st a pos _ ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1, typing_reflexive triples kinds a st _ t at_t fits.2.2]
           exact run) marked
@@ -2682,7 +2726,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := characteristic_complete triples kinds (.IrreflexiveObjectProperty role) 3#u8 tope usesTyped
         (fun _ => by simp) split st a pos _ ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_irreflexive triples kinds a st _ t at_t fits.2.2]
@@ -2696,7 +2740,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := characteristic_complete triples kinds (.SymmetricObjectProperty role) 4#u8 tope usesTyped
         (fun _ => by simp) split st a pos _ ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1, typing_symmetric triples kinds a st _ t at_t fits.2.2]
           exact run) marked
@@ -2709,7 +2753,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := characteristic_complete triples kinds (.AsymmetricObjectProperty role) 5#u8 tope usesTyped
         (fun _ => by simp) split st a pos _ ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_asymmetric triples kinds a st _ t at_t fits.2.2]
@@ -2723,7 +2767,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := characteristic_complete triples kinds (.TransitiveObjectProperty role) 6#u8 tope usesTyped
         (fun _ => by simp) split st a pos _ ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_transitive triples kinds a st _ t at_t fits.2.2]
@@ -2737,7 +2781,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨u1, -⟩ := uses_typed_append.mp usesTyped
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := sub_data_property_complete triples kinds d1 d2 u1 st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_sub_property triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | equivalentDataProperties xs emptyRest =>
@@ -2753,7 +2797,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨s', run, marked⟩ := equivalent_data_properties_complete triples kinds xs.first xs.second
         (uses_flat usesTyped xs.first (by simp)) st a pos ready'
       rw [two_ext emptyRest] at run
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
         (by rw [read_axiom_equivalent_property triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | disjointDataProperties xs =>
@@ -2766,7 +2810,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := disjoint_data_properties_complete triples kinds d1 d2
         (uMembers d1 (by simp [members2])) st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_new_not_pos])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_new_not_pos])
         (by rw [read_axiom_disjoint_property triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | allDisjointDataProperties _ x cells _ many cellsLen =>
       have inFresh : x ∈ fresh := by
@@ -2777,7 +2821,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨s'', run, marked⟩ := all_disjoint_data_properties_complete triples kinds xs x cells _ many cellsLen
         uMembers split nodup st a pos ready _
         (fuel_cells (ps := []) lengths (by simpa using fuel_rest (fuel_rest fuelOk)))
-      exact finish_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
+      exact core_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_all_disjoint_properties triples kinds a st _ t at_t fits.2.2]
@@ -2791,7 +2835,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := data_domain_complete triples kinds d u1 (class_reads triples kinds tce r u2) split
         nodup st a pos ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_domain triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | dataRange d r readableRange =>
@@ -2802,7 +2846,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := data_range_complete triples kinds d u1 (range_reads triples kinds tdr readableRange)
         split nodup st a pos ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_range triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | functionalData d =>
@@ -2813,7 +2857,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       simp only [Rowl.Collection.axiomUses] at usesTyped
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := functional_data_complete triples kinds d usesTyped st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1, typing_functional triples kinds a st _ t at_t fits.2.2]
           exact run) marked
@@ -2824,7 +2868,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := datatype_definition_complete triples kinds hk d
         (range_reads triples kinds tdr readableRange) declared split nodup st a pos ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_equivalent_class triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | hasKey c objects datas r =>
@@ -2841,7 +2885,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨s4, run, marked⟩ := has_key_complete triples kinds c objects datas cells _ _ _ n nodes p eps tce
         (class_reads triples kinds tce r uC) cellsLen topes (uses_flat uO) (uses_flat uD) split nodup st a pos ready
         (alloc.vec.Vec.len triples) (by omega) (by omega)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_has_key triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | sameIndividual xs emptyRest =>
@@ -2855,7 +2899,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready'
       obtain ⟨s', run, marked⟩ := same_individual_complete triples xs.first xs.second st a pos ready'
       rw [two_ext emptyRest] at run
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_empty_not_pos emptyRest])
         (by rw [read_axiom_same_individual triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | differentIndividuals xs =>
@@ -2865,7 +2909,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       subst none
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s', run, marked⟩ := different_individuals_complete triples i1 i2 st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples, len_new_not_pos])
+      exact core_plain ready (by simp [rdf_mapping.main_triples, len_new_not_pos])
         (by rw [read_axiom_different_individuals triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | allDifferent _ x cells _ many cellsLen =>
       have inFresh : x ∈ fresh := by
@@ -2875,7 +2919,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s'', run, marked⟩ := all_different_complete triples xs x cells _ many cellsLen split nodup st a pos
         ready _ (fuel_cells (ps := []) lengths (by simpa using fuel_rest (fuel_rest fuelOk)))
-      exact finish_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
+      exact core_blank ready inFresh (by simp [rdf_mapping.main_triples, len_many_pos many])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_all_different triples kinds a st _ t at_t fits.2.2]
@@ -2893,7 +2937,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨notTyping, notReserved⟩ := class_object_typing tce allowedClass fits.2.2
       obtain ⟨s', run, marked⟩ := class_assertion_complete triples kinds individual
         (class_reads triples kinds tce r uC) split nodup st a pos ready _ (fuel_rest fuelOk)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1,
             typing_class_assertion triples kinds a st _ t at_t notTyping notReserved]
@@ -2910,7 +2954,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         simp [Rowl.Collection.axiomUses, Rowl.Collection.objectUses]
       obtain ⟨s', run, marked⟩ := object_assertion_complete triples kinds p i1 i2
         (property_kind_object hk (typed _ member)) st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_assertion triples kinds a st _ t at_t
             (allowed_property allowed member (predicate_spelling fits.2.1)) (Or.inl rfl)]
@@ -2930,7 +2974,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s'', run, marked⟩ := negative_object_assertion_complete triples kinds role i1 i2 x tope uR split nodup st
         a pos ready
-      exact finish_blank ready inFresh (by simp [rdf_mapping.main_triples])
+      exact core_blank ready inFresh (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1, typing_negative triples kinds a st _ t at_t fits.2.2]
           exact run) marked
@@ -2946,7 +2990,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         simp [Rowl.Collection.axiomUses, Rowl.Collection.dataUses]
       obtain ⟨s', run, marked⟩ := data_assertion_complete triples kinds d individual v n literal readableValue
         (property_kind_data hk (typed _ member)) st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_assertion triples kinds a st _ t at_t
             (allowed_property allowed member (predicate_spelling fits.2.1)) (Or.inr (Or.inl rfl))]
@@ -2964,7 +3008,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
       obtain ⟨t, at_t, fits, -⟩ := ready_main ready
       obtain ⟨s'', run, marked⟩ := negative_data_assertion_complete triples kinds d i1 v x _ n literal readableValue
         uD split nodup st a pos ready
-      exact finish_blank ready inFresh (by simp [rdf_mapping.main_triples])
+      exact core_blank ready inFresh (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_typing triples kinds a st _ t at_t fits.2.1, typing_negative triples kinds a st _ t at_t fits.2.2]
           exact run) marked
@@ -2980,7 +3024,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         simp [Rowl.Collection.axiomUses]
       obtain ⟨s', run, marked⟩ := annotation_assertion_complete triples kinds p sub value n valueNode readableValue
         (property_kind_annotation hk (typed _ member)) st a pos ready (notReifier p sub value rfl)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by
           rw [read_axiom_assertion triples kinds a st _ t at_t
             (allowed_property allowed member (predicate_spelling fits.2.1)) (Or.inr (Or.inr rfl))]
@@ -2997,7 +3041,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         simp [Rowl.Collection.axiomUses]
       obtain ⟨s', run, marked⟩ := sub_annotation_property_complete triples kinds p1 p2
         (property_kind_annotation hk (typed _ member)) st a pos ready
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_sub_property triples kinds a st _ t at_t fits.2.1]; exact run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | annotationDomain p iri =>
@@ -3011,7 +3055,7 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         simp [Rowl.Collection.axiomUses]
       obtain ⟨s', run, marked⟩ := annotation_domain_range_complete triples kinds false p iri
         (property_kind_annotation hk (typed _ member)) st a pos _ ready (alloc.vec.Vec.len triples)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_domain triples kinds a st _ t at_t fits.2.1]; simpa using run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
   | annotationRange p iri =>
@@ -3025,8 +3069,38 @@ theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Ki
         simp [Rowl.Collection.axiomUses]
       obtain ⟨s', run, marked⟩ := annotation_domain_range_complete triples kinds true p iri
         (property_kind_annotation hk (typed _ member)) st a pos _ ready (alloc.vec.Vec.len triples)
-      exact finish_plain ready empty (by simp [rdf_mapping.main_triples])
+      exact core_plain ready (by simp [rdf_mapping.main_triples])
         (by rw [read_axiom_range triples kinds a st _ t at_t fits.2.1]; simpa using run) marked
     | characteristic _ _ _ _ _ _ _ ct _ => simp [characteristicType] at ct
+
+/-- **Every readable axiom is read back from the triples of its forward
+    mapping.** For an axiom that the reverse mapping reads back, whose IRIs the
+    ontology types and allows, `read_axiom` reads it from the first position of
+    its block, using exactly the positions of the block and recording exactly
+    its blank nodes in order, and `annotate` adds no annotations. -/
+theorem axiom_reads (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+    {axioms : List model.AnnotatedAxiom} (hk : KindsOf kinds axioms) {ax : model.Axiom} {s0 : Supply}
+    {ps : List Pattern} {s1 : Supply} (tax : TAxiom ax s0 ps s1) (readable : AxiomReadable axioms ax)
+    (allowed : ∀ row ∈ Rowl.Collection.axiomUses ax, Rowl.Vocabulary.EntityAllowed row.1 row.2)
+    (typed : ∀ row ∈ Rowl.Collection.axiomUses ax, KindTyped axioms row.1 row.2)
+    (notReifier : ∀ p sub v, ax = .AnnotationAssertion p sub v → ∀ x, annotationSubjectNode sub = .blank x →
+      ∀ (i : Nat) (t : rdf.Triple), triples.val[i]? = some t → subjectView t.subject = .blank x →
+      t.predicate.spelling.val = rdfType → ∀ K ∈ reifierTypes, objectView t.object ≠ .iri K) :
+    BlockReads triples kinds ax s0 ps s1 := by
+  intro fresh split nodup st a pos ready empty
+  obtain ⟨s', read, marked, shape⟩ := axiom_reads_core triples kinds hk tax readable allowed typed notReifier fresh
+    split nodup st a pos ready
+  rcases shape with ⟨shape, inside⟩ | ⟨shape, t, x, at_t, subject, inFresh⟩
+  · exact ⟨s', read, annotate_plain triples kinds a ax s' _ shape inside (by rw [marked.sources]; exact empty),
+      marked⟩
+  · have noneLeft : ∀ (i : Nat) (t' : rdf.Triple), triples.val[i]? = some t' → s'.used.val[i]? = some false →
+        subjectView t'.subject ≠ .blank x := by
+      intro i t' at_i unused about
+      have before := marked_back marked unused
+      have member := ready.owns i t' x at_i before about inFresh
+      have inside : i < st.used.val.length := (List.getElem?_eq_some_iff.mp before).1
+      rw [marked_used marked inside member] at unused
+      cases unused
+    exact ⟨s', read, annotate_blank triples kinds a ax s' _ shape t at_t x subject noneLeft, marked⟩
 
 end Rowl.RdfReadAxioms

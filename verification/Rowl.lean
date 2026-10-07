@@ -29,6 +29,8 @@ import Rowl.RdfReadExpressions
 import Rowl.RdfReadAxioms
 import Rowl.RdfReadOntology
 import Rowl.RdfReadPermuted
+import Rowl.RdfReadAnnotations
+import Rowl.RdfReadAnnotated
 import Rowl.TopData
 import Rowl.Roles
 import Rowl.AnonymousGraph

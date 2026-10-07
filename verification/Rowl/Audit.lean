@@ -28,6 +28,8 @@ import Rowl.RdfReadExpressions
 import Rowl.RdfReadAxioms
 import Rowl.RdfReadOntology
 import Rowl.RdfReadPermuted
+import Rowl.RdfReadAnnotations
+import Rowl.RdfReadAnnotated
 import Rowl.TopData
 import Rowl.Roles
 import Rowl.RoleClosure
@@ -3263,6 +3265,9 @@ import Rowl.Saturation
 #print axioms Rowl.RdfReadAxioms.fresh_single
 #print axioms Rowl.RdfReadAxioms.fuel_rest
 #print axioms Rowl.RdfReadAxioms.fuel_cells
+#print axioms Rowl.RdfReadAxioms.core_plain
+#print axioms Rowl.RdfReadAxioms.core_blank
+#print axioms Rowl.RdfReadAxioms.axiom_reads_core
 #print axioms Rowl.RdfReadAxioms.axiom_reads
 #print axioms Rowl.RdfReadOntology.readable_uses
 #print axioms Rowl.RdfReadOntology.side_nil
@@ -3371,6 +3376,97 @@ import Rowl.Saturation
 #print axioms Rowl.RdfReadPermuted.block_not_header
 #print axioms Rowl.RdfReadPermuted.block_rest_skip
 #print axioms Rowl.RdfReadPermuted.map_graph_complete_perm
+#print axioms Rowl.RdfReadAnnotations.subjects_from_sorted
+#print axioms Rowl.RdfReadAnnotations.hash_object_ok
+#print axioms Rowl.RdfReadAnnotations.hash_object_subject
+#print axioms Rowl.RdfReadAnnotations.is_source_correct
+#print axioms Rowl.RdfReadAnnotations.sources_from_total
+#print axioms Rowl.RdfReadAnnotations.sources_from_spec
+#print axioms Rowl.RdfReadAnnotations.find_unique
+#print axioms Rowl.RdfReadAnnotations.find_type_unique
+#print axioms Rowl.RdfReadAnnotations.is_annotation_true
+#print axioms Rowl.RdfReadAnnotations.is_annotation_false
+#print axioms Rowl.RdfReadAnnotations.fits_annotation_true
+#print axioms Rowl.RdfReadAnnotations.fits_annotation_false
+#print axioms Rowl.RdfReadAnnotations.find_annotation_in_first
+#print axioms Rowl.RdfReadAnnotations.find_annotation_first
+#print axioms Rowl.RdfReadAnnotations.object_view_injective
+#print axioms Rowl.RdfReadAnnotations.bind_total
+#print axioms Rowl.RdfReadAnnotations.find_total_in
+#print axioms Rowl.RdfReadAnnotations.reifier_parts_total
+#print axioms Rowl.RdfReadAnnotations.reifier_source_total
+#print axioms Rowl.RdfReadAnnotations.reifier_at_total
+#print axioms Rowl.RdfReadAnnotations.reifier_in_hit
+#print axioms Rowl.RdfReadAnnotations.reifier_in_absent
+#print axioms Rowl.RdfReadAnnotations.reifier_absent
+#print axioms Rowl.RdfReadAnnotations.reifier_found
+#print axioms Rowl.RdfReadAnnotations.reified_absent
+#print axioms Rowl.RdfReadAnnotations.annotation_read
+#print axioms Rowl.RdfReadAnnotations.tann_plain
+#print axioms Rowl.RdfReadAnnotations.node_annotations_plain
+#print axioms Rowl.RdfReadAnnotations.marked_take_four
+#print axioms Rowl.RdfReadAnnotations.reified_found
+#print axioms Rowl.RdfReadAnnotations.annotate_main
+#print axioms Rowl.RdfReadAnnotations.annotate_node
+#print axioms Rowl.RdfReadAnnotated.strip_axioms
+#print axioms Rowl.RdfReadAnnotated.strip_member
+#print axioms Rowl.RdfReadAnnotated.strip_member_inv
+#print axioms Rowl.RdfReadAnnotated.strip_typed
+#print axioms Rowl.RdfReadAnnotated.strip_kind_typed
+#print axioms Rowl.RdfReadAnnotated.axiom_readable_transfer
+#print axioms Rowl.RdfReadAnnotated.strip_uses
+#print axioms Rowl.RdfReadAnnotated.strip_vocabulary
+#print axioms Rowl.RdfReadAnnotated.readable_strip
+#print axioms Rowl.RdfReadAnnotated.strip_kinds
+#print axioms Rowl.RdfReadAnnotated.strip_fresh
+#print axioms Rowl.RdfReadAnnotated.main_triples_one
+#print axioms Rowl.RdfReadAnnotated.tanns_plain_supply
+#print axioms Rowl.RdfReadAnnotated.tanns_any_supply
+#print axioms Rowl.RdfReadAnnotated.treified_one
+#print axioms Rowl.RdfReadAnnotated.annotated_blocks
+#print axioms Rowl.RdfReadAnnotated.header_parts_annotation
+#print axioms Rowl.RdfReadAnnotated.header_parts_imports_then
+#print axioms Rowl.RdfReadAnnotated.header_parts_annotations
+#print axioms Rowl.RdfReadAnnotated.axioms_from_annotated
+#print axioms Rowl.RdfReadAnnotated.aloop_after
+#print axioms Rowl.RdfReadAnnotated.annotated_loop
+#print axioms Rowl.RdfReadAnnotated.tanns_heads
+#print axioms Rowl.RdfReadAnnotated.annotation_row_ontology
+#print axioms Rowl.RdfReadAnnotated.annotation_row_axiom
+#print axioms Rowl.RdfReadAnnotated.annotation_property_facts
+#print axioms Rowl.RdfReadAnnotated.agraph_in_supply
+#print axioms Rowl.RdfReadAnnotated.agraph_fresh_unique
+#print axioms Rowl.RdfReadAnnotated.agraph_fresh_nodup
+#print axioms Rowl.RdfReadAnnotated.agraph_shape
+#print axioms Rowl.RdfReadAnnotated.agraph_pattern_subject
+#print axioms Rowl.RdfReadAnnotated.agraph_owner
+#print axioms Rowl.RdfReadAnnotated.agraph_split_at
+#print axioms Rowl.RdfReadAnnotated.agraph_reified_layout
+#print axioms Rowl.RdfReadAnnotated.agraph_core_subject
+#print axioms Rowl.RdfReadAnnotated.agraph_reifier_not_core
+#print axioms Rowl.RdfReadAnnotated.agraph_reifier_triple
+#print axioms Rowl.RdfReadAnnotated.agraph_annotation_not_vocabulary
+#print axioms Rowl.RdfReadAnnotated.agraph_source_triple
+#print axioms Rowl.RdfReadAnnotated.agraph_no_annotation_kind
+#print axioms Rowl.RdfReadAnnotated.agraph_not_reifier_type
+#print axioms Rowl.RdfReadAnnotated.reifier_ok_back
+#print axioms Rowl.RdfReadAnnotated.tanns_length
+#print axioms Rowl.RdfReadAnnotated.agraph_core_ready
+#print axioms Rowl.RdfReadAnnotated.agraph_block_reads
+#print axioms Rowl.RdfReadAnnotated.fresh_length_le
+#print axioms Rowl.RdfReadAnnotated.agraph_apart_of_ne
+#print axioms Rowl.RdfReadAnnotated.agraph_once_blocks
+#print axioms Rowl.RdfReadAnnotated.agraph_exclusive
+#print axioms Rowl.RdfReadAnnotated.agraph_step
+#print axioms Rowl.RdfReadAnnotated.header_annotated
+#print axioms Rowl.RdfReadAnnotated.agraph_apos_subject
+#print axioms Rowl.RdfReadAnnotated.agraph_declares
+#print axioms Rowl.RdfReadAnnotated.agraph_graph_kinds
+#print axioms Rowl.RdfReadAnnotated.agraph_block_header_skip
+#print axioms Rowl.RdfReadAnnotated.agraph_block_not_ontology
+#print axioms Rowl.RdfReadAnnotated.agraph_fresh_le_pats
+#print axioms Rowl.RdfReadAnnotated.agraph_flat_fresh_le
+#print axioms Rowl.RdfReadAnnotated.map_graph_complete_annotated
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -4567,3 +4663,7 @@ import Rowl.Saturation
 #print axioms Rowl.RdfReadOntology.subjectAnonymous
 #print axioms Rowl.RdfReadOntology.ReadableOntology
 #print axioms Rowl.RdfReadOntology.FreshSupply
+#print axioms Rowl.RdfReadAnnotated.PlainAnnotations
+#print axioms Rowl.RdfReadAnnotated.ReadableAnnotated
+#print axioms Rowl.RdfReadAnnotated.bare
+#print axioms Rowl.RdfReadAnnotated.strip

@@ -4775,3 +4775,66 @@ order and in a shuffled one alike (median of five runs each, 87 ms and 86 ms).
 
 This block adds 26 public theorems and no definitions. Totals are 3233 audited
 theorems, 1196 definitions, 523 Rust regressions and 3426 ledger obligations.
+
+## M3: reading annotated ontologies back
+
+The completeness of the reverse RDF mapping now covers ontology annotations and
+annotated axioms. `RdfReadAnnotated.map_graph_complete_annotated`: for every
+`ReadableAnnotated` ontology, a graph that lists the triples of its forward
+mapping (`TOntology`) in order, with blank nodes as in `FreshSupply`, is mapped to
+exactly that ontology, its annotations and the annotations of its axioms in
+order included, with exactly those blank nodes. The Rust code is unchanged.
+
+`ReadableAnnotated` keeps the conditions of `ReadableOntology` for the axioms and
+allows annotations without annotations of their own (`PlainAnnotations`, with
+literal values the reader reads back) on the ontology and on axioms with one
+main triple (§2.3.1). Such an axiom is written as its triples followed by the
+`owl:Axiom` reification of its main triple and the annotation triples of the
+reifying node. An annotated axiom must occur in the ontology only once: the
+reader takes the first reification of a main triple it finds, so two copies of
+an axiom, one annotated, would exchange their annotations.
+
+Two new modules prove it. `RdfReadAnnotations.lean` proves the readers of
+annotations complete: the source index lists every `owl:annotatedSource` triple
+(`sources_from_spec`) and the subject index lists the positions of each blank
+node in increasing order (`subjects_from_sorted`); `reifier` finds the
+reification of a triple when no other blank node reifies the same triple
+(`reifier_found`) and nothing when none does (`reifier_absent`); and
+`node_annotations` reads the annotations of a blank node in the order of their
+triples (`node_annotations_plain`). `RdfReadAnnotated.lean` reads the axioms of
+the ontology without annotations (`strip`, `readable_strip`) with the reader of
+the last blocks, made independent of the source index (`axiom_reads_core` in
+`RdfReadAxioms.lean`, from which `axiom_reads` now follows). The key step is
+`agraph_exclusive`: a blank node that reifies the main triple of an axiom is
+the reifying node of that axiom, because two blocks with the same main triple
+read as the same axiom (the reader is a function, and the main triple of the
+one block can stand in for that of the other) and an annotated axiom occurs
+once. With it, `agraph_step` reads each block with its annotations,
+`annotated_loop` runs the axiom loop over the blocks, and
+`header_parts_annotations` reads the ontology annotations in the header.
+
+Not proved: annotations of annotations (`owl:Annotation` reifications),
+annotated axioms that a blank node represents (disjointness and difference of
+three or more, negative assertions; the reader reads their annotations from that
+node, but the proof of the axiom readers asks that no other triple be about it)
+and annotated equivalences of three or more members, annotated graphs in another
+order, several reifications of one main triple, imports closure and RDF
+datasets. The ledger entries `frontend.RDFStructuralMapping` and
+`frontend.AnnotationReification` stay implemented: the reader still refuses
+several reifications of one main triple and cardinalities above 10000, so no
+theorem covers those requirements in full.
+
+The regression test `annotated_graphs_in_forward_order_read_back_exactly` reads
+`examples/dosing-annotated.nt`, the forward mapping of
+`examples/dosing-annotated.ofn` (the dosing example with two ontology
+annotations and annotations on 18 axioms, among them an IRI, an anonymous
+individual and an `xsd:string` literal as values), and checks that it reads back
+to the ontology of the Functional Syntax reader, annotations in order, with the
+83 blank nodes in allocation order; twelve of the annotated axioms have one main
+triple, and the six that a blank node represents, outside the theorem, are read
+as well. Shuffled in five orders, the graph reads back to the same axioms up to
+order, which no theorem covers yet.
+
+This block adds 94 public theorems (three of them in `RdfReadAxioms.lean`) and 4
+definitions. Totals are 3327 audited theorems, 1200 definitions, 524 Rust
+regressions and 3520 ledger obligations.

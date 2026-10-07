@@ -1,4 +1,4 @@
-use rowl_kernel::axiom_equality::same_axiom;
+use rowl_kernel::axiom_equality::{same_axiom, same_body};
 use rowl_kernel::data_ontology::{
     prepare, prepared_consistent, prepared_instance_of, prepared_subsumed,
 };
@@ -17,6 +17,8 @@ const ANNOTATED_MEDICATION: &[u8] =
     include_bytes!("../../../examples/medication-safety-annotated.nt");
 const DOSING: &[u8] = include_bytes!("../../../examples/dosing.nt");
 const DOSING_FUNCTIONAL: &[u8] = include_bytes!("../../../examples/dosing.ofn");
+const DOSING_ANNOTATED: &[u8] = include_bytes!("../../../examples/dosing-annotated.nt");
+const DOSING_ANNOTATED_FUNCTIONAL: &[u8] = include_bytes!("../../../examples/dosing-annotated.ofn");
 const EX: &str = "https://example.org/medication/";
 
 fn graph(source: &[u8]) -> RawGraph {
@@ -840,5 +842,83 @@ fn readable_graphs_in_any_order_read_back_up_to_order() {
             .collect();
         labels.sort();
         assert_eq!(labels, allocated, "round {round}: the same blank nodes");
+    }
+}
+
+fn same_value(left: &AnnotationValue, right: &AnnotationValue) -> bool {
+    match (left, right) {
+        (AnnotationValue::Iri(left), AnnotationValue::Iri(right)) => same_iri(left, right),
+        (AnnotationValue::Anonymous(left), AnnotationValue::Anonymous(right)) => {
+            left.scope == right.scope && left.label == right.label
+        }
+        (AnnotationValue::Literal(left), AnnotationValue::Literal(right)) => {
+            left.lexical == right.lexical && same_iri(&left.datatype.iri, &right.datatype.iri)
+        }
+        _ => false,
+    }
+}
+
+/// Whether two lists of annotations are the same, in the same order.
+fn same_annotations_in_order(left: &[Annotation], right: &[Annotation]) -> bool {
+    left.len() == right.len()
+        && left.iter().zip(right.iter()).all(|(left, right)| {
+            same_iri(&left.property.iri, &right.property.iri)
+                && same_value(&left.value, &right.value)
+                && same_annotations_in_order(&left.annotations, &right.annotations)
+        })
+}
+
+#[test]
+fn annotated_graphs_in_forward_order_read_back_exactly() {
+    // RdfReadAnnotated.map_graph_complete_annotated: the forward mapping of
+    // examples/dosing-annotated.ofn, the dosing example with two ontology
+    // annotations and annotations on 18 axioms, in order, reads back to the
+    // same ontology, annotations in order included, with its blank nodes in
+    // allocation order. The theorem covers the twelve annotated axioms with one
+    // main triple, each reified by a node typed owl:Axiom; the six annotated
+    // axioms that a blank node represents are read as well. Shuffled, the graph
+    // reads back to the same axioms up to order (no theorem covers annotations
+    // in another order yet).
+    let expected = functional_ontology(DOSING_ANNOTATED_FUNCTIONAL);
+    let mapped =
+        map_graph(&graph(DOSING_ANNOTATED)).expect("the graph is the image of its ontology");
+    let ontology = &mapped.ontology;
+    assert!(same_annotations_in_order(
+        &ontology.annotations,
+        &expected.annotations
+    ));
+    assert_eq!(ontology.annotations.len(), 2);
+    assert_eq!(ontology.axioms.len(), expected.axioms.len());
+    for (index, (read, written)) in ontology
+        .axioms
+        .iter()
+        .zip(expected.axioms.iter())
+        .enumerate()
+    {
+        assert!(
+            same_body(&read.axiom, &written.axiom),
+            "axiom {index} differs"
+        );
+        assert!(
+            same_annotations_in_order(&read.annotations, &written.annotations),
+            "annotations of axiom {index} differ"
+        );
+    }
+    let labels: Vec<Vec<u8>> = mapped
+        .blanks
+        .iter()
+        .map(|node| node.label.clone())
+        .collect();
+    let allocated: Vec<Vec<u8>> = (1..=83).map(|n| format!("b{n}").into_bytes()).collect();
+    assert_eq!(labels, allocated);
+    for seed in [1, 2, 3, 5, 8] {
+        let source = shuffled_lines(DOSING_ANNOTATED, seed);
+        let mapped =
+            map_graph(&graph(&source)).unwrap_or_else(|| panic!("seed {seed}: the graph is read"));
+        assert!(
+            same_axioms_up_to_order(&mapped.ontology.axioms, &expected.axioms),
+            "seed {seed}"
+        );
+        assert_eq!(mapped.blanks.len(), 83);
     }
 }
