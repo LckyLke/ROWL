@@ -5056,3 +5056,75 @@ billion-laughs document of the tests stops with a resource error.
 
 This block adds 502 public theorems and 84 definitions. Totals are 3336 audited
 theorems, 1321 definitions, 552 Rust regressions and 3529 ledger obligations.
+
+## M3: RDF/XML graphs
+
+`rdfxml.rs` reads the element tree of `xml::read` into a raw RDF graph, following
+RDF 1.1 XML Syntax (W3C Recommendation, 25 February 2014). `RdfXmlGrammar.lean`
+states sections 5 to 7 as relations over element trees, written independently
+of the reader. An element becomes an element event whose URI is its namespace
+name followed by its local name (§6.1.2). The attributes with reserved XML names
+are dropped, the names ID, about, resource, parseType and type without namespace
+are read in the RDF namespace, other names without namespace are errors, and the
+remaining attributes keep their namespace name and local name (§6.1.4); no
+namespace name may extend the RDF namespace name, and no two attribute events of
+an element may have the same URI. An
+element's `xml:base` is resolved against the base IRI of its parent by RFC 3986
+section 5.2 (`IriResolution.resolve`), starting from the caller's base IRI, and
+`xml:lang` sets the language of the element and its descendants.
+
+The productions of section 7 relate an element, read in a context and from a
+state, to the triples it adds, in an order fixed by the relations, and to the
+state after them: the number of generated blank nodes and the `rdf:ID` values
+with their base IRIs, each of which must be new (constraint-id, §5.4). Node
+elements take their subject from `rdf:ID`, `rdf:nodeID`, `rdf:about` or a
+generated blank node, add an `rdf:type` triple unless they are
+`rdf:Description`, and one triple per property attribute. Property elements are
+resource, literal, `parseType="Resource"`, `parseType="Collection"` and empty
+ones; `rdf:li` numbers them per node, and `rdf:ID` on a property element
+reifies its statement (§7.3). Generated blank nodes are labelled with the byte
+0xFF followed by the decimal digits of a counter, which no UTF-8 `rdf:nodeID`
+label contains, and every blank node is in the caller's scope, as for N-Triples.
+An empty property element with `rdf:datatype` has the empty literal of that
+datatype (the RDF 1.1 erratum "Allow datatyped empty literals"). The datatype
+IRI is the value of `rdf:datatype` as written (§7.2.16) and must be an IRI other
+than `rdf:langString`. `rdf:parseType="Literal"` and the other values read as
+Literal have no relation: the XML literal needs XML canonicalization, which is
+not specified, and the reader declines them with `UnsupportedParseType`.
+`Graph` says that a tree derives the triples `ts` within a limit on the bytes of
+each term and a limit on the triples, generated blank nodes and `rdf:ID` values.
+
+`RdfXml.lean` proves `graph_correct`: when the term limit is positive and below
+`usize::MAX / 8`, `rdfxml::graph` returns exactly the triples, in order, that
+the grammar derives for the tree, and an error exactly when it derives none, so
+the grammar determines the triples (`graph_unique`). `read_correct` composes
+this with `Xml.read_correct`: when the byte length plus the expansion budget
+also fits in `usize`, `rdfxml::read_with_limits` returns a graph exactly when
+`XmlGrammar.Read` reads a tree from the bytes and the tree has a graph, with its
+triples; an XML error exactly when no tree is read; and an RDF/XML error
+otherwise. `read_total` proves that it always returns. Error kinds are reported
+but not specified by the theorems.
+
+Node elements, property element lists, property elements, the bodies of the
+productions and collections are mutually recursive in the grammar and in the
+reader. Their correctness is one mutual recursion over the element tree, well
+founded on the size of the element, the place of the function in the calls and
+the remaining children. Each function has one theorem in both directions: a
+result comes with a derivation, and a derivation within the limits gives that
+result. The functions they call are proved first, by recursion on positions
+(`RdfXmlTerms`, `RdfXmlEvents`, `RdfXmlProps`). The regressions run the examples
+of section 2 of the Recommendation, the productions and documents without a
+graph. A run of the W3C RDF 1.1 XML Syntax test suite outside the repository,
+comparing graphs up to blank node renaming, passed 123 of the 126 evaluation
+cases, the three others being the cases with `rdf:parseType="Literal"`, and
+rejected all 40 negative cases; no runner for it is committed yet.
+
+Not done yet: `Reasoner::from_rdfxml`, the command line choosing the reader by
+extension (`.owl`, `.rdf`) or content, the C interface, the Python package and
+import catalogs with RDF/XML documents, a regression that reads an OWL example
+in RDF/XML against the same ontology in N-Triples, a committed W3C suite runner,
+and a measurement of reading speed; `rdfxml::read` with default limits is not
+written either, so callers pass `Limits` to `read_with_limits`.
+
+This block adds 334 public theorems and 66 definitions. Totals are 3670 audited
+theorems, 1387 definitions, 556 Rust regressions and 3863 ledger obligations.

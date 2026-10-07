@@ -255,7 +255,7 @@ fn space(c: u32) -> bool {
 }
 
 /// [4] NameStartChar.
-fn name_start(c: u32) -> bool {
+pub(crate) fn name_start(c: u32) -> bool {
     (c == 58)
         | ((c >= 65) & (c <= 90))
         | (c == 95)
@@ -275,7 +275,7 @@ fn name_start(c: u32) -> bool {
 }
 
 /// [4a] NameChar.
-fn name_char(c: u32) -> bool {
+pub(crate) fn name_char(c: u32) -> bool {
     name_start(c)
         | (c == 45)
         | (c == 46)

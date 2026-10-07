@@ -42,6 +42,13 @@ import Rowl.XmlSubset
 import Rowl.XmlDocument
 import Rowl.XmlDecode
 import Rowl.Xml
+import Rowl.RdfXmlGrammar
+import Rowl.RdfXmlSpell
+import Rowl.RdfXmlTerms
+import Rowl.RdfXmlEvents
+import Rowl.RdfXmlProps
+import Rowl.RdfXmlNodes
+import Rowl.RdfXml
 import Rowl.RdfMapping
 import Rowl.RdfMappingComplete
 import Rowl.TopData
