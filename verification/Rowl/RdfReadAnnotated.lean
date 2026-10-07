@@ -21,7 +21,9 @@ other (`agraph_exclusive`: two axioms with the same main triple are the same
 axiom, and an annotated axiom occurs once), reads the annotations of the
 reifying node (`agraph_step`), runs the axiom loop over the blocks
 (`annotated_loop`), and reads the ontology annotations in the header
-(`header_parts_annotations`).
+(`header_parts_annotations`). The facts about the blocks (`AGraph`) and the
+reading of a block (`agraph_step`) hold for blocks at any positions of the
+graph; `RdfReadAnnotatedPermuted` uses them for graphs in any order.
 -/
 
 namespace Rowl.RdfReadAnnotated
@@ -731,8 +733,7 @@ structure AGraph (o : model.RawOntology) (triples : List rdf.Triple) (header : L
   headerFacts : ∀ q ∈ header, ∃ iri version, o.identity = .Named iri version ∧ q.subject = iriNode iri ∧
     ((q.predicate = rdfType ∧ q.object = .iri owlOntology) ∨ q.predicate = owlVersionIRI ∨ q.predicate = owlImports ∨
       ∃ a ∈ o.annotations.val, q.predicate = a.property.iri.spelling.val)
-  blocks : ∀ b ∈ bs, AImage o b ∧ At triples b.pos b.pats ∧ b.pos.Nodup ∧
-    b.apos = List.range' (b.core.main + b.core.pats.length) b.apats.length
+  blocks : ∀ b ∈ bs, AImage o b ∧ At triples b.pos b.pats ∧ b.pos.Nodup ∧ b.apos.length = b.apats.length
   sourced : ∀ (i : Nat) (t : rdf.Triple), triples[i]? = some t → (∃ q ∈ header, Matches q t) ∨ ∃ b ∈ bs, i ∈ b.pos
   axiomsIs : bs.map ABlock.ax = o.axioms.val
   supplyIs : supply = bs.flatMap ABlock.fresh
@@ -832,40 +833,34 @@ theorem agraph_owner (g : AGraph o triples header bs supply) {b : ABlock} (bIn :
 
 theorem agraph_split_at (g : AGraph o triples header bs supply) {b : ABlock} (bIn : b ∈ bs) :
     At triples b.core.pos b.core.pats ∧ At triples b.apos b.apats := by
-  obtain ⟨-, holds, -, aposIs⟩ := g.blocks b bIn
+  obtain ⟨-, holds, -, aposLen⟩ := g.blocks b bIn
   have lengths := at_length holds
   simp only [ABlock.pos, ABlock.pats, List.length_append] at lengths
-  rw [aposIs, List.length_range'] at lengths
   exact at_append_inv holds (by omega)
 
 /-- The positions of the reification and of the annotation triples of an
-    annotated block, in order. -/
-theorem agraph_reified_layout (g : AGraph o triples header bs supply) {b : ABlock} (bIn : b ∈ bs) {x : rdf.BlankNode}
-    {main : Pattern} {heads : List Pattern} (apatsIs : b.apats = reification owlAxiom x main ++ heads) :
-    ∃ p, b.apos = p :: (p + 1) :: (p + 2) :: (p + 3) :: List.range' (p + 4) heads.length ∧
-      (∃ t, triples[p]? = some t ∧ Matches ⟨.blank x, rdfType, .iri owlAxiom⟩ t) ∧
-      (∃ t, triples[p + 1]? = some t ∧ Matches ⟨.blank x, owlAnnotatedSource, main.subject⟩ t) ∧
-      (∃ t, triples[p + 2]? = some t ∧ Matches ⟨.blank x, owlAnnotatedProperty, .iri main.predicate⟩ t) ∧
-      (∃ t, triples[p + 3]? = some t ∧ Matches ⟨.blank x, owlAnnotatedTarget, main.object⟩ t) ∧
-      At triples (List.range' (p + 4) heads.length) heads := by
-  obtain ⟨-, -, -, aposIs⟩ := g.blocks b bIn
-  have holdsA := ((agraph_split_at g) bIn).2
-  refine ⟨b.core.main + b.core.pats.length, ?_⟩
-  have layout : b.apos = (b.core.main + b.core.pats.length) :: (b.core.main + b.core.pats.length + 1) ::
-      (b.core.main + b.core.pats.length + 2) :: (b.core.main + b.core.pats.length + 3) ::
-      List.range' (b.core.main + b.core.pats.length + 4) heads.length := by
-    rw [aposIs, apatsIs]
-    simp only [reification, List.length_append, List.length_cons, List.length_nil]
-    rw [show 0 + 1 + 1 + 1 + 1 + heads.length = heads.length + 1 + 1 + 1 + 1 by omega]
-    simp only [List.range'_succ]
-  refine ⟨layout, ?_⟩
-  rw [layout, apatsIs] at holdsA
+    annotated block. -/
+theorem agraph_reified_layout (g : AGraph o triples header bs supply) {b : ABlock} (bIn : b ∈ bs)
+    {x : rdf.BlankNode} {main : Pattern} {heads : List Pattern}
+    (apatsIs : b.apats = reification owlAxiom x main ++ heads) :
+    ∃ (p0 p1 p2 p3 : Nat) (hs : List Nat), b.apos = p0 :: p1 :: p2 :: p3 :: hs ∧
+      (∃ t, triples[p0]? = some t ∧ Matches ⟨.blank x, rdfType, .iri owlAxiom⟩ t) ∧
+      (∃ t, triples[p1]? = some t ∧ Matches ⟨.blank x, owlAnnotatedSource, main.subject⟩ t) ∧
+      (∃ t, triples[p2]? = some t ∧ Matches ⟨.blank x, owlAnnotatedProperty, .iri main.predicate⟩ t) ∧
+      (∃ t, triples[p3]? = some t ∧ Matches ⟨.blank x, owlAnnotatedTarget, main.object⟩ t) ∧
+      At triples hs heads := by
+  have holdsA := (agraph_split_at g bIn).2
+  rw [apatsIs] at holdsA
   simp only [reification, List.cons_append, List.nil_append] at holdsA
-  obtain ⟨h0, holdsA⟩ := List.forall₂_cons.mp holdsA
-  obtain ⟨h1, holdsA⟩ := List.forall₂_cons.mp holdsA
-  obtain ⟨h2, holdsA⟩ := List.forall₂_cons.mp holdsA
-  obtain ⟨h3, holdsA⟩ := List.forall₂_cons.mp holdsA
-  exact ⟨h0, h1, h2, h3, holdsA⟩
+  generalize b.apos = apos at holdsA ⊢
+  cases holdsA with
+  | cons h0 rest =>
+    cases rest with
+    | cons h1 rest =>
+      cases rest with
+      | cons h2 rest =>
+        cases rest with
+        | cons h3 rest => exact ⟨_, _, _, _, _, rfl, h0, h1, h2, h3, rest⟩
 
 /-- A triple at a position of the axiom part of a block whose subject is a
     blank node of the block, or an anonymous individual of the axiom. -/
@@ -894,32 +889,32 @@ theorem agraph_reifier_not_core (g : AGraph o triples header bs supply) {b : ABl
 
 /-- A triple about the reifying node of an annotated block is a triple of the
     reification or an annotation triple of that node. -/
-theorem agraph_reifier_triple (g : AGraph o triples header bs supply) {b : ABlock} (bIn : b ∈ bs) {x : rdf.BlankNode}
-    {main : Pattern} {heads : List Pattern} {sx : Supply} (afreshIs : b.afresh = [x])
-    (tanns : TAnns (.blank x) b.ann.val sx heads sx) {p : Nat}
-    (layout : b.apos = p :: (p + 1) :: (p + 2) :: (p + 3) :: List.range' (p + 4) heads.length)
-    (typing : ∃ t, triples[p]? = some t ∧ Matches ⟨.blank x, rdfType, .iri owlAxiom⟩ t)
-    (source : ∃ t, triples[p + 1]? = some t ∧ Matches ⟨.blank x, owlAnnotatedSource, main.subject⟩ t)
-    (property : ∃ t, triples[p + 2]? = some t ∧ Matches ⟨.blank x, owlAnnotatedProperty, .iri main.predicate⟩ t)
-    (target : ∃ t, triples[p + 3]? = some t ∧ Matches ⟨.blank x, owlAnnotatedTarget, main.object⟩ t)
-    (holdsH : At triples (List.range' (p + 4) heads.length) heads) {j : Nat} {t : rdf.Triple}
+theorem agraph_reifier_triple (g : AGraph o triples header bs supply) {b : ABlock} (bIn : b ∈ bs)
+    {x : rdf.BlankNode} {main : Pattern} {heads : List Pattern} {sx : Supply} (afreshIs : b.afresh = [x])
+    (tanns : TAnns (.blank x) b.ann.val sx heads sx) {p0 p1 p2 p3 : Nat} {hs : List Nat}
+    (layout : b.apos = p0 :: p1 :: p2 :: p3 :: hs)
+    (typing : ∃ t, triples[p0]? = some t ∧ Matches ⟨.blank x, rdfType, .iri owlAxiom⟩ t)
+    (source : ∃ t, triples[p1]? = some t ∧ Matches ⟨.blank x, owlAnnotatedSource, main.subject⟩ t)
+    (property : ∃ t, triples[p2]? = some t ∧ Matches ⟨.blank x, owlAnnotatedProperty, .iri main.predicate⟩ t)
+    (target : ∃ t, triples[p3]? = some t ∧ Matches ⟨.blank x, owlAnnotatedTarget, main.object⟩ t)
+    (holdsH : At triples hs heads) {j : Nat} {t : rdf.Triple}
     (at_j : triples[j]? = some t) (about : subjectView t.subject = .blank x) :
-    (j = p ∧ Matches ⟨.blank x, rdfType, .iri owlAxiom⟩ t) ∨
-      (j = p + 1 ∧ Matches ⟨.blank x, owlAnnotatedSource, main.subject⟩ t) ∨
-      (j = p + 2 ∧ Matches ⟨.blank x, owlAnnotatedProperty, .iri main.predicate⟩ t) ∨
-      (j = p + 3 ∧ Matches ⟨.blank x, owlAnnotatedTarget, main.object⟩ t) ∨
-      (j ∈ List.range' (p + 4) heads.length ∧ ∃ a ∈ b.ann.val, t.predicate.spelling.val = a.property.iri.spelling.val) := by
+    (j = p0 ∧ Matches ⟨.blank x, rdfType, .iri owlAxiom⟩ t) ∨
+      (j = p1 ∧ Matches ⟨.blank x, owlAnnotatedSource, main.subject⟩ t) ∨
+      (j = p2 ∧ Matches ⟨.blank x, owlAnnotatedProperty, .iri main.predicate⟩ t) ∨
+      (j = p3 ∧ Matches ⟨.blank x, owlAnnotatedTarget, main.object⟩ t) ∨
+      (j ∈ hs ∧ ∃ a ∈ b.ann.val, t.predicate.spelling.val = a.property.iri.spelling.val) := by
   have xIn : x ∈ b.fresh := by simp [ABlock.fresh, afreshIs]
-  have inB := (agraph_owner g) bIn at_j about xIn
+  have inB := agraph_owner g bIn at_j about xIn
   simp only [ABlock.pos, List.mem_append] at inB
   rcases inB with inCore | inA
   · exfalso
-    rcases (agraph_core_subject g) bIn at_j inCore about with inside | ⟨an, isSome, same⟩
-    · exact (agraph_reifier_not_core g) bIn afreshIs inside
+    rcases agraph_core_subject g bIn at_j inCore about with inside | ⟨an, isSome, same⟩
+    · exact agraph_reifier_not_core g bIn afreshIs inside
     · obtain ⟨image, -, -, -⟩ := g.blocks b bIn
       have notIn := g.fresh b.ax image.member an isSome
       rw [← same] at notIn
-      exact notIn ((agraph_in_supply g) bIn xIn)
+      exact notIn (agraph_in_supply g bIn xIn)
   · rw [layout] at inA
     have same : ∀ {k : Nat} {u : rdf.Triple} {q : Pattern}, triples[k]? = some u → Matches q u → k = j →
         Matches q t := by
@@ -951,10 +946,10 @@ theorem agraph_annotation_not_vocabulary (g : AGraph o triples header bs supply)
 theorem agraph_source_triple (g : AGraph o triples header bs supply) {i : Nat} {t : rdf.Triple}
     (at_i : triples[i]? = some t) (named : t.predicate.spelling.val = owlAnnotatedSource) :
     ∃ b ∈ bs, ∃ (main : Pattern) (side : List Pattern) (x : rdf.BlankNode) (heads : List Pattern) (sx : Supply)
-      (p : Nat), b.core.pats = main :: side ∧ MainFacts (strip o) b.core.ax b.core.fresh main ∧ b.ann.val ≠ [] ∧
+      (p0 p1 p2 p3 : Nat) (hs : List Nat), b.core.pats = main :: side ∧
+      MainFacts (strip o) b.core.ax b.core.fresh main ∧ b.ann.val ≠ [] ∧
       b.afresh = [x] ∧ b.apats = reification owlAxiom x main ++ heads ∧ TAnns (.blank x) b.ann.val sx heads sx ∧
-      rdf_mapping.main_triples b.core.ax = .ok 1#u8 ∧
-      b.apos = p :: (p + 1) :: (p + 2) :: (p + 3) :: List.range' (p + 4) heads.length ∧ i = p + 1 ∧
+      rdf_mapping.main_triples b.core.ax = .ok 1#u8 ∧ b.apos = p0 :: p1 :: p2 :: p3 :: hs ∧ i = p1 ∧
       Matches ⟨.blank x, owlAnnotatedSource, main.subject⟩ t := by
   rcases g.sourced i t at_i with ⟨q, qIn, fits⟩ | ⟨b, bIn, ib⟩
   · exfalso
@@ -981,7 +976,8 @@ theorem agraph_source_triple (g : AGraph o triples header bs supply) {i : Nat} {
         obtain ⟨q, qIn, -⟩ := at_mem ((agraph_split_at g) bIn).2 inA at_i
         rw [empty] at qIn
         simp at qIn
-      · obtain ⟨p, layout, typing, source, property, target, holdsH⟩ := (agraph_reified_layout g) bIn apatsIs
+      · obtain ⟨p0, p1, p2, p3, hs, layout, typing, source, property, target, holdsH⟩ :=
+          (agraph_reified_layout g) bIn apatsIs
         have subjectX : subjectView t.subject = .blank x := by
           have holdsA := ((agraph_split_at g) bIn).2
           obtain ⟨q, qIn, fits⟩ := at_mem holdsA inA at_i
@@ -995,8 +991,8 @@ theorem agraph_source_triple (g : AGraph o triples header bs supply) {i : Nat} {
         rcases (agraph_reifier_triple g) bIn afreshIs tanns layout typing source property target holdsH at_i subjectX with
           ⟨-, fits⟩ | ⟨rfl, fits⟩ | ⟨-, fits⟩ | ⟨-, fits⟩ | ⟨-, a, aIn, spelled⟩
         · exfalso; have := fits.2.1; rw [named] at this; simp [owlAnnotatedSource, rdfType] at this
-        · exact ⟨b, bIn, main, side, x, heads, sx, p, pIs, facts, nonempty, afreshIs, apatsIs, tanns, one, layout,
-            rfl, fits⟩
+        · exact ⟨b, bIn, main, side, x, heads, sx, p0, _, p2, p3, hs, pIs, facts, nonempty, afreshIs, apatsIs, tanns,
+            one, layout, rfl, fits⟩
         · exfalso; have := fits.2.1; rw [named] at this; simp [owlAnnotatedSource, owlAnnotatedProperty] at this
         · exfalso; have := fits.2.1; rw [named] at this; simp [owlAnnotatedSource, owlAnnotatedTarget] at this
         · exfalso
@@ -1009,15 +1005,16 @@ theorem agraph_no_annotation_kind (g : AGraph o triples header bs supply) :
     ∀ (used : List Bool) (t : rdf.Triple) f x, ¬ ReifierOk triples used t owlAnnotation f x := by
   intro used t f x ok
   obtain ⟨ts, -, -, ty, unusedS, -, -, unusedY, subjectS, fitsS, -, -, fitsY⟩ := ok
-  obtain ⟨b, bIn, main, side, x', heads, sx, p, -, -, -, afreshIs, apatsIs, tanns, -, -, -, fitsS'⟩ :=
-    (agraph_source_triple g) unusedS.1 fitsS.2.1
+  obtain ⟨b, bIn, main, side, x', heads, sx, p0, p1, p2, p3, hs, -, -, -, afreshIs, apatsIs, tanns, -, -, -,
+    fitsS'⟩ := (agraph_source_triple g) unusedS.1 fitsS.2.1
   have same : x' = x := by
     have := fitsS'.1
     rw [subjectS] at this
     simp only [subjectView, Node.blank.injEq] at this
     exact this.symm
   rw [same] at afreshIs apatsIs tanns
-  obtain ⟨p', layout', typing, source, property, target, holdsH⟩ := (agraph_reified_layout g) bIn apatsIs
+  obtain ⟨q0, q1, q2, q3, hs', layout', typing, source, property, target, holdsH⟩ :=
+    (agraph_reified_layout g) bIn apatsIs
   rcases (agraph_reifier_triple g) bIn afreshIs tanns layout' typing source property target holdsH unusedY.1 fitsY.1 with
     ⟨-, fits⟩ | ⟨-, fits⟩ | ⟨-, fits⟩ | ⟨-, fits⟩ | ⟨-, a, aIn, spelled⟩
   · have := fits.2.2; rw [fitsY.2.2] at this; simp [owlAnnotation, owlAxiom] at this
@@ -1215,28 +1212,30 @@ theorem agraph_exclusive (g : AGraph o triples.val header bs supply) {kinds : rd
     {t : rdf.Triple} (at_t : triples.val[b.core.main]? = some t) (fits : Matches main t)
     (found : Usize × Usize × Usize × Usize) (x : rdf.BlankNode)
     (ok : ReifierOk triples.val s.used.val t owlAxiom found x) :
-    ∃ (heads : List Pattern) (sx : Supply) (p : Nat), b.ann.val ≠ [] ∧ b.afresh = [x] ∧
+    ∃ (heads : List Pattern) (sx : Supply) (p0 p1 p2 p3 : Nat) (hs : List Nat), b.ann.val ≠ [] ∧ b.afresh = [x] ∧
       b.apats = reification owlAxiom x main ++ heads ∧ TAnns (.blank x) b.ann.val sx heads sx ∧
-      b.apos = p :: (p + 1) :: (p + 2) :: (p + 3) :: List.range' (p + 4) heads.length ∧
-      found.1.val = p + 1 ∧ found.2.1.val = p + 2 ∧ found.2.2.1.val = p + 3 ∧ found.2.2.2.val = p := by
+      b.apos = p0 :: p1 :: p2 :: p3 :: hs ∧
+      found.1.val = p1 ∧ found.2.1.val = p2 ∧ found.2.2.1.val = p3 ∧ found.2.2.2.val = p0 := by
   have bIn := members b (by simp)
   obtain ⟨ts, tp, tt, ty, uS, uP, uT, uY, subjectS, fS, fP, fT, fY⟩ := ok
-  obtain ⟨d, dIn, mainD, sideD, xD, headsD, sxD, pD, pIsD, -, nonemptyD, afreshD, apatsD, tannsD, -, layoutD,
-    srcPos, fitsSD⟩ := (agraph_source_triple g) uS.1 fS.2.1
+  obtain ⟨d, dIn, mainD, sideD, xD, headsD, sxD, q0, q1, q2, q3, hsD, pIsD, -, nonemptyD, afreshD, apatsD, tannsD,
+    -, layoutD, srcPos, fitsSD⟩ := (agraph_source_triple g) uS.1 fS.2.1
   have xSame : xD = x := by
     have := fitsSD.1
     rw [subjectS] at this
     simp only [subjectView, Node.blank.injEq] at this
     exact this.symm
   rw [xSame] at afreshD apatsD tannsD
-  obtain ⟨pD', layoutD', typing, source, property, target, holdsH⟩ := (agraph_reified_layout g) dIn apatsD
-  have pSame : pD' = pD := by
+  obtain ⟨r0, r1, r2, r3, hsR, layoutD', typing, source, property, target, holdsH⟩ :=
+    (agraph_reified_layout g) dIn apatsD
+  have rSame : r0 = q0 ∧ r1 = q1 ∧ r2 = q2 ∧ r3 = q3 ∧ hsR = hsD := by
     rw [layoutD] at layoutD'
     simp only [List.cons.injEq] at layoutD'
-    exact layoutD'.1.symm
-  subst pSame
+    obtain ⟨h0, h1, h2, h3, h4⟩ := layoutD'
+    exact ⟨h0.symm, h1.symm, h2.symm, h3.symm, h4.symm⟩
+  obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := rSame
   -- the property, target and typing triples are those of the reification of `d`
-  have propertyPos : found.2.1.val = pD' + 2 ∧ objectView tp.object = .iri mainD.predicate := by
+  have propertyPos : found.2.1.val = r2 ∧ objectView tp.object = .iri mainD.predicate := by
     rcases (agraph_reifier_triple g) dIn afreshD tannsD layoutD typing source property target holdsH uP.1 fP.1 with
       ⟨-, f⟩ | ⟨-, f⟩ | ⟨pos, f⟩ | ⟨-, f⟩ | ⟨-, a, aIn, spelled⟩
     · exfalso; have := f.2.1; rw [fP.2.1] at this; simp [owlAnnotatedProperty, rdfType] at this
@@ -1245,7 +1244,7 @@ theorem agraph_exclusive (g : AGraph o triples.val header bs supply) {kinds : rd
     · exfalso; have := f.2.1; rw [fP.2.1] at this; simp [owlAnnotatedProperty, owlAnnotatedTarget] at this
     · exact absurd (spelled.symm.trans fP.2.1) ((agraph_annotation_not_vocabulary g) dIn aIn owlAnnotatedProperty
         (by simp [mappingVocabulary]))
-  have targetPos : found.2.2.1.val = pD' + 3 ∧ objectView tt.object = mainD.object := by
+  have targetPos : found.2.2.1.val = r3 ∧ objectView tt.object = mainD.object := by
     rcases (agraph_reifier_triple g) dIn afreshD tannsD layoutD typing source property target holdsH uT.1 fT.1 with
       ⟨-, f⟩ | ⟨-, f⟩ | ⟨-, f⟩ | ⟨pos, f⟩ | ⟨-, a, aIn, spelled⟩
     · exfalso; have := f.2.1; rw [fT.2.1] at this; simp [owlAnnotatedTarget, rdfType] at this
@@ -1254,7 +1253,7 @@ theorem agraph_exclusive (g : AGraph o triples.val header bs supply) {kinds : rd
     · exact ⟨pos, f.2.2⟩
     · exact absurd (spelled.symm.trans fT.2.1) ((agraph_annotation_not_vocabulary g) dIn aIn owlAnnotatedTarget
         (by simp [mappingVocabulary]))
-  have typingPos : found.2.2.2.val = pD' := by
+  have typingPos : found.2.2.2.val = r0 := by
     rcases (agraph_reifier_triple g) dIn afreshD tannsD layoutD typing source property target holdsH uY.1 fY.1 with
       ⟨pos, -⟩ | ⟨-, f⟩ | ⟨-, f⟩ | ⟨-, f⟩ | ⟨-, a, aIn, spelled⟩
     · exact pos
@@ -1280,15 +1279,15 @@ theorem agraph_exclusive (g : AGraph o triples.val header bs supply) {kinds : rd
   subst mainSame
   by_cases same : d = b
   · subst same
-    exact ⟨headsD, sxD, pD', nonemptyD, afreshD, apatsD, tannsD, layoutD, srcPos, propertyPos.1, targetPos.1,
-      typingPos⟩
+    exact ⟨headsD, sxD, r0, r1, r2, r3, hsR, nonemptyD, afreshD, apatsD, tannsD, layoutD', srcPos, propertyPos.1,
+      targetPos.1, typingPos⟩
   · exfalso
     -- `d` is a later block: its source triple is unused
     have dLater : d ∈ rest := by
       obtain ⟨c, cIn, inC⟩ := state.covered found.1.val uS.2
       have inD : found.1.val ∈ d.pos := by
         simp only [ABlock.pos, List.mem_append]
-        exact Or.inr (by rw [layoutD, srcPos]; simp)
+        exact Or.inr (by rw [layoutD', srcPos]; simp)
       have cd : c = d := by
         apply Classical.byContradiction
         intro ne
@@ -1379,16 +1378,51 @@ section
 variable {o : model.RawOntology} {triples : alloc.vec.Vec rdf.Triple} {header : List Pattern} {bs : List ABlock}
   {supply : Supply}
 
+/-- The positions of the annotation triples of a block increase. -/
+def ABlock.Ordered (b : ABlock) : Prop := (b.apos.drop 4).Pairwise (· < ·)
+
+theorem heads_zip {triples : List rdf.Triple} {x : rdf.BlankNode} :
+    ∀ {anns : List model.Annotation} {sx : Supply} {heads : List Pattern} {hs : List Nat},
+      TAnns (.blank x) anns sx heads sx → (∀ a ∈ anns, a.annotations.val = []) → At triples hs heads →
+      HeadsOf triples x (hs.zip anns) ∧ (hs.zip anns).map Prod.fst = hs ∧ (hs.zip anns).map Prod.snd = anns := by
+  intro anns
+  induction anns with
+  | nil =>
+    intro sx heads hs h _ holds
+    obtain ⟨rfl, -⟩ := tanns_nil h
+    have : hs = [] := by have := at_length holds; simpa using this
+    subst this
+    simp [HeadsOf]
+  | cons a rest ih =>
+    intro sx heads hs h plain holds
+    cases h with
+    | cons _ _ _ _ sMid _ p q ha hrest =>
+      obtain ⟨n, rfl, rfl, valueNode⟩ := tann_plain ha (plain a (by simp))
+      obtain ⟨h0, hs', rfl, ⟨t, at_t, fits⟩, holdsRest⟩ : ∃ h0 hs', hs = h0 :: hs' ∧
+          (∃ t, triples[h0]? = some t ∧ Matches ⟨.blank x, a.property.iri.spelling.val, n⟩ t) ∧
+          At triples hs' q := by
+        cases holds with
+        | cons hx rest => exact ⟨_, _, rfl, hx, rest⟩
+      obtain ⟨heads', fsts, snds⟩ := ih hrest (fun b m => plain b (List.mem_cons_of_mem _ m)) holdsRest
+      refine ⟨?_, by simp [fsts], by simp [snds]⟩
+      intro r m
+      simp only [List.zip_cons_cons, List.mem_cons] at m
+      rcases m with rfl | inner
+      · exact ⟨t, n, at_t, fits, valueNode⟩
+      · exact heads' r inner
+
 /-- **Every block of the axiom loop is read with its annotations.** In a loop
     state before the blocks `b :: rest` of the graph, `read_axiom` reads the
     axiom of `b` from its main position, and `annotate` the annotations of its
-    reification, using exactly the positions of `b` and recording exactly its
-    blank nodes. -/
+    reification in the order of their positions, using exactly the positions of
+    `b` and recording exactly its blank nodes. -/
 theorem agraph_step (g : AGraph o triples.val header bs supply) {kinds : rdf_mapping.Kinds} (hk : KindsOf kinds o.axioms.val)
     (s : rdf_mapping.State) (b : ABlock) (rest : List ABlock) (members : ∀ c ∈ b :: rest, c ∈ bs)
     (state : ALoop triples s (b :: rest)) (a : Usize) (aIs : a.val = b.core.main) :
-    ∃ s1 s', rdf_mapping.read_axiom triples kinds a s (alloc.vec.Vec.len triples) = .ok (.Found b.ax.axiom s1) ∧
-      rdf_mapping.annotate triples kinds a b.ax.axiom s1 (alloc.vec.Vec.len triples) = .ok (some (b.ax, s')) ∧
+    ∃ (s1 s' : rdf_mapping.State) (v : alloc.vec.Vec model.Annotation),
+      rdf_mapping.read_axiom triples kinds a s (alloc.vec.Vec.len triples) = .ok (.Found b.ax.axiom s1) ∧
+      rdf_mapping.annotate triples kinds a b.ax.axiom s1 (alloc.vec.Vec.len triples) =
+        .ok (some (⟨v, b.ax.axiom⟩, s')) ∧ v.val.Perm b.ann.val ∧ (b.Ordered → v = b.ann) ∧
       Marked s s' (fun i => i ∈ b.pos) b.fresh := by
   have bIn := members b (by simp)
   have ready := (agraph_core_ready g) bIn state
@@ -1408,7 +1442,10 @@ theorem agraph_step (g : AGraph o triples.val header bs supply) {kinds : rdf_map
     intro i; simp [Block.pos, aIs]
   rcases part with ⟨annNil, apatsNil, afreshNil⟩ | ⟨nonempty, x, heads, sx, afreshIs, apatsIs, tanns, one⟩
   · -- an unannotated axiom
-    have aposNil : b.apos = [] := by rw [aposIs, apatsNil]; rfl
+    have aposNil : b.apos = [] := by
+      have := aposIs
+      rw [apatsNil] at this
+      exact List.eq_nil_of_length_eq_zero this
     have posIs : ∀ i, i ∈ a.val :: b.core.rest ↔ i ∈ b.pos := by
       intro i; simp [ABlock.pos, aposNil, Block.pos, aIs]
     have freshIs : b.core.fresh = b.fresh := by simp [ABlock.fresh, afreshNil]
@@ -1417,19 +1454,19 @@ theorem agraph_step (g : AGraph o triples.val header bs supply) {kinds : rdf_map
       rw [vec_eq_of_val (u := alloc.vec.Vec.new _) (v := b.ann) (by rw [annNil]; rfl)]
     have marked : Marked s s1 (fun i => i ∈ b.pos) b.fresh :=
       marked_fresh_eq (marked_same markedCore posIs) freshIs
+    have vEq : (alloc.vec.Vec.new model.Annotation) = b.ann :=
+      vec_eq_of_val (by rw [annNil]; rfl)
     rcases shape with ⟨shape1, -⟩ | ⟨shape0, t0, x0, at0, subject0, inFresh⟩
-    · refine ⟨s1, s1, readRun, ?_, marked⟩
-      rw [← axEq]
+    · refine ⟨s1, s1, alloc.vec.Vec.new _, readRun, ?_, by rw [annNil]; rfl, fun _ => vEq, marked⟩
       apply annotate_main triples kinds a b.core.ax s1 _ shape1
       intro kind kindIs
       apply reified_absent triples kinds a kind s1 _ t at_a
       intro f x' ok
       rw [kindIs] at ok
-      obtain ⟨-, -, -, nonempty, -⟩ := (agraph_exclusive g) hk members state pIs facts at_t fits f x'
+      obtain ⟨-, -, -, -, -, -, -, nonempty, -⟩ := (agraph_exclusive g) hk members state pIs facts at_t fits f x'
         (reifier_ok_back markedCore ok)
       exact nonempty annNil
-    · refine ⟨s1, s1, readRun, ?_, marked⟩
-      rw [← axEq]
+    · refine ⟨s1, s1, alloc.vec.Vec.new _, readRun, ?_, by rw [annNil]; rfl, fun _ => vEq, marked⟩
       apply annotate_blank triples kinds a b.core.ax s1 _ shape0 t0 at0 x0 subject0
       intro i t' at_i unused about
       have before := marked_back markedCore unused
@@ -1442,8 +1479,8 @@ theorem agraph_step (g : AGraph o triples.val header bs supply) {kinds : rdf_map
     swap
     · rw [one] at shape0
       exact absurd (Result.ok_injective shape0) (by decide)
-    obtain ⟨p, layout, ⟨tY, atY, fitsY⟩, ⟨tS, atS, fitsS⟩, ⟨tP, atP, fitsP⟩, ⟨tT, atT, fitsT⟩, holdsH⟩ :=
-      (agraph_reified_layout g) bIn apatsIs
+    obtain ⟨p0, p1, p2, p3, hs, layout, ⟨tY, atY, fitsY⟩, ⟨tS, atS, fitsS⟩, ⟨tP, atP, fitsP⟩, ⟨tT, atT, fitsT⟩,
+      holdsH⟩ := (agraph_reified_layout g) bIn apatsIs
     have plain : ∀ a ∈ b.ann.val, a.annotations.val = [] := fun a m => ((g.blocks b bIn).1.plain a m).1
     have xIn : x ∈ b.fresh := by simp [ABlock.fresh, afreshIs]
     -- the positions of the annotation part are free in `s1`
@@ -1455,7 +1492,12 @@ theorem agraph_step (g : AGraph o triples.val header bs supply) {kinds : rdf_map
       rw [coreIs] at inCore
       simp only [ABlock.pos] at posNodup
       exact (List.nodup_append.mp posNodup).2.2 i inCore i m rfl
-    rw [layout] at freeA
+    have aposNodup : b.apos.Nodup := by
+      simp only [ABlock.pos] at posNodup
+      exact (List.nodup_append.mp posNodup).2.1
+    rw [layout] at freeA aposNodup
+    simp only [List.nodup_cons, List.mem_cons, not_or] at aposNodup
+    obtain ⟨⟨n01, n02, n03, n0h⟩, ⟨n12, n13, n1h⟩, ⟨n23, n2h⟩, n3h, hsNodup⟩ := aposNodup
     obtain ⟨uY, uYIs⟩ := usize_of_position atY
     obtain ⟨uS, uSIs⟩ := usize_of_position atS
     obtain ⟨uP, uPIs⟩ := usize_of_position atP
@@ -1508,13 +1550,13 @@ theorem agraph_step (g : AGraph o triples.val header bs supply) {kinds : rdf_map
             ((agraph_annotation_not_vocabulary g) bIn aIn rdfType (by simp [mappingVocabulary]))
       · intro f x' ok
         rw [kindIs] at ok
-        obtain ⟨heads', sx', p', -, -, -, -, layout', f1, f2, f3, f4⟩ :=
+        obtain ⟨heads', sx', q0, q1, q2, q3, hs', -, -, -, -, layout', f1, f2, f3, f4⟩ :=
           (agraph_exclusive g) hk members state pIs facts at_t fits f x' (reifier_ok_back markedCore ok)
-        have pSame : p' = p := by
+        have qSame : q0 = p0 ∧ q1 = p1 ∧ q2 = p2 ∧ q3 = p3 := by
           rw [layout] at layout'
           simp only [List.cons.injEq] at layout'
-          exact layout'.1.symm
-        subst pSame
+          exact ⟨layout'.1.symm, layout'.2.1.symm, layout'.2.2.1.symm, layout'.2.2.2.1.symm⟩
+        obtain ⟨rfl, rfl, rfl, rfl⟩ := qSame
         obtain ⟨f1', f2', f3', f4'⟩ := f
         simp only at f1 f2 f3 f4
         simp only [found, Prod.mk.injEq]
@@ -1531,58 +1573,85 @@ theorem agraph_step (g : AGraph o triples.val header bs supply) {kinds : rdf_map
       simp only [List.length_cons, List.length_nil] at room
       omega
     obtain ⟨s2, recordRun, mRecord⟩ := record_ok (takeFour s1 found) x roomX
-    have hsBound : heads.length ≤ triples.val.length := by
-      cases heads with
-      | nil => simp
-      | cons q qs =>
-        have last : p + 4 + qs.length ∈ List.range' (p + 4) (q :: qs).length := by
-          simp [List.mem_range'_1]
-        obtain ⟨-, tl, atl, -⟩ := at_get holdsH (k := qs.length) (i := p + 4 + qs.length)
-          (by rw [List.getElem?_range' (by simp)]; simp)
-        have := (List.getElem?_eq_some_iff.mp atl).1
-        simp only [List.length_cons]
-        omega
     have annLength : heads.length = b.ann.val.length := tanns_length tanns plain
-    obtain ⟨v, s3, nodeRun, vIs, mNode⟩ := node_annotations_plain triples kinds x (agraph_no_annotation_kind g) b.ann.val
-      tanns plain (fun a m => ((g.blocks b bIn).1.plain a m).2)
-      (fun a m => (annotation_property_facts g.readable hk (annotation_row_axiom (g.blocks b bIn).1.member m)).1)
-      (List.range' (p + 4) heads.length) s2 (alloc.vec.Vec.new _) (alloc.vec.Vec.len triples)
+    have hsLength : hs.length = heads.length := at_length holdsH
+    have hsBound : hs.length ≤ triples.val.length := by
+      have sub : hs ⊆ List.range triples.val.length := by
+        intro i m
+        rw [List.mem_range]
+        obtain ⟨k, hk, kIs⟩ := List.getElem_of_mem m
+        obtain ⟨-, tl, atl, -⟩ := at_get holdsH (k := k) (i := i) (by rw [List.getElem?_eq_getElem hk, kIs])
+        exact (List.getElem?_eq_some_iff.mp atl).1
+      have := (List.Nodup.subperm hsNodup sub).length_le
+      simpa using this
+    have freeH : ∀ i ∈ hs, s2.used.val[i]? = some false := by
+      intro i m
+      refine marked_unused mRecord (marked_unused mFour (freeA i (by simp [m])) ?_) (by simp)
+      simp only [found]
+      rw [uSIs, uPIs, uTIs, uYIs]
+      intro h
+      rcases h with rfl | rfl | rfl | rfl
+      · exact n1h m
+      · exact n2h m
+      · exact n3h m
+      · exact n0h m
+    have confinedH : ∀ (i : Nat) (u : rdf.Triple), triples.val[i]? = some u → s2.used.val[i]? = some false →
+        subjectView u.subject = .blank x → i ∈ hs := by
+      intro i u at_i unused about
+      have before := marked_back mRecord unused
+      rcases classify at_i about with ⟨rfl, -⟩ | ⟨rfl, -⟩ | ⟨rfl, -⟩ | ⟨rfl, -⟩ | ⟨inH, -⟩
+      all_goals first
+        | exact inH
+        | (exfalso
+           have inside : _ < s1.used.val.length := (List.getElem?_eq_some_iff.mp (marked_back mFour before)).1
+           rw [marked_used mFour inside (by simp only [found]; rw [uSIs, uPIs, uTIs, uYIs]; simp)] at before
+           cases before)
+    obtain ⟨headsOf, fsts, snds⟩ := heads_zip tanns plain holdsH (triples := triples.val)
+    have kindsOk : ∀ a ∈ b.ann.val, rdf_mapping.property_kind kinds a.property.iri.spelling = .ok (some .Annotation) :=
+      fun a m => (annotation_property_facts g.readable hk (annotation_row_axiom (g.blocks b bIn).1.member m)).1
+    obtain ⟨v, s3, l, nodeRun, vIs, lPerm, mNode⟩ := node_annotations_any triples kinds x
+      (agraph_no_annotation_kind g) _ (hs.zip b.ann.val) s2 (alloc.vec.Vec.new _) (alloc.vec.Vec.len triples) rfl
+      headsOf (by rw [fsts]; exact hsNodup)
+      (fun r m => by
+        have aIn := (List.of_mem_zip m).2
+        exact ⟨plain r.2 aIn, ((g.blocks b bIn).1.plain r.2 aIn).2, kindsOk r.2 aIn⟩)
       (by rw [mRecord.subjects, mFour.subjects, markedCore.subjects]; exact state.complete)
       (by rw [mRecord.subjects, mFour.subjects, markedCore.subjects]; exact state.sorted)
-      holdsH List.pairwise_lt_range'
-      (by
-        intro i m
-        have low := (List.mem_range'_1.mp m).1
-        refine marked_unused mRecord (marked_unused mFour (freeA i (by simp [m])) ?_) (by simp)
-        simp only [found]
-        rw [uSIs, uPIs, uTIs, uYIs]
-        omega)
-      (by
-        intro i u at_i unused about
-        have before := marked_back mRecord unused
-        rcases classify at_i about with ⟨rfl, -⟩ | ⟨rfl, -⟩ | ⟨rfl, -⟩ | ⟨rfl, -⟩ | ⟨inH, -⟩
-        all_goals first
-          | exact inH
-          | (exfalso
-             have inside : _ < s1.used.val.length := (List.getElem?_eq_some_iff.mp
-               (marked_back mFour before)).1
-             rw [marked_used mFour inside (by simp only [found]; rw [uSIs, uPIs, uTIs, uYIs]; omega)] at before
-             cases before))
-      (by simp [alloc.vec.Vec.len_val, ← annLength]; omega)
-      (by simp)
-    have nonemptyV : v.val ≠ [] := by rw [vIs]; simpa using nonempty
-    have vEq : v = b.ann := vec_eq_of_val (by rw [vIs]; simp)
-    have bAx : b.ax = ⟨v, b.core.ax⟩ := by simp only [ABlock.ax]; rw [vEq]
-    refine ⟨s1, s3, readRun, ?_, ?_⟩
-    · rw [bAx]
-      apply annotate_main triples kinds a b.core.ax s1 _ shape1 v s3
+      (fun r m => freeH r.1 (List.of_mem_zip m).1)
+      (fun i u at_i unused about => by rw [fsts]; exact confinedH i u at_i unused about)
+      (by simp [alloc.vec.Vec.len_val]; omega) (by simp)
+    rw [snds] at lPerm
+    have vIs' : v.val = l := by simpa using vIs
+    have vPerm : v.val.Perm b.ann.val := by rw [vIs']; exact lPerm
+    have nonemptyV : v.val ≠ [] := by
+      intro empty
+      rw [empty] at vPerm
+      exact nonempty (List.Perm.nil_eq vPerm).symm
+    refine ⟨s1, s3, v, readRun, ?_, vPerm, ?_, ?_⟩
+    · apply annotate_main triples kinds a b.core.ax s1 _ shape1 v s3
       intro kind kindIs
       exact reified_found triples kinds a kind s1 _ t at_a found (reifierRun kind kindIs) tS
         (by simp only [found]; rw [uSIs]; exact atS) x (subject_blank fitsS.1) s2 recordRun v s3 nodeRun
         nonemptyV
+    · intro ordered
+      have increasing : hs.Pairwise (· < ·) := by
+        unfold ABlock.Ordered at ordered
+        rw [layout] at ordered
+        simpa using ordered
+      obtain ⟨v', s3', nodeRun', vIs', -⟩ := node_annotations_plain triples kinds x (agraph_no_annotation_kind g)
+        b.ann.val tanns plain (fun a m => ((g.blocks b bIn).1.plain a m).2) kindsOk hs s2 (alloc.vec.Vec.new _)
+        (alloc.vec.Vec.len triples)
+        (by rw [mRecord.subjects, mFour.subjects, markedCore.subjects]; exact state.complete)
+        (by rw [mRecord.subjects, mFour.subjects, markedCore.subjects]; exact state.sorted)
+        holdsH increasing freeH confinedH (by simp [alloc.vec.Vec.len_val]; omega) (by simp)
+      rw [nodeRun] at nodeRun'
+      have same := Option.some.inj (Result.ok_injective nodeRun')
+      simp only [Prod.mk.injEq] at same
+      rw [same.1]
+      exact vec_eq_of_val (by rw [vIs']; simp)
     · have m := marked_trans (marked_trans (marked_trans markedCore mFour) mRecord) mNode
       refine marked_fresh_eq (marked_same m (fun i => ?_)) (by simp [ABlock.fresh, afreshIs])
-      simp only [ABlock.pos, List.mem_append, layout, List.mem_cons, found, uSIs, uPIs, uTIs, uYIs] at ⊢
+      simp only [ABlock.pos, List.mem_append, layout, List.mem_cons, found, uSIs, uPIs, uTIs, uYIs, fsts] at ⊢
       rw [← coreIs]
       simp only [List.mem_cons]
       tauto
@@ -1849,7 +1918,7 @@ theorem map_graph_complete_annotated (graph : rdf.RawGraph) (o : model.RawOntolo
             obtain ⟨subject, a, aIn, predicate, -⟩ := tanns_heads (namedFacts iri version identity) plainOnt q inA
             exact ⟨iri, version, rfl, subject, Or.inr (Or.inr (Or.inr ⟨a, aIn, predicate⟩))⟩
       blocks := fun b m => ⟨(each b m).1, (each b m).2.1, by rw [(each b m).2.2.1]; exact List.nodup_range',
-        (each b m).2.2.2.2.1⟩
+        by rw [(each b m).2.2.2.2.1, List.length_range']⟩
       axiomsIs := mapIs
       sourced := by
         intro i t at_i
@@ -1946,7 +2015,15 @@ theorem map_graph_complete_annotated (graph : rdf.RawGraph) (o : model.RawOntolo
       have lengths : bs.length = o.axioms.val.length := by rw [← mapIs, List.length_map]
       omega
     obtain ⟨v, s', run, vIs, blanksIs, allUsed⟩ := annotated_loop graph.triples kinds bs
-      (fun s b rest members state a aIs => (agraph_step g) hk s b rest members state a aIs) _ 0#usize bs st
+      (fun s b rest members state a aIs => by
+        obtain ⟨s1, s', v, readRun, annotateRun, -, exact, marked⟩ :=
+          (agraph_step g) hk s b rest members state a aIs
+        have ordered : b.Ordered := by
+          unfold ABlock.Ordered
+          rw [(each b (members b (by simp))).2.2.2.2.1]
+          exact List.Pairwise.sublist (List.drop_sublist _ _) List.pairwise_lt_range'
+        rw [exact ordered] at annotateRun
+        exact ⟨s1, s', readRun, annotateRun, marked⟩) _ 0#usize bs st
       (alloc.vec.Vec.new _) rfl (fun b m => m) sorted disjoint (fun b m => by simp) inRange state (by simp; omega)
     refine ⟨v, s', run, by rw [vIs, ← mapIs]; simp, by rw [blanksIs, blanksSt, freshIs]; simp, allUsed⟩
   -- the header

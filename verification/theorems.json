@@ -4102,6 +4102,8 @@
         "Rowl.RdfReadAnnotations.annotation_read",
         "Rowl.RdfReadAnnotations.tann_plain",
         "Rowl.RdfReadAnnotations.node_annotations_plain",
+        "Rowl.RdfReadAnnotations.exists_least",
+        "Rowl.RdfReadAnnotations.node_annotations_any",
         "Rowl.RdfReadAnnotations.marked_take_four",
         "Rowl.RdfReadAnnotations.reified_found",
         "Rowl.RdfReadAnnotations.annotate_main",
@@ -4161,6 +4163,7 @@
         "Rowl.RdfReadAnnotated.agraph_apart_of_ne",
         "Rowl.RdfReadAnnotated.agraph_once_blocks",
         "Rowl.RdfReadAnnotated.agraph_exclusive",
+        "Rowl.RdfReadAnnotated.heads_zip",
         "Rowl.RdfReadAnnotated.agraph_step",
         "Rowl.RdfReadAnnotated.header_annotated",
         "Rowl.RdfReadAnnotated.agraph_apos_subject",
@@ -4171,6 +4174,36 @@
         "Rowl.RdfReadAnnotated.agraph_fresh_le_pats",
         "Rowl.RdfReadAnnotated.agraph_flat_fresh_le",
         "Rowl.RdfReadAnnotated.map_graph_complete_annotated"
+      ]
+    },
+    {
+      "module": "Rowl.RdfReadAnnotatedPermuted",
+      "namespace": "Rowl.RdfReadAnnotatedPermuted",
+      "theorems": [
+        "Rowl.RdfReadAnnotatedPermuted.reification_predicates_structural",
+        "Rowl.RdfReadAnnotatedPermuted.special_vocabulary",
+        "Rowl.RdfReadAnnotatedPermuted.typing_reifier_blank",
+        "Rowl.RdfReadAnnotatedPermuted.reifier_typing_true",
+        "Rowl.RdfReadAnnotatedPermuted.reifier_typing_total",
+        "Rowl.RdfReadAnnotatedPermuted.typed_reifier_in_true",
+        "Rowl.RdfReadAnnotatedPermuted.reifier_subject_true",
+        "Rowl.RdfReadAnnotatedPermuted.read_axiom_head_skip",
+        "Rowl.RdfReadAnnotatedPermuted.read_axiom_reification_skip",
+        "Rowl.RdfReadAnnotatedPermuted.header_rest_a_step",
+        "Rowl.RdfReadAnnotatedPermuted.header_rest_a_end",
+        "Rowl.RdfReadAnnotatedPermuted.erase_positions",
+        "Rowl.RdfReadAnnotatedPermuted.header_parts_rest_a",
+        "Rowl.RdfReadAnnotatedPermuted.annotated_parts",
+        "Rowl.RdfReadAnnotatedPermuted.annotated_position_blocks",
+        "Rowl.RdfReadAnnotatedPermuted.annotated_loop_perm",
+        "Rowl.RdfReadAnnotatedPermuted.at_present",
+        "Rowl.RdfReadAnnotatedPermuted.tanns_zip",
+        "Rowl.RdfReadAnnotatedPermuted.mem_zip_any",
+        "Rowl.RdfReadAnnotatedPermuted.agraph_skip",
+        "Rowl.RdfReadAnnotatedPermuted.sort_ablocks_perm",
+        "Rowl.RdfReadAnnotatedPermuted.sort_ablocks_apart",
+        "Rowl.RdfReadAnnotatedPermuted.sort_ablocks_sorted",
+        "Rowl.RdfReadAnnotatedPermuted.map_graph_complete_annotated_perm"
       ]
     }
   ],

@@ -30,6 +30,7 @@ import Rowl.RdfReadOntology
 import Rowl.RdfReadPermuted
 import Rowl.RdfReadAnnotations
 import Rowl.RdfReadAnnotated
+import Rowl.RdfReadAnnotatedPermuted
 import Rowl.TopData
 import Rowl.Roles
 import Rowl.RoleClosure
@@ -3404,6 +3405,8 @@ import Rowl.Saturation
 #print axioms Rowl.RdfReadAnnotations.annotation_read
 #print axioms Rowl.RdfReadAnnotations.tann_plain
 #print axioms Rowl.RdfReadAnnotations.node_annotations_plain
+#print axioms Rowl.RdfReadAnnotations.exists_least
+#print axioms Rowl.RdfReadAnnotations.node_annotations_any
 #print axioms Rowl.RdfReadAnnotations.marked_take_four
 #print axioms Rowl.RdfReadAnnotations.reified_found
 #print axioms Rowl.RdfReadAnnotations.annotate_main
@@ -3457,6 +3460,7 @@ import Rowl.Saturation
 #print axioms Rowl.RdfReadAnnotated.agraph_apart_of_ne
 #print axioms Rowl.RdfReadAnnotated.agraph_once_blocks
 #print axioms Rowl.RdfReadAnnotated.agraph_exclusive
+#print axioms Rowl.RdfReadAnnotated.heads_zip
 #print axioms Rowl.RdfReadAnnotated.agraph_step
 #print axioms Rowl.RdfReadAnnotated.header_annotated
 #print axioms Rowl.RdfReadAnnotated.agraph_apos_subject
@@ -3467,6 +3471,30 @@ import Rowl.Saturation
 #print axioms Rowl.RdfReadAnnotated.agraph_fresh_le_pats
 #print axioms Rowl.RdfReadAnnotated.agraph_flat_fresh_le
 #print axioms Rowl.RdfReadAnnotated.map_graph_complete_annotated
+#print axioms Rowl.RdfReadAnnotatedPermuted.reification_predicates_structural
+#print axioms Rowl.RdfReadAnnotatedPermuted.special_vocabulary
+#print axioms Rowl.RdfReadAnnotatedPermuted.typing_reifier_blank
+#print axioms Rowl.RdfReadAnnotatedPermuted.reifier_typing_true
+#print axioms Rowl.RdfReadAnnotatedPermuted.reifier_typing_total
+#print axioms Rowl.RdfReadAnnotatedPermuted.typed_reifier_in_true
+#print axioms Rowl.RdfReadAnnotatedPermuted.reifier_subject_true
+#print axioms Rowl.RdfReadAnnotatedPermuted.read_axiom_head_skip
+#print axioms Rowl.RdfReadAnnotatedPermuted.read_axiom_reification_skip
+#print axioms Rowl.RdfReadAnnotatedPermuted.header_rest_a_step
+#print axioms Rowl.RdfReadAnnotatedPermuted.header_rest_a_end
+#print axioms Rowl.RdfReadAnnotatedPermuted.erase_positions
+#print axioms Rowl.RdfReadAnnotatedPermuted.header_parts_rest_a
+#print axioms Rowl.RdfReadAnnotatedPermuted.annotated_parts
+#print axioms Rowl.RdfReadAnnotatedPermuted.annotated_position_blocks
+#print axioms Rowl.RdfReadAnnotatedPermuted.annotated_loop_perm
+#print axioms Rowl.RdfReadAnnotatedPermuted.at_present
+#print axioms Rowl.RdfReadAnnotatedPermuted.tanns_zip
+#print axioms Rowl.RdfReadAnnotatedPermuted.mem_zip_any
+#print axioms Rowl.RdfReadAnnotatedPermuted.agraph_skip
+#print axioms Rowl.RdfReadAnnotatedPermuted.sort_ablocks_perm
+#print axioms Rowl.RdfReadAnnotatedPermuted.sort_ablocks_apart
+#print axioms Rowl.RdfReadAnnotatedPermuted.sort_ablocks_sorted
+#print axioms Rowl.RdfReadAnnotatedPermuted.map_graph_complete_annotated_perm
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote

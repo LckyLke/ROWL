@@ -908,6 +908,145 @@ theorem node_annotations_plain (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf
       · refine marked_same (marked_trans mTake marked) (fun i => ?_)
         simp
 
+/-! ### The annotations of a node in any order -/
+
+theorem exists_least {α : Type} : ∀ (hs : List (Nat × α)), hs ≠ [] → ∃ p ∈ hs, ∀ q ∈ hs, p.1 ≤ q.1
+  | [], h => absurd rfl h
+  | [p], _ => ⟨p, by simp, fun q m => by simp at m; rw [m]⟩
+  | p :: q :: rest, _ => by
+    obtain ⟨r, rIn, least⟩ := exists_least (q :: rest) (by simp)
+    by_cases le : p.1 ≤ r.1
+    · refine ⟨p, by simp, fun c m => ?_⟩
+      rcases List.mem_cons.mp m with rfl | inRest
+      · exact le_refl _
+      · exact le.trans (least c inRest)
+    · refine ⟨r, List.mem_cons_of_mem _ rIn, fun c m => ?_⟩
+      rcases List.mem_cons.mp m with rfl | inRest
+      · omega
+      · exact least c inRest
+
+/-- The annotation triples of the node `x` at their positions. -/
+def HeadsOf (triples : List rdf.Triple) (x : rdf.BlankNode) (hs : List (Nat × model.Annotation)) : Prop :=
+  ∀ p ∈ hs, ∃ t n, triples[p.1]? = some t ∧ Matches ⟨.blank x, p.2.property.iri.spelling.val, n⟩ t ∧
+    AnnotationValueNode p.2.value n
+
+/-- **The annotations of a blank node are read wherever their triples are.**
+    With a complete and sorted subject index, the annotation triples of `x` at
+    distinct positions, every other triple about `x` used, and no annotation
+    with annotations of its own, `node_annotations` reads those annotations in
+    the order of their positions, using exactly their triples. -/
+theorem node_annotations_any (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds) (x : rdf.BlankNode)
+    (noAnnotation : ∀ (used : List Bool) (t : rdf.Triple) f x, ¬ ReifierOk triples.val used t owlAnnotation f x) :
+    ∀ (n : Nat) (hs : List (Nat × model.Annotation)) (s : rdf_mapping.State) (out : alloc.vec.Vec model.Annotation)
+      (fuel : Usize), hs.length = n → HeadsOf triples.val x hs → (hs.map Prod.fst).Nodup →
+      (∀ p ∈ hs, p.2.annotations.val = [] ∧ (∀ v, p.2.value = .Literal v → LiteralReadable v) ∧
+        rdf_mapping.property_kind kinds p.2.property.iri.spelling = .ok (some .Annotation)) →
+      SubjectsComplete triples.val s.subjects.val (alloc.vec.Vec.len s.subjects) triples.val.length →
+      BucketsSorted s.subjects.val → (∀ p ∈ hs, s.used.val[p.1]? = some false) →
+      (∀ (i : Nat) (t : rdf.Triple), triples.val[i]? = some t → s.used.val[i]? = some false →
+        subjectView t.subject = .blank x → i ∈ hs.map Prod.fst) →
+      hs.length ≤ fuel.val → out.val.length + hs.length ≤ Usize.max →
+      ∃ v s' l, rdf_mapping.node_annotations triples kinds x s out fuel = .ok (some (v, s')) ∧
+        v.val = out.val ++ l ∧ l.Perm (hs.map Prod.snd) ∧ Marked s s' (fun i => i ∈ hs.map Prod.fst) [] := by
+  intro n
+  induction n with
+  | zero =>
+    intro hs s out fuel len _ _ _ _ _ _ confined _ _
+    have empty : hs = [] := List.eq_nil_of_length_eq_zero len
+    subst empty
+    refine ⟨out, s, [], ?_, by simp, by simp, marked_same (marked_refl s) (fun i => by simp)⟩
+    rw [rdf_mapping.node_annotations]
+    simp only [find_annotation_none triples kinds s x (fun i t at_i unused about => by
+      have := confined i t at_i unused about; simp at this), bind_ok]
+  | succ n ih =>
+    intro hs s out fuel len heads nodup props complete sorted free confined fuelOk room
+    obtain ⟨p0, p0In, least⟩ := exists_least hs (by intro h; rw [h] at len; simp at len)
+    obtain ⟨t0, m0, at0, fits0, valueNode⟩ := heads p0 p0In
+    obtain ⟨plain0, readable0, kind0'⟩ := props p0 p0In
+    have unused0 := free p0 p0In
+    have spelled : t0.predicate.spelling = p0.2.property.iri.spelling := vec_eq_of_val fits0.2.1
+    have kind0 : rdf_mapping.property_kind kinds t0.predicate.spelling = .ok (some .Annotation) := by
+      rw [spelled]; exact kind0'
+    obtain ⟨f0, f0Is, findRun⟩ := find_annotation_first triples kinds s x complete sorted at0 unused0 fits0.1 kind0
+      (by
+        intro j u lt at_j unusedJ about
+        have member := confined j u at_j unusedJ about
+        obtain ⟨q, qIn, qIs⟩ := List.mem_map.mp member
+        have := least q qIn
+        omega)
+    have fuelPos : 0 < fuel.val := by omega
+    obtain ⟨fuel', fuelRun, fuelValue⟩ := WP.spec_imp_exists
+      (Usize.sub_spec (x := fuel) (y := 1#usize) (by simp; omega))
+    have fuel'Is : fuel'.val = fuel.val - 1 := by simp at fuelValue; exact fuelValue.1
+    have valueRun := annotation_value_complete t0.object p0.2.value m0 valueNode readable0 fits0.2.2
+    let s1 : rdf_mapping.State := { s with used := s.used.set f0 true }
+    have mTake : Marked s s1 (fun i => i = p0.1) [] := by
+      have := marked_take s f0
+      rw [f0Is] at this
+      exact this
+    have reifiedRun : ∀ kind : Slice U8, kind.val = owlAnnotation →
+        rdf_mapping.reified triples kinds f0 kind s1 fuel' = .ok (some (alloc.vec.Vec.new _, s1)) := by
+      intro kind kindIs
+      exact reified_absent triples kinds f0 kind s1 fuel' t0 (by rw [f0Is]; exact at0)
+        (fun f x ok => noAnnotation _ t0 f x (by rw [← kindIs]; exact ok))
+    have outRoom : out.val.length < Usize.max := by omega
+    obtain ⟨out1, push, contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (model.Annotation.mk (alloc.vec.Vec.new model.Annotation)
+        { iri := ⟨t0.predicate.spelling⟩ } p0.2.value) outRoom)
+    -- the other annotation triples
+    have permErase := List.perm_cons_erase p0In
+    have nodupE := (permErase.map Prod.fst).nodup_iff.mp nodup
+    simp only [List.map_cons, List.nodup_cons] at nodupE
+    obtain ⟨notIn, nodupRest⟩ := nodupE
+    have restLen : (hs.erase p0).length = n := by rw [List.length_erase_of_mem p0In]; omega
+    obtain ⟨v, s', l, run, vIs, lPerm, marked⟩ := ih (hs.erase p0) s1 out1 fuel' restLen
+      (fun p m => heads p (List.mem_of_mem_erase m)) nodupRest (fun p m => props p (List.mem_of_mem_erase m))
+      complete sorted
+      (by
+        intro p m
+        refine marked_unused mTake (free p (List.mem_of_mem_erase m)) ?_
+        intro same
+        exact notIn (List.mem_map.mpr ⟨p, m, same⟩))
+      (by
+        intro i t at_i unusedI about
+        have before := marked_back mTake unusedI
+        have member := confined i t at_i before about
+        obtain ⟨q, qIn, qIs⟩ := List.mem_map.mp member
+        by_cases same : q = p0
+        · exfalso
+          rw [same] at qIs
+          have inside : p0.1 < s.used.val.length := (List.getElem?_eq_some_iff.mp unused0).1
+          rw [← qIs, marked_used mTake inside rfl] at unusedI
+          cases unusedI
+        · exact List.mem_map.mpr ⟨q, (List.mem_erase_of_ne same).mpr qIn, qIs⟩)
+      (by omega) (by rw [contents]; simp; omega)
+    refine ⟨v, s', p0.2 :: l, ?_, ?_, ?_, ?_⟩
+    · rw [rdf_mapping.node_annotations]
+      simp only [findRun, bind_ok]
+      have pos : (0#usize : Usize) < fuel := by scalar_tac
+      simp only [pos, ↓reduceIte, alloc.vec.Vec.index_slice_index, main_lookup triples f0 t0 (by rw [f0Is]; exact at0),
+        bind_ok, valueRun, lift, take_correct, fuelRun]
+      rw [reifiedRun _ (by simp [array_slice_val, owlAnnotation])]
+      simp only [bind_ok, uncurry_apply_pair, alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, outRoom,
+        ↓reduceIte, iri_of_identity, push]
+      exact run
+    · rw [vIs, contents, annotation_read p0.2 plain0 t0.predicate.spelling fits0.2.1]
+      simp
+    · have := (permErase.map Prod.snd).symm
+      simp only [List.map_cons] at this
+      exact (lPerm.cons p0.2).trans this
+    · refine marked_same (marked_trans mTake marked) (fun i => ?_)
+      constructor
+      · rintro (same | inRest)
+        · exact List.mem_map.mpr ⟨p0, p0In, same.symm⟩
+        · obtain ⟨q, qIn, qIs⟩ := List.mem_map.mp inRest
+          exact List.mem_map.mpr ⟨q, List.mem_of_mem_erase qIn, qIs⟩
+      · intro member
+        obtain ⟨q, qIn, qIs⟩ := List.mem_map.mp member
+        by_cases same : q = p0
+        · rw [same] at qIs; exact Or.inl qIs.symm
+        · exact Or.inr (List.mem_map.mpr ⟨q, (List.mem_erase_of_ne same).mpr qIn, qIs⟩)
+
 /-! ### The annotations of an axiom -/
 
 /-- The state with the four triples of a reification used. -/
