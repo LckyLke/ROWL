@@ -5108,3 +5108,65 @@ with identical answers from the two RDF syntaxes.
 
 This block adds 0 public theorems and 0 definitions. Totals are 3137 audited
 theorems, 1386 definitions, 566 Rust regressions and 3330 ledger obligations.
+
+## M3: the import catalog from document bytes
+
+The import closure of an ontology (Structural Specification §3.4) needs the
+ontology IRI, version IRI and import IRIs of every document it may reach. The
+new kernel module `import_catalog` reads them from the bytes of a catalog of
+documents that the caller supplies; nothing is fetched. A `Source` is a
+document's bytes with its syntax: Functional Syntax, N-Triples, or Turtle with
+the base IRI its relative IRIs resolve against. `read_source` reads a document
+with its verified reader (`source_reasoning::source_ontology` for Functional
+Syntax, `ntriples::read` or `turtle::read` followed by `rdf_mapping::map_graph`
+for the RDF syntaxes) into the raw OWL ontology, whose identity and imports are
+the document's header. `read_sources` reads every document of a catalog in
+order and reports the first one that cannot be read; each document's node IDs
+or blank nodes become anonymous individuals of a scope of its own,
+`document_scope`, the eight bytes of its position. `names` decides whether an
+import IRI is a document's ontology IRI or version IRI, byte for byte (§3.2,
+§3.4), `targets` lists the documents an IRI names and `lookup` tells whether it
+names none, exactly one or several. `catalog` builds the symbol-indexed catalog
+of `imports.rs` from the read ontologies: every document under its position as
+its `u32` key, without bytes, with the positions of the documents its import
+IRIs name, import by import, so that `imports::resolve` computes the import
+closure over it. A catalog with more documents than `u32` keys is refused.
+
+`ImportCatalog.lean` proves these against independent definitions.
+`read_source_correct` proves that whatever `read_source` returns is the
+reader's result: for Functional Syntax the raw OWL ontology of the bytes
+(`SourceReasoning.SourceOntology`), for N-Triples and Turtle the ontology that
+the reverse RDF mapping reads from the graph whose triples the bytes denote by
+the N-Triples or Turtle grammar (`ReadAs`), or the first error of the reader
+(`RejectedAs`). `read_sources_correct` lifts this to a catalog (`AllRead`,
+`SourcesCorrect`), and `read_source_functional_total` and
+`read_sources_functional_total` prove that Functional Syntax documents are
+always read; the reverse RDF mapping has no termination proof, so the RDF
+syntaxes are proved correct whenever reading returns. `document_scope_correct`
+and `scope_injective` prove that the scopes of different positions differ
+(`usize_below` bounds positions). `names_correct` proves `names` exact for
+`Names`; `targets_from_correct`, `mem_targets` and `targets_sorted` prove that
+`targets` lists exactly the named documents in increasing order, and
+`lookup_correct` that `lookup` answers no document, exactly the named one, or
+the first two of several (`LookupCorrect`). `catalog_correct` proves that
+`catalog` builds a catalog exactly when the documents fit `u32` keys, with
+every document under its position and its import targets (`CatalogOf`,
+`dependencies_from_correct`). Against §3.4, `DirectlyImports` says that a
+document directly imports the documents its import IRIs name and `InClosure`
+is its reflexive transitive closure: `catalog_edges` proves that the catalog's
+edges are exactly the direct imports, and `catalog_reachable` that its
+reachability is exactly the import closure; `catalog_keys_nodup` proves its
+keys distinct.
+
+Not done here: resolving and assembling the closure, which the next section
+adds, and reading RDF documents with the declarations of the documents they
+import (the reverse RDF mapping still needs every entity of a graph declared in
+that graph). Six regression tests read a cyclic catalog of Functional Syntax,
+N-Triples and Turtle documents, match an import by a version IRI, find missing
+and ambiguous imports, read Turtle against its base and report unreadable
+documents. Nothing on the existing reading paths calls the module yet. Its 18
+functions extract to 0.33 MB of LLBC; the largest, `read_from`, has 46 kB.
+
+This block adds 19 public theorems and 17 definitions. Totals are 3156
+audited theorems, 1403 definitions, 572 Rust regressions and 3349 ledger
+obligations.

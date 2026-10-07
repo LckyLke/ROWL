@@ -120,6 +120,7 @@ pub mod functional_payload;
 pub mod functional_prefixes;
 pub mod functional_property_axioms;
 pub mod functional_ranges;
+pub mod import_catalog;
 pub mod imports;
 pub mod iri;
 pub mod langtag;

@@ -48606,6 +48606,11313 @@ def functional_ranges.RangeForm.Insts.CoreMarkerCopy : core.marker.Copy
   cloneInst := functional_ranges.RangeForm.Insts.CoreCloneClone
 }
 
+/-- [rowl_kernel::import_catalog::Format]
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 31:0-39:1
+    Visibility: public -/
+@[discriminant isize]
+inductive import_catalog.Format where
+| Functional : import_catalog.Format
+| NTriples : import_catalog.Format
+| Turtle : alloc.vec.Vec Std.U8 → import_catalog.Format
+
+/-- [rowl_kernel::import_catalog::Source]
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 42:0-45:1
+    Visibility: public -/
+structure import_catalog.Source where
+  format : import_catalog.Format
+  bytes : alloc.vec.Vec Std.U8
+
+/-- [rowl_kernel::turtle::ErrorKind]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 40:0-76:1
+    Visibility: public -/
+@[discriminant isize]
+inductive turtle.ErrorKind where
+| MalformedUtf8 : turtle.ErrorKind
+| UnexpectedEnd : turtle.ErrorKind
+| InvalidCharacter : turtle.ErrorKind
+| InvalidEscape : turtle.ErrorKind
+| InvalidIri : turtle.ErrorKind
+| InvalidBlankLabel : turtle.ErrorKind
+| InvalidLanguageTag : turtle.ErrorKind
+| InvalidLiteralKind : turtle.ErrorKind
+| UndefinedPrefix : turtle.ErrorKind
+| ExpectedPrefix : turtle.ErrorKind
+| ExpectedIri : turtle.ErrorKind
+| ExpectedSubject : turtle.ErrorKind
+| ExpectedVerb : turtle.ErrorKind
+| ExpectedObject : turtle.ErrorKind
+| ExpectedPeriod : turtle.ErrorKind
+| ExpectedBracket : turtle.ErrorKind
+| ResourceLimit : turtle.ErrorKind
+
+/-- [rowl_kernel::turtle::ReadError]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 78:0-81:1
+    Visibility: public -/
+structure turtle.ReadError where
+  kind : turtle.ErrorKind
+  offset : Std.Usize
+
+/-- [rowl_kernel::import_catalog::SourceError]
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 48:0-61:1
+    Visibility: public -/
+@[discriminant isize]
+inductive import_catalog.SourceError where
+| Functional : functional_document.DocumentError → import_catalog.SourceError
+| Unmapped : import_catalog.SourceError
+| Triples : ntriples.ReadError → import_catalog.SourceError
+| Turtle : turtle.ReadError → import_catalog.SourceError
+| Graph : import_catalog.SourceError
+
+/-- [rowl_kernel::import_catalog::Unread]
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 64:0-67:1
+    Visibility: public -/
+structure import_catalog.Unread where
+  document : Std.Usize
+  error : import_catalog.SourceError
+
+/-- [rowl_kernel::import_catalog::Lookup]
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 70:0-77:1
+    Visibility: public -/
+@[discriminant isize]
+inductive import_catalog.Lookup where
+| Missing : import_catalog.Lookup
+| Unique : Std.U32 → import_catalog.Lookup
+| Ambiguous : Std.U32 → Std.U32 → import_catalog.Lookup
+
+/-- [rowl_kernel::import_catalog::scope_bytes]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 79:0-86:1 -/
+def import_catalog.scope_bytes
+  (value : Std.Usize) (count : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if count < 8#usize
+  then
+    let i ← value % 256#usize
+    let i1 ← lift (UScalar.cast .U8 i)
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← value / 256#usize
+    let i3 ← count + 1#usize
+    import_catalog.scope_bytes i2 i3 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::import_catalog::document_scope]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 90:0-92:1
+    Visibility: public -/
+def import_catalog.document_scope
+  (index : Std.Usize) : Result (alloc.vec.Vec Std.U8) := do
+  import_catalog.scope_bytes index 0#usize (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::source_reasoning::source_ontology]:
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 20:0-30:1
+    Visibility: public -/
+def source_reasoning.source_ontology
+  (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result (Option model.RawOntology)
+    functional_document.DocumentError)
+  := do
+  let r ← functional_document.read_document bytes limits
+  match r with
+  | core.result.Result.Ok document =>
+    let o ← functional_model.document_ontology document scope
+    ok (core.result.Result.Ok o)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_kernel::import_catalog::read_functional]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 95:0-105:1 -/
+def import_catalog.read_functional
+  (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result model.RawOntology import_catalog.SourceError)
+  := do
+  let r ← source_reasoning.source_ontology bytes limits scope
+  match r with
+  | core.result.Result.Ok o =>
+    match o with
+    | none => ok (core.result.Result.Err import_catalog.SourceError.Unmapped)
+    | some ontology => ok (core.result.Result.Ok ontology)
+  | core.result.Result.Err error =>
+    ok (core.result.Result.Err (import_catalog.SourceError.Functional error))
+
+/-- [rowl_kernel::rdf_mapping::unused]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 4018:0-4025:1 -/
+def rdf_mapping.unused
+  (count : Std.Usize) (out : alloc.vec.Vec Bool) :
+  Result (alloc.vec.Vec Bool)
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then let out1 ← alloc.vec.Vec.push out false
+       rdf_mapping.unused count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::is_used]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 351:0-357:1 -/
+def rdf_mapping.is_used
+  (used : alloc.vec.Vec Bool) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len used
+  if index < i
+  then
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) used index
+  else ok true
+
+/-- [rowl_kernel::rdf_mapping::equal_vec_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 120:0-134:1 -/
+def rdf_mapping.equal_vec_from
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len right
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len left
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+          index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           rdf_mapping.equal_vec_from left right i4
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::same_vec]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 137:0-143:1 -/
+def rdf_mapping.same_vec
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then rdf_mapping.equal_vec_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::rdf::RdfIri]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 10:0-12:1
+    Visibility: public -/
+structure rdf.RdfIri where
+  spelling : alloc.vec.Vec Std.U8
+
+/-- [rowl_kernel::rdf::LiteralKind]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 21:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf.LiteralKind where
+| Datatype : rdf.RdfIri → rdf.LiteralKind
+| Language : alloc.vec.Vec Std.U8 → rdf.LiteralKind
+
+/-- [rowl_kernel::rdf::RdfLiteral]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 27:0-30:1
+    Visibility: public -/
+structure rdf.RdfLiteral where
+  lexical : alloc.vec.Vec Std.U8
+  kind : rdf.LiteralKind
+
+/-- [rowl_kernel::rdf_mapping::same_literal]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 153:0-165:1 -/
+def rdf_mapping.same_literal
+  (left : rdf.RdfLiteral) (right : rdf.RdfLiteral) : Result Bool := do
+  let b ← rdf_mapping.same_vec left.lexical right.lexical
+  if b
+  then
+    match left.kind with
+    | rdf.LiteralKind.Datatype a =>
+      match right.kind with
+      | rdf.LiteralKind.Datatype b1 =>
+        rdf_mapping.same_vec a.spelling b1.spelling
+      | rdf.LiteralKind.Language _ => ok false
+    | rdf.LiteralKind.Language a =>
+      match right.kind with
+      | rdf.LiteralKind.Datatype _ => ok false
+      | rdf.LiteralKind.Language b1 => rdf_mapping.same_vec a b1
+  else ok false
+
+/-- [rowl_kernel::rdf::BlankNode]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 16:0-19:1
+    Visibility: public -/
+structure rdf.BlankNode where
+  scope : alloc.vec.Vec Std.U8
+  label : alloc.vec.Vec Std.U8
+
+/-- [rowl_kernel::rdf_mapping::same_blank]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 145:0-151:1 -/
+def rdf_mapping.same_blank
+  (left : rdf.BlankNode) (right : rdf.BlankNode) : Result Bool := do
+  let b ← rdf_mapping.same_vec left.scope right.scope
+  if b
+  then rdf_mapping.same_vec left.label right.label
+  else ok false
+
+/-- [rowl_kernel::rdf::Object]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 37:0-41:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf.Object where
+| Iri : rdf.RdfIri → rdf.Object
+| Blank : rdf.BlankNode → rdf.Object
+| Literal : rdf.RdfLiteral → rdf.Object
+
+/-- [rowl_kernel::rdf_mapping::same_object]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 175:0-182:1 -/
+def rdf_mapping.same_object
+  (left : rdf.Object) (right : rdf.Object) : Result Bool := do
+  match left with
+  | rdf.Object.Iri a =>
+    match right with
+    | rdf.Object.Iri b => rdf_mapping.same_vec a.spelling b.spelling
+    | rdf.Object.Blank _ => ok false
+    | rdf.Object.Literal _ => ok false
+  | rdf.Object.Blank a =>
+    match right with
+    | rdf.Object.Iri _ => ok false
+    | rdf.Object.Blank b => rdf_mapping.same_blank a b
+    | rdf.Object.Literal _ => ok false
+  | rdf.Object.Literal a =>
+    match right with
+    | rdf.Object.Iri _ => ok false
+    | rdf.Object.Blank _ => ok false
+    | rdf.Object.Literal b => rdf_mapping.same_literal a b
+
+/-- [rowl_kernel::rdf::Subject]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 32:0-35:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf.Subject where
+| Iri : rdf.RdfIri → rdf.Subject
+| Blank : rdf.BlankNode → rdf.Subject
+
+/-- [rowl_kernel::rdf_mapping::same_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 167:0-173:1 -/
+def rdf_mapping.same_subject
+  (left : rdf.Subject) (right : rdf.Subject) : Result Bool := do
+  match left with
+  | rdf.Subject.Iri a =>
+    match right with
+    | rdf.Subject.Iri b => rdf_mapping.same_vec a.spelling b.spelling
+    | rdf.Subject.Blank _ => ok false
+  | rdf.Subject.Blank a =>
+    match right with
+    | rdf.Subject.Iri _ => ok false
+    | rdf.Subject.Blank b => rdf_mapping.same_blank a b
+
+/-- [rowl_kernel::rdf::Triple]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 43:0-47:1
+    Visibility: public -/
+structure rdf.Triple where
+  subject : rdf.Subject
+  predicate : rdf.RdfIri
+  object : rdf.Object
+
+/-- [rowl_kernel::rdf_mapping::same_triple]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 185:0-195:1 -/
+def rdf_mapping.same_triple
+  (left : rdf.Triple) (right : rdf.Triple) : Result Bool := do
+  let b ← rdf_mapping.same_subject left.subject right.subject
+  if b
+  then
+    let b1 ←
+      rdf_mapping.same_vec left.predicate.spelling right.predicate.spelling
+    if b1
+    then rdf_mapping.same_object left.object right.object
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::repeats_used]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3987:0-4001:1 -/
+def rdf_mapping.repeats_used
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (triple : rdf.Triple) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.same_triple t triple
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.repeats_used triples used triple i1
+    else
+      let i1 ← index + 1#usize
+      rdf_mapping.repeats_used triples used triple i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::all_read]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 4004:0-4016:1 -/
+def rdf_mapping.all_read
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then let i1 ← index + 1#usize
+         rdf_mapping.all_read triples used i1
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.repeats_used triples used t 0#usize
+      if b1
+      then let i1 ← index + 1#usize
+           rdf_mapping.all_read triples used i1
+      else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::about_iri]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3845:0-3850:1 -/
+def rdf_mapping.about_iri
+  (triple : rdf.Triple) (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  match triple.subject with
+  | rdf.Subject.Iri iri => rdf_mapping.same_vec iri.spelling spelling
+  | rdf.Subject.Blank _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::same_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 572:0-582:1 -/
+def rdf_mapping.same_kind
+  (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
+  match left with
+  | typing.EntityKind.Class =>
+    match right with
+    | typing.EntityKind.Class => ok true
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.Datatype =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok true
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.ObjectProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok true
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.DataProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok true
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.AnnotationProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok true
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.NamedIndividual =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok true
+
+/-- [rowl_kernel::rdf_mapping::Declared]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 71:0-74:1
+    Visibility: public -/
+structure rdf_mapping.Declared where
+  iri : alloc.vec.Vec Std.U8
+  kind : typing.EntityKind
+
+/-- [rowl_kernel::rdf_mapping::declared_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 546:0-560:1 -/
+def rdf_mapping.declared_in
+  (bucket : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        rdf_mapping.Declared) bucket index
+    let b ← rdf_mapping.same_vec d.iri iri
+    if b
+    then
+      let b1 ← rdf_mapping.same_kind d.kind kind
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.declared_in bucket iri kind i1
+    else let i1 ← index + 1#usize
+         rdf_mapping.declared_in bucket iri kind i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::bucket_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 275:0-281:1 -/
+def rdf_mapping.bucket_of
+  (hash : Std.Usize) (count : Std.Usize) : Result Std.Usize := do
+  if 0#usize < count
+  then hash % count
+  else ok 0#usize
+
+/-- [rowl_kernel::rdf_mapping::mix]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 233:0-235:1 -/
+def rdf_mapping.mix (hash : Std.Usize) (byte : Std.U8) : Result Std.Usize := do
+  let i ← hash % 16777216#usize
+  let i1 ← i * 31#usize
+  let i2 ← lift (UScalar.cast .Usize byte)
+  i1 + i2
+
+/-- [rowl_kernel::rdf_mapping::hash_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 238:0-244:1 -/
+def rdf_mapping.hash_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (hash : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i3 ← rdf_mapping.mix hash i2
+    rdf_mapping.hash_from bytes i1 i3
+  else ok hash
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::hash_iri]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 252:0-254:1 -/
+def rdf_mapping.hash_iri
+  (spelling : alloc.vec.Vec Std.U8) : Result Std.Usize := do
+  rdf_mapping.hash_from spelling 0#usize 7#usize
+
+/-- [rowl_kernel::rdf_mapping::Kinds]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 77:0-79:1
+    Visibility: public -/
+structure rdf_mapping.Kinds where
+  buckets : alloc.vec.Vec (alloc.vec.Vec rdf_mapping.Declared)
+
+/-- [rowl_kernel::rdf_mapping::declared]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 563:0-570:1 -/
+def rdf_mapping.declared
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let i ← rdf_mapping.hash_iri iri
+  let i1 := alloc.vec.Vec.len kinds.buckets
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len kinds.buckets
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        rdf_mapping.Declared)) kinds.buckets bucket
+    rdf_mapping.declared_in v iri kind 0#usize
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::has_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 585:0-594:1 -/
+def rdf_mapping.has_kind
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let b ← rdf_mapping.declared kinds iri kind
+  if b
+  then ok true
+  else
+    let o ← builtins.builtin_kind iri
+    match o with
+    | none => ok false
+    | some builtin => rdf_mapping.same_kind builtin kind
+
+/-- [rowl_kernel::rdf_mapping::PropertyKind]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 82:0-86:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf_mapping.PropertyKind where
+| Object : rdf_mapping.PropertyKind
+| Data : rdf_mapping.PropertyKind
+| Annotation : rdf_mapping.PropertyKind
+
+/-- [rowl_kernel::rdf_mapping::property_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 598:0-621:1 -/
+def rdf_mapping.property_kind
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  let object ←
+    rdf_mapping.has_kind kinds iri typing.EntityKind.ObjectProperty
+  let data ← rdf_mapping.has_kind kinds iri typing.EntityKind.DataProperty
+  let annotation ←
+    rdf_mapping.has_kind kinds iri typing.EntityKind.AnnotationProperty
+  if object
+  then
+    if data
+    then ok none
+    else
+      if annotation
+      then ok none
+      else ok (some rdf_mapping.PropertyKind.Object)
+  else
+    if data
+    then
+      if annotation
+      then ok none
+      else ok (some rdf_mapping.PropertyKind.Data)
+    else
+      if annotation
+      then ok (some rdf_mapping.PropertyKind.Annotation)
+      else ok none
+
+/-- [rowl_kernel::rdf_mapping::is_annotation]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3299:0-3304:1 -/
+def rdf_mapping.is_annotation
+  (kinds : rdf_mapping.Kinds) («name» : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let o ← rdf_mapping.property_kind kinds «name»
+  match o with
+  | none => ok false
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object => ok false
+    | rdf_mapping.PropertyKind.Data => ok false
+    | rdf_mapping.PropertyKind.Annotation => ok true
+
+/-- [rowl_kernel::rdf_mapping::about]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 374:0-379:1 -/
+def rdf_mapping.about
+  (triple : rdf.Triple) (node : rdf.BlankNode) : Result Bool := do
+  match triple.subject with
+  | rdf.Subject.Iri _ => ok false
+  | rdf.Subject.Blank subject => rdf_mapping.same_blank subject node
+
+/-- [rowl_kernel::rdf_mapping::fits_annotation]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3308:0-3326:1 -/
+def rdf_mapping.fits_annotation
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (used : alloc.vec.Vec Bool) (index : Std.Usize) (node : rdf.BlankNode) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then ok false
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about t node
+      if b1
+      then rdf_mapping.is_annotation kinds t.predicate.spelling
+      else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::find_annotation_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3330:0-3347:1 -/
+def rdf_mapping.find_annotation_in
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (used : alloc.vec.Vec Bool) (bucket : alloc.vec.Vec Std.Usize)
+  (node : rdf.BlankNode) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.fits_annotation triples kinds used i1 node
+    if b
+    then ok (some i1)
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.find_annotation_in triples kinds used bucket node i2
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::hash_blank]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 247:0-249:1 -/
+def rdf_mapping.hash_blank (node : rdf.BlankNode) : Result Std.Usize := do
+  let i ← rdf_mapping.hash_from node.scope 0#usize 7#usize
+  rdf_mapping.hash_from node.label 0#usize i
+
+/-- [rowl_kernel::rdf_mapping::State]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 61:0-68:1
+    Visibility: public -/
+structure rdf_mapping.State where
+  used : alloc.vec.Vec Bool
+  blanks : alloc.vec.Vec rdf.BlankNode
+  subjects : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+  sources : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+
+/-- [rowl_kernel::rdf_mapping::find_annotation]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3350:0-3369:1 -/
+def rdf_mapping.find_annotation
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (state : rdf_mapping.State) (node : rdf.BlankNode) :
+  Result (Option Std.Usize)
+  := do
+  let i ← rdf_mapping.hash_blank node
+  let i1 := alloc.vec.Vec.len state.subjects
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.subjects
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subjects bucket
+    rdf_mapping.find_annotation_in triples kinds state.used v node 0#usize
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::object_spells]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3146:0-3151:1 -/
+def rdf_mapping.object_spells
+  (object : rdf.Object) (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  match object with
+  | rdf.Object.Iri iri => rdf_mapping.same_vec iri.spelling spelling
+  | rdf.Object.Blank _ => ok false
+  | rdf.Object.Literal _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::equal_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 95:0-109:1 -/
+def rdf_mapping.equal_from
+  (left : alloc.vec.Vec Std.U8) (right : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := Slice.len right
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len left
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+          index
+      let i3 ← Slice.index_usize right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           rdf_mapping.equal_from left right i4
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::same]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 112:0-118:1 -/
+def rdf_mapping.same
+  (left : alloc.vec.Vec Std.U8) («name» : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len left
+  let i1 := Slice.len «name»
+  if i = i1
+  then rdf_mapping.equal_from left «name» 0#usize
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::object_is]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 436:0-441:1 -/
+def rdf_mapping.object_is
+  (object : rdf.Object) («name» : Slice Std.U8) : Result Bool := do
+  match object with
+  | rdf.Object.Iri iri => rdf_mapping.same iri.spelling «name»
+  | rdf.Object.Blank _ => ok false
+  | rdf.Object.Literal _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::fits_type]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 444:0-469:1 -/
+def rdf_mapping.fits_type
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) (node : rdf.BlankNode) («name» : Slice Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then ok false
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about t node
+      if b1
+      then
+        let s ←
+          lift (Array.to_slice
+            (Array.make 47#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+              47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
+              115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
+              115#u8, 35#u8, 116#u8, 121#u8, 112#u8, 101#u8
+              ]))
+        let b2 ← rdf_mapping.same t.predicate.spelling s
+        if b2
+        then rdf_mapping.object_is t.object «name»
+        else ok false
+      else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::find_type_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 473:0-490:1 -/
+def rdf_mapping.find_type_in
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode)
+  («name» : Slice Std.U8) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.fits_type triples used i1 node «name»
+    if b
+    then ok (some i1)
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.find_type_in triples used bucket node «name» i2
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::find_type]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 494:0-501:1 -/
+def rdf_mapping.find_type
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (node : rdf.BlankNode) («name» : Slice Std.U8) :
+  Result (Option Std.Usize)
+  := do
+  let i ← rdf_mapping.hash_blank node
+  let i1 := alloc.vec.Vec.len state.subjects
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.subjects
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subjects bucket
+    rdf_mapping.find_type_in triples state.used v node «name» 0#usize
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::fits]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 383:0-401:1 -/
+def rdf_mapping.fits
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) (node : rdf.BlankNode) («name» : Slice Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then ok false
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about t node
+      if b1
+      then rdf_mapping.same t.predicate.spelling «name»
+      else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::find_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 405:0-422:1 -/
+def rdf_mapping.find_in
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode)
+  («name» : Slice Std.U8) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.fits triples used i1 node «name»
+    if b
+    then ok (some i1)
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.find_in triples used bucket node «name» i2
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::find]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 426:0-433:1 -/
+def rdf_mapping.find
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (node : rdf.BlankNode) («name» : Slice Std.U8) :
+  Result (Option Std.Usize)
+  := do
+  let i ← rdf_mapping.hash_blank node
+  let i1 := alloc.vec.Vec.len state.subjects
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.subjects
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subjects bucket
+    rdf_mapping.find_in triples state.used v node «name» 0#usize
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::reifier_parts]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3166:0-3205:1 -/
+def rdf_mapping.reifier_parts
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (node : rdf.BlankNode) (main : rdf.Triple) (kind : Slice Std.U8) :
+  Result (Option (Std.Usize × Std.Usize × Std.Usize))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 97#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8, 116#u8,
+        101#u8, 100#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+        121#u8
+        ]))
+  let o ← rdf_mapping.find triples state node s
+  match o with
+  | none => ok none
+  | some property =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples property
+    let b ← rdf_mapping.object_spells t.object main.predicate.spelling
+    if b
+    then
+      let s1 ←
+        lift (Array.to_slice
+          (Array.make 45#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 97#u8, 110#u8, 110#u8,
+            111#u8, 116#u8, 97#u8, 116#u8, 101#u8, 100#u8, 84#u8, 97#u8,
+            114#u8, 103#u8, 101#u8, 116#u8
+            ]))
+      let o1 ← rdf_mapping.find triples state node s1
+      match o1 with
+      | none => ok none
+      | some target =>
+        let t1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples target
+        let b1 ← rdf_mapping.same_object t1.object main.object
+        if b1
+        then
+          let o2 ← rdf_mapping.find_type triples state node kind
+          match o2 with
+          | none => ok none
+          | some typing => ok (some (property, target, typing))
+        else ok none
+    else ok none
+
+/-- [rowl_kernel::rdf_mapping::subject_is]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3154:0-3162:1 -/
+def rdf_mapping.subject_is
+  (object : rdf.Object) (subject : rdf.Subject) : Result Bool := do
+  match subject with
+  | rdf.Subject.Iri iri => rdf_mapping.object_spells object iri.spelling
+  | rdf.Subject.Blank node =>
+    match object with
+    | rdf.Object.Iri _ => ok false
+    | rdf.Object.Blank blank => rdf_mapping.same_blank blank node
+    | rdf.Object.Literal _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::reifier_source]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3209:0-3239:1 -/
+def rdf_mapping.reifier_source
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (main : rdf.Triple) (kind : Slice Std.U8) (source : Std.Usize)
+  (triple : rdf.Triple) :
+  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
+  := do
+  match triple.subject with
+  | rdf.Subject.Iri _ => ok none
+  | rdf.Subject.Blank node =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 45#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 97#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8,
+          116#u8, 101#u8, 100#u8, 83#u8, 111#u8, 117#u8, 114#u8, 99#u8, 101#u8
+          ]))
+    let b ← rdf_mapping.same triple.predicate.spelling s
+    if b
+    then
+      let b1 ← rdf_mapping.subject_is triple.object main.subject
+      if b1
+      then
+        let o ← rdf_mapping.reifier_parts triples state node main kind
+        match o with
+        | none => ok none
+        | some t =>
+          let (property, target, typing) := t
+          ok (some (source, property, target, typing))
+      else ok none
+    else ok none
+
+/-- [rowl_kernel::rdf_mapping::reifier_at]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3243:0-3259:1 -/
+def rdf_mapping.reifier_at
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (main : rdf.Triple) (kind : Slice Std.U8) (source : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if source < i
+  then
+    let b ← rdf_mapping.is_used state.used source
+    if b
+    then ok none
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples source
+      rdf_mapping.reifier_source triples state main kind source t
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::reifier_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3263:0-3279:1 -/
+def rdf_mapping.reifier_in
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (main : rdf.Triple) (kind : Slice Std.U8) (bucket : alloc.vec.Vec Std.Usize)
+  (k : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let o ← rdf_mapping.reifier_at triples state main kind i1
+    match o with
+    | none =>
+      let i2 ← k + 1#usize
+      rdf_mapping.reifier_in triples state main kind bucket i2
+    | some _ => ok o
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::hash_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 257:0-262:1 -/
+def rdf_mapping.hash_subject (subject : rdf.Subject) : Result Std.Usize := do
+  match subject with
+  | rdf.Subject.Iri iri => rdf_mapping.hash_iri iri.spelling
+  | rdf.Subject.Blank node => rdf_mapping.hash_blank node
+
+/-- [rowl_kernel::rdf_mapping::reifier]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3284:0-3296:1 -/
+def rdf_mapping.reifier
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (main : rdf.Triple) (kind : Slice Std.U8) :
+  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
+  := do
+  let i ← rdf_mapping.hash_subject main.subject
+  let i1 := alloc.vec.Vec.len state.sources
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.sources
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.sources bucket
+    rdf_mapping.reifier_in triples state main kind v 0#usize
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::append_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 660:0-669:1 -/
+def rdf_mapping.append_from
+  (out : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+            bytes index
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    rdf_mapping.append_from out1 bytes i2
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::has_at]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 648:0-658:1 -/
+def rdf_mapping.has_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 = 64#u8
+    then ok true
+    else let i2 ← index + 1#usize
+         rdf_mapping.has_at bytes i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::spelled]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 637:0-646:1 -/
+def rdf_mapping.spelled
+  («name» : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := Slice.len «name»
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ← Slice.index_usize «name» index
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    rdf_mapping.spelled «name» i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::iri_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 204:0-208:1 -/
+def rdf_mapping.iri_of
+  (spelling : alloc.vec.Vec Std.U8) : Result model.Iri := do
+  let v ← nnf.copy_bytes spelling
+  ok { spelling := v }
+
+/-- [rowl_kernel::rdf_mapping::literal_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 674:0-716:1 -/
+def rdf_mapping.literal_of
+  (literal : rdf.RdfLiteral) : Result (Option model.Literal) := do
+  match literal.kind with
+  | rdf.LiteralKind.Datatype datatype =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 55#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 80#u8, 108#u8, 97#u8,
+          105#u8, 110#u8, 76#u8, 105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+          ]))
+    let b ← rdf_mapping.same datatype.spelling s
+    if b
+    then ok none
+    else
+      let v ← nnf.copy_bytes literal.lexical
+      let i ← rdf_mapping.iri_of datatype.spelling
+      ok (some { lexical := v, datatype := { iri := i } })
+  | rdf.LiteralKind.Language tag =>
+    let i := alloc.vec.Vec.len tag
+    if i = 0#usize
+    then ok none
+    else
+      let b ← rdf_mapping.has_at tag 0#usize
+      if b
+      then ok none
+      else
+        let i1 := alloc.vec.Vec.len literal.lexical
+        let i2 := alloc.vec.Vec.len tag
+        let i3 ← core.num.Usize.MAX - i2
+        if i1 < i3
+        then
+          let lexical ← nnf.copy_bytes literal.lexical
+          let lexical1 ← alloc.vec.Vec.push lexical 64#u8
+          let v ← rdf_mapping.append_from lexical1 tag 0#usize
+          let s ←
+            lift (Array.to_slice
+              (Array.make 55#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+                47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
+                115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
+                115#u8, 35#u8, 80#u8, 108#u8, 97#u8, 105#u8, 110#u8, 76#u8,
+                105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+                ]))
+          let v1 ← rdf_mapping.spelled s 0#usize (alloc.vec.Vec.new Std.U8)
+          ok (some { lexical := v, datatype := { iri := { spelling := v1 } } })
+        else ok none
+
+/-- [rowl_kernel::rdf_mapping::annotation_value]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3131:0-3143:1 -/
+def rdf_mapping.annotation_value
+  (node : rdf.Object) : Result (Option model.AnnotationValue) := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.AnnotationValue.Iri i))
+  | rdf.Object.Blank blank =>
+    let v ← nnf.copy_bytes blank.scope
+    let v1 ← nnf.copy_bytes blank.label
+    ok (some (model.AnnotationValue.Anonymous { scope := v, label := v1 }))
+  | rdf.Object.Literal literal =>
+    let o ← rdf_mapping.literal_of literal
+    match o with
+    | none => ok none
+    | some value => ok (some (model.AnnotationValue.Literal value))
+
+/-- [rowl_kernel::rdf_mapping::copy_blank]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 197:0-202:1 -/
+def rdf_mapping.copy_blank (node : rdf.BlankNode) : Result rdf.BlankNode := do
+  let v ← nnf.copy_bytes node.scope
+  let v1 ← nnf.copy_bytes node.label
+  ok { scope := v, label := v1 }
+
+/-- [rowl_kernel::rdf_mapping::record]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 368:0-371:1 -/
+def rdf_mapping.record
+  (state : rdf_mapping.State) (node : rdf.BlankNode) :
+  Result rdf_mapping.State
+  := do
+  let bn ← rdf_mapping.copy_blank node
+  let v ← alloc.vec.Vec.push state.blanks bn
+  ok { state with blanks := v }
+
+/-- [rowl_kernel::rdf_mapping::take]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 360:0-365:1 -/
+def rdf_mapping.take
+  (state : rdf_mapping.State) (index : Std.Usize) :
+  Result rdf_mapping.State
+  := do
+  let i := alloc.vec.Vec.len state.used
+  if index < i
+  then
+    let (_, index_mut_back) ←
+      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice Bool)
+        state.used index
+    let v := index_mut_back true
+    ok { state with used := v }
+  else ok state
+
+mutual
+
+/-- [rowl_kernel::rdf_mapping::reified]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3374:0-3402:1 -/
+def rdf_mapping.reified
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (main : Std.Usize) (kind : Slice Std.U8) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec model.Annotation) × rdf_mapping.State))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples main
+  let o ← rdf_mapping.reifier triples state t kind
+  match o with
+  | none => ok (some (alloc.vec.Vec.new model.Annotation, state))
+  | some t1 =>
+    let (source, property, target, typing) := t1
+    let t2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples source
+    match t2.subject with
+    | rdf.Subject.Iri _ => ok none
+    | rdf.Subject.Blank node =>
+      let s ← rdf_mapping.take state source
+      let s1 ← rdf_mapping.take s property
+      let s2 ← rdf_mapping.take s1 target
+      let state1 ← rdf_mapping.take s2 typing
+      let state2 ← rdf_mapping.record state1 node
+      let o1 ←
+        rdf_mapping.node_annotations triples kinds node state2
+          (alloc.vec.Vec.new model.Annotation) fuel
+      match o1 with
+      | none => ok none
+      | some p =>
+        let (annotations, _) := p
+        let i := alloc.vec.Vec.len annotations
+        if 0#usize < i
+        then ok o1
+        else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::node_annotations]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3407:0-3453:1 -/
+def rdf_mapping.node_annotations
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.BlankNode) (state : rdf_mapping.State)
+  (out : alloc.vec.Vec model.Annotation) (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec model.Annotation) × rdf_mapping.State))
+  := do
+  let o ← rdf_mapping.find_annotation triples kinds state node
+  match o with
+  | none => ok (some (out, state))
+  | some index =>
+    if 0#usize < fuel
+    then
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o1 ← rdf_mapping.annotation_value t.object
+      match o1 with
+      | none => ok none
+      | some value =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 40#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8,
+              111#u8, 116#u8, 97#u8, 116#u8, 105#u8, 111#u8, 110#u8
+              ]))
+        let s1 ← rdf_mapping.take state index
+        let i ← fuel - 1#usize
+        let o2 ← rdf_mapping.reified triples kinds index s s1 i
+        match o2 with
+        | none => ok none
+        | some p =>
+          let (inner, state1) := p
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let i2 ← rdf_mapping.iri_of t.predicate.spelling
+            let out1 ←
+              alloc.vec.Vec.push out (model.Annotation.mk inner ({ iri := i2 }
+                : model.AnnotationProperty) value)
+            rdf_mapping.node_annotations triples kinds node state1 out1 i
+          else ok none
+    else ok none
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::rdf_mapping::node_iri]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 803:0-808:1 -/
+def rdf_mapping.node_iri (node : rdf.Object) : Result (Option model.Iri) := do
+  match node with
+  | rdf.Object.Iri iri => let i ← rdf_mapping.iri_of iri.spelling
+                          ok (some i)
+  | rdf.Object.Blank _ => ok none
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::header_parts]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3854:0-3984:1 -/
+def rdf_mapping.header_parts
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (ontology : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (state : rdf_mapping.State) (version : Option model.Iri)
+  (imports : alloc.vec.Vec model.Iri)
+  (annotations : alloc.vec.Vec model.Annotation) :
+  Result (Option ((Option model.Iri) × (alloc.vec.Vec model.Iri) ×
+    (alloc.vec.Vec model.Annotation) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used state.used index
+    if b
+    then
+      let i1 ← index + 1#usize
+      rdf_mapping.header_parts triples kinds ontology i1 state version imports
+        annotations
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about_iri t ontology
+      if b1
+      then
+        let s ←
+          lift (Array.to_slice
+            (Array.make 40#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 118#u8, 101#u8, 114#u8,
+              115#u8, 105#u8, 111#u8, 110#u8, 73#u8, 82#u8, 73#u8
+              ]))
+        let b2 ← rdf_mapping.same t.predicate.spelling s
+        if b2
+        then
+          match version with
+          | none =>
+            let o ← rdf_mapping.node_iri t.object
+            match o with
+            | none => ok none
+            | some _ =>
+              let i1 ← index + 1#usize
+              let s1 ← rdf_mapping.take state index
+              rdf_mapping.header_parts triples kinds ontology i1 s1 o imports
+                annotations
+          | some _ => ok none
+        else
+          let s1 ←
+            lift (Array.to_slice
+              (Array.make 37#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 105#u8, 109#u8, 112#u8,
+                111#u8, 114#u8, 116#u8, 115#u8
+                ]))
+          let b3 ← rdf_mapping.same t.predicate.spelling s1
+          if b3
+          then
+            let o ← rdf_mapping.node_iri t.object
+            match o with
+            | none => ok none
+            | some iri =>
+              let i1 := alloc.vec.Vec.len imports
+              if i1 < core.num.Usize.MAX
+              then
+                let imports1 ← alloc.vec.Vec.push imports iri
+                let i2 ← index + 1#usize
+                let s2 ← rdf_mapping.take state index
+                rdf_mapping.header_parts triples kinds ontology i2 s2 version
+                  imports1 annotations
+              else ok none
+          else
+            let o ← rdf_mapping.property_kind kinds t.predicate.spelling
+            match o with
+            | none =>
+              let i1 ← index + 1#usize
+              rdf_mapping.header_parts triples kinds ontology i1 state version
+                imports annotations
+            | some pk =>
+              match pk with
+              | rdf_mapping.PropertyKind.Object =>
+                let i1 ← index + 1#usize
+                rdf_mapping.header_parts triples kinds ontology i1 state
+                  version imports annotations
+              | rdf_mapping.PropertyKind.Data =>
+                let i1 ← index + 1#usize
+                rdf_mapping.header_parts triples kinds ontology i1 state
+                  version imports annotations
+              | rdf_mapping.PropertyKind.Annotation =>
+                let o1 ← rdf_mapping.annotation_value t.object
+                match o1 with
+                | none => ok none
+                | some value =>
+                  let s2 ←
+                    lift (Array.to_slice
+                      (Array.make 40#usize [
+                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                        108#u8, 35#u8, 65#u8, 110#u8, 110#u8, 111#u8, 116#u8,
+                        97#u8, 116#u8, 105#u8, 111#u8, 110#u8
+                        ]))
+                  let s3 ← rdf_mapping.take state index
+                  let i1 := alloc.vec.Vec.len triples
+                  let o2 ← rdf_mapping.reified triples kinds index s2 s3 i1
+                  match o2 with
+                  | none => ok none
+                  | some p =>
+                    let (inner, state1) := p
+                    let i2 := alloc.vec.Vec.len annotations
+                    if i2 < core.num.Usize.MAX
+                    then
+                      let i3 ← rdf_mapping.iri_of t.predicate.spelling
+                      let annotations1 ←
+                        alloc.vec.Vec.push annotations (model.Annotation.mk
+                          inner ({ iri := i3 } : model.AnnotationProperty)
+                          value)
+                      let i4 ← index + 1#usize
+                      rdf_mapping.header_parts triples kinds ontology i4 state1
+                        version imports annotations1
+                    else ok none
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.header_parts triples kinds ontology i1 state version
+          imports annotations
+  else ok (some (version, imports, annotations, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::find_header]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3817:0-3842:1 -/
+def rdf_mapping.find_header
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then let i1 ← index + 1#usize
+         rdf_mapping.find_header triples used i1
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let s ←
+        lift (Array.to_slice
+          (Array.make 47#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
+            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
+            35#u8, 116#u8, 121#u8, 112#u8, 101#u8
+            ]))
+      let b1 ← rdf_mapping.same t.predicate.spelling s
+      if b1
+      then
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 38#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 79#u8, 110#u8, 116#u8,
+              111#u8, 108#u8, 111#u8, 103#u8, 121#u8
+              ]))
+        let b2 ← rdf_mapping.object_is t.object s1
+        if b2
+        then
+          match t.subject with
+          | rdf.Subject.Iri _ => ok (some index)
+          | rdf.Subject.Blank _ =>
+            let i1 ← index + 1#usize
+            rdf_mapping.find_header triples used i1
+        else let i1 ← index + 1#usize
+             rdf_mapping.find_header triples used i1
+      else let i1 ← index + 1#usize
+           rdf_mapping.find_header triples used i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::declaration_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3738:0-3754:1 -/
+def rdf_mapping.declaration_kind
+  (object : rdf.Object) : Result (Option typing.EntityKind) := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
+        ]))
+  let b ← rdf_mapping.object_is object s
+  if b
+  then ok (some typing.EntityKind.Class)
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 45#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
+          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
+          35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8, 121#u8, 112#u8, 101#u8
+          ]))
+    let b1 ← rdf_mapping.object_is object s1
+    if b1
+    then ok (some typing.EntityKind.Datatype)
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 44#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 79#u8, 98#u8, 106#u8, 101#u8,
+            99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
+            116#u8, 121#u8
+            ]))
+      let b2 ← rdf_mapping.object_is object s2
+      if b2
+      then ok (some typing.EntityKind.ObjectProperty)
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 46#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 68#u8, 97#u8, 116#u8,
+              97#u8, 116#u8, 121#u8, 112#u8, 101#u8, 80#u8, 114#u8, 111#u8,
+              112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+              ]))
+        let b3 ← rdf_mapping.object_is object s3
+        if b3
+        then ok (some typing.EntityKind.DataProperty)
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 48#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8,
+                111#u8, 116#u8, 97#u8, 116#u8, 105#u8, 111#u8, 110#u8, 80#u8,
+                114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                ]))
+          let b4 ← rdf_mapping.object_is object s4
+          if b4
+          then ok (some typing.EntityKind.AnnotationProperty)
+          else
+            let s5 ←
+              lift (Array.to_slice
+                (Array.make 45#usize [
+                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 97#u8,
+                  109#u8, 101#u8, 100#u8, 73#u8, 110#u8, 100#u8, 105#u8,
+                  118#u8, 105#u8, 100#u8, 117#u8, 97#u8, 108#u8
+                  ]))
+            let b5 ← rdf_mapping.object_is object s5
+            if b5
+            then ok (some typing.EntityKind.NamedIndividual)
+            else ok none
+
+/-- [rowl_kernel::rdf_mapping::declared_entity]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3784:0-3799:1 -/
+def rdf_mapping.declared_entity
+  (triple : rdf.Triple) :
+  Result (Option ((alloc.vec.Vec Std.U8) × typing.EntityKind))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
+        101#u8
+        ]))
+  let b ← rdf_mapping.same triple.predicate.spelling s
+  if b
+  then
+    match triple.subject with
+    | rdf.Subject.Iri iri =>
+      let o ← rdf_mapping.declaration_kind triple.object
+      match o with
+      | none => ok none
+      | some kind => let v ← nnf.copy_bytes iri.spelling
+                     ok (some (v, kind))
+    | rdf.Subject.Blank _ => ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::add_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3769:0-3781:1 -/
+def rdf_mapping.add_kind
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) :
+  Result (Option rdf_mapping.Kinds)
+  := do
+  let i ← rdf_mapping.hash_iri iri
+  let i1 := alloc.vec.Vec.len kinds.buckets
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len kinds.buckets
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        rdf_mapping.Declared)) kinds.buckets bucket
+    let i3 := alloc.vec.Vec.len v
+    if i3 < core.num.Usize.MAX
+    then
+      let (v1, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec rdf_mapping.Declared)) kinds.buckets bucket
+      let v2 ← alloc.vec.Vec.push v1 ({ iri, kind } : rdf_mapping.Declared)
+      let v3 := index_mut_back v2
+      ok (some { buckets := v3 })
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::declared_kinds]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3802:0-3814:1 -/
+def rdf_mapping.declared_kinds
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (kinds : rdf_mapping.Kinds) :
+  Result (Option rdf_mapping.Kinds)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o ← rdf_mapping.declared_entity t
+    match o with
+    | none =>
+      let i1 ← index + 1#usize
+      rdf_mapping.declared_kinds triples i1 kinds
+    | some p =>
+      let (spelling, kind) := p
+      let o1 ← rdf_mapping.add_kind kinds spelling kind
+      match o1 with
+      | none => ok none
+      | some kinds1 =>
+        let i1 ← index + 1#usize
+        rdf_mapping.declared_kinds triples i1 kinds1
+  else ok (some kinds)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::structural]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3642:0-3653:1 -/
+def rdf_mapping.structural
+  («name» : alloc.vec.Vec Std.U8) : Result Bool := do
+  let b ← vocabulary.reserved_iri «name»
+  if b
+  then
+    let o ← builtins.builtin_kind «name»
+    match o with
+    | none => ok true
+    | some ek =>
+      match ek with
+      | typing.EntityKind.Class => ok true
+      | typing.EntityKind.Datatype => ok true
+      | typing.EntityKind.ObjectProperty => ok false
+      | typing.EntityKind.DataProperty => ok false
+      | typing.EntityKind.AnnotationProperty => ok false
+      | typing.EntityKind.NamedIndividual => ok true
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::reifier_type]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3564:0-3584:1 -/
+def rdf_mapping.reifier_type (object : rdf.Object) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 65#u8, 120#u8, 105#u8, 111#u8, 109#u8
+        ]))
+  let b ← rdf_mapping.object_is object s
+  if b
+  then ok true
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 40#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8,
+          116#u8, 105#u8, 111#u8, 110#u8
+          ]))
+    let b1 ← rdf_mapping.object_is object s1
+    if b1
+    then ok true
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 48#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 108#u8, 108#u8, 68#u8,
+            105#u8, 115#u8, 106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 67#u8,
+            108#u8, 97#u8, 115#u8, 115#u8, 101#u8, 115#u8
+            ]))
+      let b2 ← rdf_mapping.object_is object s2
+      if b2
+      then ok true
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 51#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 108#u8, 108#u8,
+              68#u8, 105#u8, 115#u8, 106#u8, 111#u8, 105#u8, 110#u8, 116#u8,
+              80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 105#u8,
+              101#u8, 115#u8
+              ]))
+        let b3 ← rdf_mapping.object_is object s3
+        if b3
+        then ok true
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 42#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 108#u8, 108#u8,
+                68#u8, 105#u8, 102#u8, 102#u8, 101#u8, 114#u8, 101#u8, 110#u8,
+                116#u8
+                ]))
+          let b4 ← rdf_mapping.object_is object s4
+          if b4
+          then ok true
+          else
+            let s5 ←
+              lift (Array.to_slice
+                (Array.make 55#usize [
+                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 101#u8,
+                  103#u8, 97#u8, 116#u8, 105#u8, 118#u8, 101#u8, 80#u8, 114#u8,
+                  111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8, 65#u8,
+                  115#u8, 115#u8, 101#u8, 114#u8, 116#u8, 105#u8, 111#u8,
+                  110#u8
+                  ]))
+            rdf_mapping.object_is object s5
+
+/-- [rowl_kernel::rdf_mapping::reifier_typing]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3587:0-3604:1 -/
+def rdf_mapping.reifier_typing
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (node : rdf.BlankNode) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let b ← rdf_mapping.about t node
+    if b
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 47#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
+            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
+            35#u8, 116#u8, 121#u8, 112#u8, 101#u8
+            ]))
+      let b1 ← rdf_mapping.same t.predicate.spelling s
+      if b1
+      then rdf_mapping.reifier_type t.object
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::typed_reifier_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3607:0-3622:1 -/
+def rdf_mapping.typed_reifier_in
+  (triples : alloc.vec.Vec rdf.Triple) (bucket : alloc.vec.Vec Std.Usize)
+  (node : rdf.BlankNode) (k : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.reifier_typing triples i1 node
+    if b
+    then ok true
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.typed_reifier_in triples bucket node i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::reifier_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3627:0-3639:1 -/
+def rdf_mapping.reifier_subject
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (subject : rdf.Subject) :
+  Result Bool
+  := do
+  match subject with
+  | rdf.Subject.Iri _ => ok false
+  | rdf.Subject.Blank node =>
+    let i ← rdf_mapping.hash_blank node
+    let i1 := alloc.vec.Vec.len state.subjects
+    let bucket ← rdf_mapping.bucket_of i i1
+    let i2 := alloc.vec.Vec.len state.subjects
+    if bucket < i2
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec Std.Usize)) state.subjects bucket
+      rdf_mapping.typed_reifier_in triples v node 0#usize
+    else ok false
+
+/-- [rowl_kernel::rdf_mapping::annotation_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3121:0-3129:1 -/
+def rdf_mapping.annotation_subject
+  (subject : rdf.Subject) : Result model.AnnotationSubject := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (model.AnnotationSubject.Iri i)
+  | rdf.Subject.Blank blank =>
+    let v ← nnf.copy_bytes blank.scope
+    let v1 ← nnf.copy_bytes blank.label
+    ok (model.AnnotationSubject.Anonymous { scope := v, label := v1 })
+
+/-- [rowl_kernel::rdf_mapping::Read]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 89:0-93:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf_mapping.Read where
+| Skip : rdf_mapping.State → rdf_mapping.Read
+| Found : model.Axiom → rdf_mapping.State → rdf_mapping.Read
+| Fail : rdf_mapping.Read
+
+/-- [rowl_kernel::rdf_mapping::annotation_assertion]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3101:0-3119:1 -/
+def rdf_mapping.annotation_assertion
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let b ← rdf_mapping.reifier_subject triples state t.subject
+  if b
+  then ok (rdf_mapping.Read.Skip state)
+  else
+    let o ← rdf_mapping.annotation_value t.object
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some value =>
+      let i ← rdf_mapping.iri_of t.predicate.spelling
+      let «as» ← rdf_mapping.annotation_subject t.subject
+      let s ← rdf_mapping.take state index
+      ok (rdf_mapping.Read.Found (model.Axiom.AnnotationAssertion { iri := i }
+        «as» value) s)
+
+/-- [rowl_kernel::rdf_mapping::node_individual]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 789:0-800:1 -/
+def rdf_mapping.node_individual
+  (node : rdf.Object) : Result (Option model.Individual) := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.Individual.Named { iri := i }))
+  | rdf.Object.Blank node1 =>
+    let v ← nnf.copy_bytes node1.scope
+    let v1 ← nnf.copy_bytes node1.label
+    ok (some (model.Individual.Anonymous { scope := v, label := v1 }))
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::subject_node]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 211:0-218:1 -/
+def rdf_mapping.subject_node (subject : rdf.Subject) : Result rdf.Object := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    let v ← nnf.copy_bytes iri.spelling
+    ok (rdf.Object.Iri { spelling := v })
+  | rdf.Subject.Blank node =>
+    let bn ← rdf_mapping.copy_blank node
+    ok (rdf.Object.Blank bn)
+
+/-- [rowl_kernel::rdf_mapping::individual_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2592:0-2600:1 -/
+def rdf_mapping.individual_pair
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
+  Result (Option (model.Individual × model.Individual))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.subject_node t.subject
+  let o1 ← rdf_mapping.node_individual o
+  match o1 with
+  | none => ok none
+  | some left =>
+    let o2 ← rdf_mapping.node_individual t.object
+    match o2 with
+    | none => ok none
+    | some right => ok (some (left, right))
+
+/-- [rowl_kernel::rdf_mapping::node_literal]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 719:0-724:1 -/
+def rdf_mapping.node_literal
+  (node : rdf.Object) : Result (Option model.Literal) := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank _ => ok none
+  | rdf.Object.Literal literal => rdf_mapping.literal_of literal
+
+/-- [rowl_kernel::rdf_mapping::assertion]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3061:0-3096:1 -/
+def rdf_mapping.assertion
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let triple ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.property_kind kinds triple.predicate.spelling
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.individual_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (subject, object) := p
+        let i ← rdf_mapping.iri_of triple.predicate.spelling
+        let s ← rdf_mapping.take state index
+        ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyAssertion
+          (model.ObjectPropertyExpression.Property { iri := i }) subject
+          object) s)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.subject_node triple.subject
+      let o2 ← rdf_mapping.node_individual o1
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some subject =>
+        let o3 ← rdf_mapping.node_literal triple.object
+        match o3 with
+        | none => ok rdf_mapping.Read.Fail
+        | some value =>
+          let i ← rdf_mapping.iri_of triple.predicate.spelling
+          let s ← rdf_mapping.take state index
+          ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyAssertion
+            { iri := i } subject value) s)
+    | rdf_mapping.PropertyKind.Annotation =>
+      rdf_mapping.annotation_assertion triples index state
+
+/-- [rowl_kernel::rdf_mapping::reserved_object]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3043:0-3058:1 -/
+def rdf_mapping.reserved_object (node : rdf.Object) : Result Bool := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let b ← vocabulary.reserved_iri iri.spelling
+    if b
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 35#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 84#u8, 104#u8, 105#u8,
+            110#u8, 103#u8
+            ]))
+      let b1 ← rdf_mapping.same iri.spelling s
+      if b1
+      then ok false
+      else
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 37#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 111#u8, 116#u8,
+              104#u8, 105#u8, 110#u8, 103#u8
+              ]))
+        let b2 ← rdf_mapping.same iri.spelling s1
+        ok (¬ b2)
+    else ok false
+  | rdf.Object.Blank _ => ok false
+  | rdf.Object.Literal _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::entity_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3756:0-3766:1 -/
+def rdf_mapping.entity_of
+  (kind : typing.EntityKind) (spelling : alloc.vec.Vec Std.U8) :
+  Result model.Entity
+  := do
+  let iri ← rdf_mapping.iri_of spelling
+  match kind with
+  | typing.EntityKind.Class => ok (model.Entity.Class { iri })
+  | typing.EntityKind.Datatype => ok (model.Entity.Datatype { iri })
+  | typing.EntityKind.ObjectProperty =>
+    ok (model.Entity.ObjectProperty { iri })
+  | typing.EntityKind.DataProperty => ok (model.Entity.DataProperty { iri })
+  | typing.EntityKind.AnnotationProperty =>
+    ok (model.Entity.AnnotationProperty { iri })
+  | typing.EntityKind.NamedIndividual =>
+    ok (model.Entity.NamedIndividual { iri })
+
+/-- [rowl_kernel::rdf_mapping::declaration]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3027:0-3038:1 -/
+def rdf_mapping.declaration
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  match t.subject with
+  | rdf.Subject.Iri iri =>
+    let o ← rdf_mapping.declaration_kind t.object
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some kind =>
+      let e ← rdf_mapping.entity_of kind iri.spelling
+      let s ← rdf_mapping.take state index
+      ok (rdf_mapping.Read.Found (model.Axiom.Declaration e) s)
+  | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::declares]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3019:0-3024:1 -/
+def rdf_mapping.declares (object : rdf.Object) : Result Bool := do
+  let o ← rdf_mapping.declaration_kind object
+  match o with
+  | none => ok false
+  | some _ => ok true
+
+/-- [rowl_kernel::rdf_mapping::blank_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2938:0-2943:1 -/
+def rdf_mapping.blank_subject (triple : rdf.Triple) : Result Bool := do
+  match triple.subject with
+  | rdf.Subject.Iri _ => ok false
+  | rdf.Subject.Blank _ => ok true
+
+/-- [rowl_kernel::rdf_mapping::element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 915:0-921:1 -/
+def rdf_mapping.element
+  (triples : alloc.vec.Vec rdf.Triple) (first : Std.Usize) :
+  Result (Option rdf.Object)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if first < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples first
+    ok (some t.object)
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::fits_any]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 504:0-514:1 -/
+def rdf_mapping.fits_any
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) (node : rdf.BlankNode) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then ok false
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      rdf_mapping.about t node
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::find_any_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 517:0-533:1 -/
+def rdf_mapping.find_any_in
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.fits_any triples used i1 node
+    if b
+    then ok (some i1)
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.find_any_in triples used bucket node i2
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::find_any]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 536:0-543:1 -/
+def rdf_mapping.find_any
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (node : rdf.BlankNode) :
+  Result (Option Std.Usize)
+  := do
+  let i ← rdf_mapping.hash_blank node
+  let i1 := alloc.vec.Vec.len state.subjects
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.subjects
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subjects bucket
+    rdf_mapping.find_any_in triples state.used v node 0#usize
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::facet_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2088:0-2118:1 -/
+def rdf_mapping.facet_element
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (state : rdf_mapping.State) :
+  Result (Option (model.FacetRestriction × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some o1 =>
+      match o1 with
+      | rdf.Object.Iri _ => ok none
+      | rdf.Object.Blank blank =>
+        let o2 ← rdf_mapping.find_any triples state blank
+        match o2 with
+        | none => ok none
+        | some found =>
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples found
+          let o3 ← rdf_mapping.node_literal t.object
+          match o3 with
+          | none => ok none
+          | some value =>
+            let state1 ← rdf_mapping.take state found
+            let state2 ← rdf_mapping.record state1 blank
+            let i2 ← rdf_mapping.iri_of t.predicate.spelling
+            ok (some ({ facet := i2, value }, state2))
+      | rdf.Object.Literal _ => ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::facet_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2121:0-2143:1 -/
+def rdf_mapping.facet_members
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (state : rdf_mapping.State)
+  (out : alloc.vec.Vec model.FacetRestriction) :
+  Result (Option ((alloc.vec.Vec model.FacetRestriction) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let o ← rdf_mapping.facet_element triples firsts index state
+    match o with
+    | none => ok none
+    | some p =>
+      let (member, state1) := p
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out member
+        let i2 ← index + 1#usize
+        rdf_mapping.facet_members triples firsts i2 state1 out1
+      else ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::literal_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1104:0-1128:1 -/
+def rdf_mapping.literal_members
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Literal) :
+  Result (Option (alloc.vec.Vec model.Literal))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_literal node
+      match o1 with
+      | none => ok none
+      | some member =>
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.literal_members triples firsts i3 out1
+        else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::is_nil]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 882:0-884:1 -/
+def rdf_mapping.is_nil (node : rdf.Object) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 46#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 110#u8, 105#u8, 108#u8
+        ]))
+  rdf_mapping.object_is node s
+
+/-- [rowl_kernel::rdf_mapping::cell]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 851:0-879:1 -/
+def rdf_mapping.cell
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) :
+  Result (Option (Std.Usize × Std.Usize × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank blank =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 48#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
+          115#u8, 116#u8
+          ]))
+    let o ← rdf_mapping.find triples state blank s
+    match o with
+    | none => ok none
+    | some first =>
+      let state1 ← rdf_mapping.take state first
+      let s1 ←
+        lift (Array.to_slice
+          (Array.make 47#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
+            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
+            35#u8, 114#u8, 101#u8, 115#u8, 116#u8
+            ]))
+      let o1 ← rdf_mapping.find triples state1 blank s1
+      match o1 with
+      | none => ok none
+      | some rest =>
+        let state2 ← rdf_mapping.take state1 rest
+        let state3 ← rdf_mapping.record state2 blank
+        ok (some (first, rest, state3))
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::cells]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 888:0-912:1 -/
+def rdf_mapping.cells
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (out : alloc.vec.Vec Std.Usize)
+  (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec Std.Usize) × rdf_mapping.State))
+  := do
+  let b ← rdf_mapping.is_nil node
+  if b
+  then ok (some (out, state))
+  else
+    if fuel > 0#usize
+    then
+      let o ← rdf_mapping.cell triples node state
+      match o with
+      | none => ok none
+      | some t =>
+        let (first, rest, state1) := t
+        let i := alloc.vec.Vec.len out
+        if i < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out first
+          let t1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples rest
+          let i1 ← fuel - 1#usize
+          rdf_mapping.cells triples t1.object state1 out1 i1
+        else ok none
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::literal_list1]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1131:0-1156:1 -/
+def rdf_mapping.literal_list1
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.NonEmpty model.Literal) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 1#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.node_literal one
+        match o2 with
+        | none => ok none
+        | some first =>
+          let o3 ←
+            rdf_mapping.literal_members triples firsts 1#usize
+              (alloc.vec.Vec.new model.Literal)
+          match o3 with
+          | none => ok none
+          | some rest => ok (some ({ first, rest }, state1))
+    else ok none
+
+mutual
+
+/-- [rowl_kernel::rdf_mapping::data_range]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1968:0-2003:1 -/
+def rdf_mapping.data_range
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.DataRange.Datatype { iri := i }, state))
+  | rdf.Object.Blank blank =>
+    if fuel > 0#usize
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 45#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
+            47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8,
+            101#u8, 109#u8, 97#u8, 35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8,
+            121#u8, 112#u8, 101#u8
+            ]))
+      let o ← rdf_mapping.find_type triples state blank s
+      match o with
+      | none => ok none
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let state2 ← rdf_mapping.record state1 blank
+        let i ← fuel - 1#usize
+        rdf_mapping.range_construct triples kinds blank state2 i
+    else ok none
+  | rdf.Object.Literal _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2006:0-2033:1 -/
+def rdf_mapping.range_members
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) (out : alloc.vec.Vec model.DataRange)
+  (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec model.DataRange) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.data_range triples kinds node state fuel
+      match o1 with
+      | none => ok none
+      | some p =>
+        let (member, state1) := p
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.range_members triples kinds firsts i3 state1 out1 fuel
+        else ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2036:0-2052:1 -/
+def rdf_mapping.range_element
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node => rdf_mapping.data_range triples kinds node state fuel
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2055:0-2084:1 -/
+def rdf_mapping.range_list2
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.DataRange) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let o1 ←
+      rdf_mapping.range_element triples kinds firsts 0#usize state1 fuel
+    match o1 with
+    | none => ok none
+    | some p1 =>
+      let (first, state2) := p1
+      let o2 ←
+        rdf_mapping.range_element triples kinds firsts 1#usize state2 fuel
+      match o2 with
+      | none => ok none
+      | some p2 =>
+        let (second, state3) := p2
+        let o3 ←
+          rdf_mapping.range_members triples kinds firsts 2#usize state3
+            (alloc.vec.Vec.new model.DataRange) fuel
+        match o3 with
+        | none => ok none
+        | some p3 =>
+          let (rest, state4) := p3
+          ok (some ({ first, second, rest }, state4))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_construct]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2146:0-2254:1 -/
+def rdf_mapping.range_construct
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
+        99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
+          102#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 50#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 97#u8, 116#u8, 97#u8,
+            116#u8, 121#u8, 112#u8, 101#u8, 67#u8, 111#u8, 109#u8, 112#u8,
+            108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8, 102#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none =>
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 35#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
+              79#u8, 102#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state blank s3
+        match o3 with
+        | none =>
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 40#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 68#u8,
+                97#u8, 116#u8, 97#u8, 116#u8, 121#u8, 112#u8, 101#u8
+                ]))
+          let o4 ← rdf_mapping.find triples state blank s4
+          match o4 with
+          | none => ok none
+          | some index =>
+            let t ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                rdf.Triple) triples index
+            let o5 ← rdf_mapping.node_iri t.object
+            match o5 with
+            | none => ok none
+            | some base =>
+              let state1 ← rdf_mapping.take state index
+              let s5 ←
+                lift (Array.to_slice
+                  (Array.make 46#usize [
+                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
+                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                    119#u8, 105#u8, 116#u8, 104#u8, 82#u8, 101#u8, 115#u8,
+                    116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8,
+                    110#u8, 115#u8
+                    ]))
+              let o6 ← rdf_mapping.find triples state1 blank s5
+              match o6 with
+              | none => ok none
+              | some list =>
+                let state2 ← rdf_mapping.take state1 list
+                let t1 ←
+                  alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                    rdf.Triple) triples list
+                let o7 ←
+                  rdf_mapping.cells triples t1.object state2 (alloc.vec.Vec.new
+                    Std.Usize) fuel
+                match o7 with
+                | none => ok none
+                | some p =>
+                  let (firsts, state3) := p
+                  let o8 ←
+                    rdf_mapping.facet_element triples firsts 0#usize state3
+                  match o8 with
+                  | none => ok none
+                  | some p1 =>
+                    let (first, state4) := p1
+                    let o9 ←
+                      rdf_mapping.facet_members triples firsts 1#usize state4
+                        (alloc.vec.Vec.new model.FacetRestriction)
+                    match o9 with
+                    | none => ok none
+                    | some p2 =>
+                      let (rest, state5) := p2
+                      ok (some (model.DataRange.Restriction { iri := base }
+                        { first, rest }, state5))
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples index
+          let o4 ← rdf_mapping.literal_list1 triples t.object state1 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (members, state2) := p
+            ok (some (model.DataRange.OneOf members, state2))
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (inner, state2) := p
+          ok (some (model.DataRange.Complement inner, state2))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.range_list2 triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (members, state2) := p
+        ok (some (model.DataRange.Union members, state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.range_list2 triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (members, state2) := p
+      ok (some (model.DataRange.Intersection members, state2))
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::rdf_mapping::on_data_range]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1827:0-1846:1 -/
+def rdf_mapping.on_data_range
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 41#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 111#u8, 110#u8, 68#u8, 97#u8, 116#u8, 97#u8, 82#u8,
+        97#u8, 110#u8, 103#u8, 101#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none => ok none
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    rdf_mapping.data_range triples kinds t.object state1 fuel
+
+/-- [rowl_kernel::rdf_mapping::natural_up]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 726:0-732:1 -/
+def rdf_mapping.natural_up
+  (count : Std.Usize) (out : probes.Natural) : Result probes.Natural := do
+  if count = 0#usize
+  then ok out
+  else
+    let i ← count - 1#usize
+    rdf_mapping.natural_up i (probes.Natural.Succ out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::CARDINALITY_LIMIT]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 634:0-634:40 -/
+@[global_simps, irreducible]
+def rdf_mapping.CARDINALITY_LIMIT : Std.Usize := 10000#usize
+
+/-- [rowl_kernel::rdf_mapping::node_natural]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 736:0-766:1 -/
+def rdf_mapping.node_natural
+  (node : rdf.Object) : Result (Option probes.Natural) := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank _ => ok none
+  | rdf.Object.Literal literal =>
+    match literal.kind with
+    | rdf.LiteralKind.Datatype datatype =>
+      let s ←
+        lift (Array.to_slice
+          (Array.make 51#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 110#u8,
+            111#u8, 110#u8, 78#u8, 101#u8, 103#u8, 97#u8, 116#u8, 105#u8,
+            118#u8, 101#u8, 73#u8, 110#u8, 116#u8, 101#u8, 103#u8, 101#u8,
+            114#u8
+            ]))
+      let b ← rdf_mapping.same datatype.spelling s
+      if b
+      then
+        let i := alloc.vec.Vec.len literal.lexical
+        if i > 1#usize
+        then
+          let i1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+              literal.lexical 0#usize
+          if i1 = 48#u8
+          then ok none
+          else
+            let i2 := alloc.vec.Vec.len literal.lexical
+            let o ←
+              decimal.read_bounded literal.lexical 0#usize i2
+                rdf_mapping.CARDINALITY_LIMIT
+            match o with
+            | none => ok none
+            | some value =>
+              let n ← rdf_mapping.natural_up value probes.Natural.Zero
+              ok (some n)
+        else
+          let i1 := alloc.vec.Vec.len literal.lexical
+          let o ←
+            decimal.read_bounded literal.lexical 0#usize i1
+              rdf_mapping.CARDINALITY_LIMIT
+          match o with
+          | none => ok none
+          | some value =>
+            let n ← rdf_mapping.natural_up value probes.Natural.Zero
+            ok (some n)
+      else ok none
+    | rdf.LiteralKind.Language _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::data_qualified]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1903:0-1964:1 -/
+def rdf_mapping.data_qualified
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (property : model.DataProperty)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 53#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 81#u8, 117#u8, 97#u8, 108#u8,
+        105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 53#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 81#u8, 117#u8, 97#u8,
+          108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 50#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 113#u8, 117#u8, 97#u8,
+            108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8,
+            114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
+            121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none => ok none
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          let o4 ← rdf_mapping.on_data_range triples kinds blank s3 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (range, state1) := p
+            ok (some (model.ClassExpression.DataExactCardinality n property
+              (some range), state1))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        let o3 ← rdf_mapping.on_data_range triples kinds blank s2 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (range, state1) := p
+          ok (some (model.ClassExpression.DataMaxCardinality n property (some
+            range), state1))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      let o2 ← rdf_mapping.on_data_range triples kinds blank s1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (range, state1) := p
+        ok (some (model.ClassExpression.DataMinCardinality n property (some
+          range), state1))
+
+/-- [rowl_kernel::rdf_mapping::data_cardinality]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1849:0-1900:1 -/
+def rdf_mapping.data_cardinality
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (property : model.DataProperty)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 44#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 41#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
+            105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none =>
+        rdf_mapping.data_qualified triples kinds blank property state fuel
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          ok (some (model.ClassExpression.DataExactCardinality n property none,
+            s3))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        ok (some (model.ClassExpression.DataMaxCardinality n property none,
+          s2))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      ok (some (model.ClassExpression.DataMinCardinality n property none, s1))
+
+/-- [rowl_kernel::rdf_mapping::data_restriction]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1769:0-1824:1 -/
+def rdf_mapping.data_restriction
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (property : model.DataProperty)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
+        117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 43#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
+          117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 38#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
+            97#u8, 108#u8, 117#u8, 101#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none =>
+        rdf_mapping.data_cardinality triples kinds blank property state fuel
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_literal t.object
+        match o3 with
+        | none => ok none
+        | some value =>
+          let s3 ← rdf_mapping.take state index
+          ok (some (model.ClassExpression.DataHasValue property value, s3))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (range, state2) := p
+        ok (some (model.ClassExpression.DataAllValuesFrom property range,
+          state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (range, state2) := p
+      ok (some (model.ClassExpression.DataSomeValuesFrom property range,
+        state2))
+
+/-- [rowl_kernel::rdf_mapping::individual_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1006:0-1030:1 -/
+def rdf_mapping.individual_members
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_individual node
+      match o1 with
+      | none => ok none
+      | some member =>
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.individual_members triples firsts i3 out1
+        else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::individual_list1]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1033:0-1058:1 -/
+def rdf_mapping.individual_list1
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.NonEmpty model.Individual) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 1#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.node_individual one
+        match o2 with
+        | none => ok none
+        | some first =>
+          let o3 ←
+            rdf_mapping.individual_members triples firsts 1#usize
+              (alloc.vec.Vec.new model.Individual)
+          match o3 with
+          | none => ok none
+          | some rest => ok (some ({ first, rest }, state1))
+    else ok none
+
+/-- [rowl_kernel::rdf_mapping::property_expression]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 812:0-847:1 -/
+def rdf_mapping.property_expression
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) :
+  Result (Option (model.ObjectPropertyExpression × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.ObjectPropertyExpression.Property { iri := i }, state))
+  | rdf.Object.Blank blank =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 39#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 105#u8, 110#u8, 118#u8, 101#u8, 114#u8,
+          115#u8, 101#u8, 79#u8, 102#u8
+          ]))
+    let o ← rdf_mapping.find triples state blank s
+    match o with
+    | none => ok none
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      match t.object with
+      | rdf.Object.Iri iri =>
+        let state1 ← rdf_mapping.take state index
+        let state2 ← rdf_mapping.record state1 blank
+        let i ← rdf_mapping.iri_of iri.spelling
+        ok (some (model.ObjectPropertyExpression.Inverse { iri := i }, state2))
+      | rdf.Object.Blank _ => ok none
+      | rdf.Object.Literal _ => ok none
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::node_true]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 769:0-786:1 -/
+def rdf_mapping.node_true (node : rdf.Object) : Result Bool := do
+  match node with
+  | rdf.Object.Iri _ => ok false
+  | rdf.Object.Blank _ => ok false
+  | rdf.Object.Literal literal =>
+    match literal.kind with
+    | rdf.LiteralKind.Datatype datatype =>
+      let s ←
+        lift (Array.to_slice
+          (Array.make 40#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8,
+            111#u8, 111#u8, 108#u8, 101#u8, 97#u8, 110#u8
+            ]))
+      let b ← rdf_mapping.same datatype.spelling s
+      if b
+      then
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+        rdf_mapping.same literal.lexical s1
+      else ok false
+    | rdf.LiteralKind.Language _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::node_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 625:0-631:1 -/
+def rdf_mapping.node_kind
+  (kinds : rdf_mapping.Kinds) (node : rdf.Object) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  match node with
+  | rdf.Object.Iri iri => rdf_mapping.property_kind kinds iri.spelling
+  | rdf.Object.Blank _ => ok (some rdf_mapping.PropertyKind.Object)
+  | rdf.Object.Literal _ => ok none
+
+mutual
+
+/-- [rowl_kernel::rdf_mapping::class_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 924:0-951:1 -/
+def rdf_mapping.class_members
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) (out : alloc.vec.Vec model.ClassExpression)
+  (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec model.ClassExpression) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.class_expression triples kinds node state fuel
+      match o1 with
+      | none => ok none
+      | some p =>
+        let (member, state1) := p
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.class_members triples kinds firsts i3 state1 out1 fuel
+        else ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::class_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 954:0-1003:1 -/
+def rdf_mapping.class_list2
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.ClassExpression) ×
+    rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 2#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.class_expression triples kinds one state1 fuel
+        match o2 with
+        | none => ok none
+        | some p1 =>
+          let (first, state2) := p1
+          let i2 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              Std.Usize) firsts 1#usize
+          let o3 ← rdf_mapping.element triples i2
+          match o3 with
+          | none => ok none
+          | some two =>
+            let o4 ←
+              rdf_mapping.class_expression triples kinds two state2 fuel
+            match o4 with
+            | none => ok none
+            | some p2 =>
+              let (second, state3) := p2
+              let o5 ←
+                rdf_mapping.class_members triples kinds firsts 2#usize state3
+                  (alloc.vec.Vec.new model.ClassExpression) fuel
+              match o5 with
+              | none => ok none
+              | some p3 =>
+                let (rest, state4) := p3
+                ok (some ({ first, second, rest }, state4))
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::class_expression]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1388:0-1435:1 -/
+def rdf_mapping.class_expression
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.ClassExpression.Class { iri := i }, state))
+  | rdf.Object.Blank blank =>
+    if fuel > 0#usize
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 41#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 82#u8, 101#u8, 115#u8,
+            116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8, 110#u8
+            ]))
+      let o ← rdf_mapping.find_type triples state blank s
+      match o with
+      | none =>
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 35#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 67#u8, 108#u8, 97#u8,
+              115#u8, 115#u8
+              ]))
+        let o1 ← rdf_mapping.find_type triples state blank s1
+        match o1 with
+        | none => ok none
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let state2 ← rdf_mapping.record state1 blank
+          let i ← fuel - 1#usize
+          rdf_mapping.class_construct triples kinds blank state2 i
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let state2 ← rdf_mapping.record state1 blank
+        let i ← fuel - 1#usize
+        rdf_mapping.restriction triples kinds blank state2 i
+    else ok none
+  | rdf.Object.Literal _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::class_construct]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1438:0-1511:1 -/
+def rdf_mapping.class_construct
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
+        99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
+          102#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 42#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 111#u8, 109#u8,
+            112#u8, 108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8,
+            102#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none =>
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 35#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
+              79#u8, 102#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state blank s3
+        match o3 with
+        | none => ok none
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples index
+          let o4 ← rdf_mapping.individual_list1 triples t.object state1 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (members, state2) := p
+            ok (some (model.ClassExpression.ObjectOneOf members, state2))
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ←
+          rdf_mapping.class_expression triples kinds t.object state1 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (inner, state2) := p
+          ok (some (model.ClassExpression.ObjectComplementOf inner, state2))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (members, state2) := p
+        ok (some (model.ClassExpression.ObjectUnionOf members, state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (members, state2) := p
+      ok (some (model.ClassExpression.ObjectIntersectionOf members, state2))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::restriction]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1514:0-1548:1 -/
+def rdf_mapping.restriction
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 40#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 111#u8, 110#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8,
+        114#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none => ok none
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_kind kinds t.object
+    match o1 with
+    | none => ok none
+    | some pk =>
+      match pk with
+      | rdf_mapping.PropertyKind.Object =>
+        let o2 ← rdf_mapping.property_expression triples t.object state1
+        match o2 with
+        | none => ok none
+        | some p =>
+          let (role, state2) := p
+          rdf_mapping.object_restriction triples kinds blank role state2 fuel
+      | rdf_mapping.PropertyKind.Data =>
+        let o2 ← rdf_mapping.node_iri t.object
+        match o2 with
+        | none => ok none
+        | some iri =>
+          rdf_mapping.data_restriction triples kinds blank { iri } state1 fuel
+      | rdf_mapping.PropertyKind.Annotation => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::object_restriction]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1551:0-1623:1 -/
+def rdf_mapping.object_restriction
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
+        117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 43#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
+          117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 38#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
+            97#u8, 108#u8, 117#u8, 101#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none =>
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 37#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8,
+              83#u8, 101#u8, 108#u8, 102#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state blank s3
+        match o3 with
+        | none =>
+          rdf_mapping.object_cardinality triples kinds blank role state fuel
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples index
+          let b ← rdf_mapping.node_true t.object
+          if b
+          then ok (some (model.ClassExpression.ObjectHasSelf role, state1))
+          else ok none
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_individual t.object
+        match o3 with
+        | none => ok none
+        | some value =>
+          ok (some (model.ClassExpression.ObjectHasValue role value, state1))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ←
+        rdf_mapping.class_expression triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (filler, state2) := p
+        ok (some (model.ClassExpression.ObjectAllValuesFrom role filler,
+          state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.class_expression triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (filler, state2) := p
+      ok (some (model.ClassExpression.ObjectSomeValuesFrom role filler,
+        state2))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::object_cardinality]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1626:0-1677:1 -/
+def rdf_mapping.object_cardinality
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 44#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 41#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
+            105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none =>
+        rdf_mapping.object_qualified triples kinds blank role state fuel
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          ok (some (model.ClassExpression.ObjectExactCardinality n role none,
+            s3))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        ok (some (model.ClassExpression.ObjectMaxCardinality n role none, s2))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      ok (some (model.ClassExpression.ObjectMinCardinality n role none, s1))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::on_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1680:0-1699:1 -/
+def rdf_mapping.on_class
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 37#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 111#u8, 110#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none => ok none
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    rdf_mapping.class_expression triples kinds t.object state1 fuel
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::object_qualified]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1702:0-1766:1 -/
+def rdf_mapping.object_qualified
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 53#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 81#u8, 117#u8, 97#u8, 108#u8,
+        105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state blank s
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 53#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 81#u8, 117#u8, 97#u8,
+          108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state blank s1
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 50#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 113#u8, 117#u8, 97#u8,
+            108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8,
+            114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
+            121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state blank s2
+      match o2 with
+      | none => ok none
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          let o4 ← rdf_mapping.on_class triples kinds blank s3 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (filler, state1) := p
+            ok (some (model.ClassExpression.ObjectExactCardinality n role (some
+              filler), state1))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        let o3 ← rdf_mapping.on_class triples kinds blank s2 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (filler, state1) := p
+          ok (some (model.ClassExpression.ObjectMaxCardinality n role (some
+            filler), state1))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      let o2 ← rdf_mapping.on_class triples kinds blank s1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (filler, state1) := p
+        ok (some (model.ClassExpression.ObjectMinCardinality n role (some
+          filler), state1))
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::rdf_mapping::class_assertion]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2916:0-2935:1 -/
+def rdf_mapping.class_assertion
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.subject_node t.subject
+  let o1 ← rdf_mapping.node_individual o
+  match o1 with
+  | none => ok rdf_mapping.Read.Fail
+  | some individual =>
+    let o2 ← rdf_mapping.class_expression triples kinds t.object state1 fuel
+    match o2 with
+    | none => ok rdf_mapping.Read.Fail
+    | some p =>
+      let («class», state2) := p
+      ok (rdf_mapping.Read.Found (model.Axiom.ClassAssertion «class»
+        individual) state2)
+
+/-- [rowl_kernel::rdf_mapping::axiom_node]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2692:0-2701:1 -/
+def rdf_mapping.axiom_node
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result (Option (rdf.BlankNode × rdf_mapping.State))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  match t.subject with
+  | rdf.Subject.Iri _ => ok none
+  | rdf.Subject.Blank blank =>
+    let state1 ← rdf_mapping.take state index
+    let state2 ← rdf_mapping.record state1 blank
+    let bn ← rdf_mapping.copy_blank blank
+    ok (some (bn, state2))
+
+/-- [rowl_kernel::rdf_mapping::negative_assertion]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2834:0-2914:1 -/
+def rdf_mapping.negative_assertion
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 46#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 115#u8, 111#u8, 117#u8, 114#u8, 99#u8, 101#u8,
+          73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8, 100#u8, 117#u8, 97#u8,
+          108#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1 blank s
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some source =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples source
+      let o2 ← rdf_mapping.node_individual t.object
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some subject =>
+        let state2 ← rdf_mapping.take state1 source
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 47#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 97#u8, 115#u8, 115#u8,
+              101#u8, 114#u8, 116#u8, 105#u8, 111#u8, 110#u8, 80#u8, 114#u8,
+              111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state2 blank s1
+        match o3 with
+        | none => ok rdf_mapping.Read.Fail
+        | some property =>
+          let state3 ← rdf_mapping.take state2 property
+          let t1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples property
+          let o4 ← rdf_mapping.node_kind kinds t1.object
+          match o4 with
+          | none => ok rdf_mapping.Read.Fail
+          | some pk =>
+            match pk with
+            | rdf_mapping.PropertyKind.Object =>
+              let o5 ←
+                rdf_mapping.property_expression triples t1.object state3
+              match o5 with
+              | none => ok rdf_mapping.Read.Fail
+              | some p1 =>
+                let (role, state4) := p1
+                let s2 ←
+                  lift (Array.to_slice
+                    (Array.make 46#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 116#u8, 97#u8, 114#u8, 103#u8, 101#u8,
+                      116#u8, 73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8,
+                      100#u8, 117#u8, 97#u8, 108#u8
+                      ]))
+                let o6 ← rdf_mapping.find triples state4 blank s2
+                match o6 with
+                | none => ok rdf_mapping.Read.Fail
+                | some target =>
+                  let t2 ←
+                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                      rdf.Triple) triples target
+                  let o7 ← rdf_mapping.node_individual t2.object
+                  match o7 with
+                  | none => ok rdf_mapping.Read.Fail
+                  | some object =>
+                    let s3 ← rdf_mapping.take state4 target
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.NegativeObjectPropertyAssertion role subject
+                      object) s3)
+            | rdf_mapping.PropertyKind.Data =>
+              let o5 ← rdf_mapping.node_iri t1.object
+              match o5 with
+              | none => ok rdf_mapping.Read.Fail
+              | some iri =>
+                let s2 ←
+                  lift (Array.to_slice
+                    (Array.make 41#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 116#u8, 97#u8, 114#u8, 103#u8, 101#u8,
+                      116#u8, 86#u8, 97#u8, 108#u8, 117#u8, 101#u8
+                      ]))
+                let o6 ← rdf_mapping.find triples state3 blank s2
+                match o6 with
+                | none => ok rdf_mapping.Read.Fail
+                | some target =>
+                  let t2 ←
+                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                      rdf.Triple) triples target
+                  let o7 ← rdf_mapping.node_literal t2.object
+                  match o7 with
+                  | none => ok rdf_mapping.Read.Fail
+                  | some value =>
+                    let s3 ← rdf_mapping.take state3 target
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.NegativeDataPropertyAssertion { iri }
+                      subject value) s3)
+            | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::individual_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1061:0-1101:1 -/
+def rdf_mapping.individual_list2
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.Individual) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 2#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.node_individual one
+        match o2 with
+        | none => ok none
+        | some first =>
+          let i2 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              Std.Usize) firsts 1#usize
+          let o3 ← rdf_mapping.element triples i2
+          match o3 with
+          | none => ok none
+          | some two =>
+            let o4 ← rdf_mapping.node_individual two
+            match o4 with
+            | none => ok none
+            | some second =>
+              let o5 ←
+                rdf_mapping.individual_members triples firsts 2#usize
+                  (alloc.vec.Vec.new model.Individual)
+              match o5 with
+              | none => ok none
+              | some rest => ok (some ({ first, second, rest }, state1))
+    else ok none
+
+/-- [rowl_kernel::rdf_mapping::all_different]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2807:0-2832:1 -/
+def rdf_mapping.all_different
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
+          115#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1 blank s
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some list =>
+      let state2 ← rdf_mapping.take state1 list
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples list
+      let o2 ← rdf_mapping.individual_list2 triples t.object state2 fuel
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p1 =>
+        let (members, state3) := p1
+        let i := alloc.vec.Vec.len members.rest
+        if i >= 1#usize
+        then
+          ok (rdf_mapping.Read.Found (model.Axiom.DifferentIndividuals members)
+            state3)
+        else ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::first_member_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2737:0-2755:1 -/
+def rdf_mapping.first_member_kind
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (state : rdf_mapping.State) (node : rdf.Object) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank blank =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 48#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
+          115#u8, 116#u8
+          ]))
+    let o ← rdf_mapping.find triples state blank s
+    match o with
+    | none => ok none
+    | some first =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples first
+      rdf_mapping.node_kind kinds t.object
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::data_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1275:0-1295:1 -/
+def rdf_mapping.data_element
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result (Option model.DataProperty)
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object => ok none
+        | rdf_mapping.PropertyKind.Data =>
+          let o2 ← rdf_mapping.node_iri node
+          match o2 with
+          | none => ok none
+          | some iri => ok (some { iri })
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::data_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1244:0-1272:1 -/
+def rdf_mapping.data_members
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec model.DataProperty) :
+  Result (Option (alloc.vec.Vec model.DataProperty))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object => ok none
+        | rdf_mapping.PropertyKind.Data =>
+          let o2 ← rdf_mapping.node_iri node
+          match o2 with
+          | none => ok none
+          | some iri =>
+            let i2 := alloc.vec.Vec.len out
+            if i2 < core.num.Usize.MAX
+            then
+              let out1 ←
+                alloc.vec.Vec.push out ({ iri } : model.DataProperty)
+              let i3 ← index + 1#usize
+              rdf_mapping.data_members triples kinds firsts i3 out1
+            else ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::data_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1298:0-1325:1 -/
+def rdf_mapping.data_list2
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.DataProperty) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let o1 ← rdf_mapping.data_element triples kinds firsts 0#usize
+    match o1 with
+    | none => ok none
+    | some first =>
+      let o2 ← rdf_mapping.data_element triples kinds firsts 1#usize
+      match o2 with
+      | none => ok none
+      | some second =>
+        let o3 ←
+          rdf_mapping.data_members triples kinds firsts 2#usize
+            (alloc.vec.Vec.new model.DataProperty)
+        match o3 with
+        | none => ok none
+        | some rest => ok (some ({ first, second, rest }, state1))
+
+/-- [rowl_kernel::rdf_mapping::property_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1191:0-1209:1 -/
+def rdf_mapping.property_element
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result (Option (model.ObjectPropertyExpression × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          rdf_mapping.property_expression triples node state
+        | rdf_mapping.PropertyKind.Data => ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::property_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1159:0-1188:1 -/
+def rdf_mapping.property_members
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option ((alloc.vec.Vec model.ObjectPropertyExpression) ×
+    rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          let o2 ← rdf_mapping.property_expression triples node state
+          match o2 with
+          | none => ok none
+          | some p =>
+            let (member, state1) := p
+            let i2 := alloc.vec.Vec.len out
+            if i2 < core.num.Usize.MAX
+            then
+              let out1 ← alloc.vec.Vec.push out member
+              let i3 ← index + 1#usize
+              rdf_mapping.property_members triples kinds firsts i3 state1 out1
+            else ok none
+        | rdf_mapping.PropertyKind.Data => ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::property_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1212:0-1241:1 -/
+def rdf_mapping.property_list2
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.ObjectPropertyExpression) ×
+    rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let o1 ← rdf_mapping.property_element triples kinds firsts 0#usize state1
+    match o1 with
+    | none => ok none
+    | some p1 =>
+      let (first, state2) := p1
+      let o2 ←
+        rdf_mapping.property_element triples kinds firsts 1#usize state2
+      match o2 with
+      | none => ok none
+      | some p2 =>
+        let (second, state3) := p2
+        let o3 ←
+          rdf_mapping.property_members triples kinds firsts 2#usize state3
+            (alloc.vec.Vec.new model.ObjectPropertyExpression)
+        match o3 with
+        | none => ok none
+        | some p3 =>
+          let (rest, state4) := p3
+          ok (some ({ first, second, rest }, state4))
+
+/-- [rowl_kernel::rdf_mapping::all_disjoint_properties]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2757:0-2805:1 -/
+def rdf_mapping.all_disjoint_properties
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
+          115#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1 blank s
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some list =>
+      let state2 ← rdf_mapping.take state1 list
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples list
+      let o2 ← rdf_mapping.first_member_kind triples kinds state2 t.object
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          let o3 ←
+            rdf_mapping.property_list2 triples kinds t.object state2 fuel
+          match o3 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p1 =>
+            let (members, state3) := p1
+            let i := alloc.vec.Vec.len members.rest
+            if i >= 1#usize
+            then
+              ok (rdf_mapping.Read.Found (model.Axiom.DisjointObjectProperties
+                members) state3)
+            else ok rdf_mapping.Read.Fail
+        | rdf_mapping.PropertyKind.Data =>
+          let o3 ← rdf_mapping.data_list2 triples kinds t.object state2 fuel
+          match o3 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p1 =>
+            let (members, state3) := p1
+            let i := alloc.vec.Vec.len members.rest
+            if i >= 1#usize
+            then
+              ok (rdf_mapping.Read.Found (model.Axiom.DisjointDataProperties
+                members) state3)
+            else ok rdf_mapping.Read.Fail
+        | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::all_disjoint_classes]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2703:0-2734:1 -/
+def rdf_mapping.all_disjoint_classes
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
+          115#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1 blank s
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some list =>
+      let state2 ← rdf_mapping.take state1 list
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples list
+      let o2 ← rdf_mapping.class_list2 triples kinds t.object state2 fuel
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p1 =>
+        let (members, state3) := p1
+        let i := alloc.vec.Vec.len members.rest
+        if i >= 1#usize
+        then
+          ok (rdf_mapping.Read.Found (model.Axiom.DisjointClasses members)
+            state3)
+        else ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::characteristic]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2645:0-2689:1 -/
+def rdf_mapping.characteristic
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (kind : Std.U8) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.node_kind kinds subject
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_expression triples subject state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (role, state2) := p
+        if kind = 0#u8
+        then
+          ok (rdf_mapping.Read.Found (model.Axiom.FunctionalObjectProperty
+            role) state2)
+        else
+          if kind = 1#u8
+          then
+            ok (rdf_mapping.Read.Found
+              (model.Axiom.InverseFunctionalObjectProperty role) state2)
+          else
+            if kind = 2#u8
+            then
+              ok (rdf_mapping.Read.Found (model.Axiom.ReflexiveObjectProperty
+                role) state2)
+            else
+              if kind = 3#u8
+              then
+                ok (rdf_mapping.Read.Found
+                  (model.Axiom.IrreflexiveObjectProperty role) state2)
+              else
+                if kind = 4#u8
+                then
+                  ok (rdf_mapping.Read.Found
+                    (model.Axiom.SymmetricObjectProperty role) state2)
+                else
+                  if kind = 5#u8
+                  then
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.AsymmetricObjectProperty role) state2)
+                  else
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.TransitiveObjectProperty role) state2)
+    | rdf_mapping.PropertyKind.Data =>
+      if kind = 0#u8
+      then
+        let o1 ← rdf_mapping.node_iri subject
+        match o1 with
+        | none => ok rdf_mapping.Read.Fail
+        | some iri =>
+          ok (rdf_mapping.Read.Found (model.Axiom.FunctionalDataProperty
+            { iri }) state1)
+      else ok rdf_mapping.Read.Fail
+    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::typing]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2946:0-3016:1 -/
+def rdf_mapping.typing
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let s ←
+    lift (Array.to_slice
+      (Array.make 41#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 82#u8, 101#u8, 115#u8, 116#u8, 114#u8, 105#u8, 99#u8,
+        116#u8, 105#u8, 111#u8, 110#u8
+        ]))
+  let b ← rdf_mapping.object_is t.object s
+  if b
+  then
+    let b1 ← rdf_mapping.blank_subject t
+    if b1
+    then ok (rdf_mapping.Read.Skip state)
+    else ok rdf_mapping.Read.Fail
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 35#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
+          ]))
+    let b1 ← rdf_mapping.object_is t.object s1
+    if b1
+    then
+      let b2 ← rdf_mapping.blank_subject t
+      if b2
+      then ok (rdf_mapping.Read.Skip state)
+      else rdf_mapping.declaration triples index state
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 45#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
+            47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8,
+            101#u8, 109#u8, 97#u8, 35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8,
+            121#u8, 112#u8, 101#u8
+            ]))
+      let b2 ← rdf_mapping.object_is t.object s2
+      if b2
+      then
+        let b3 ← rdf_mapping.blank_subject t
+        if b3
+        then ok (rdf_mapping.Read.Skip state)
+        else rdf_mapping.declaration triples index state
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 35#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 120#u8, 105#u8,
+              111#u8, 109#u8
+              ]))
+        let b3 ← rdf_mapping.object_is t.object s3
+        if b3
+        then
+          let b4 ← rdf_mapping.blank_subject t
+          if b4
+          then ok (rdf_mapping.Read.Skip state)
+          else ok rdf_mapping.Read.Fail
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 40#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8,
+                111#u8, 116#u8, 97#u8, 116#u8, 105#u8, 111#u8, 110#u8
+                ]))
+          let b4 ← rdf_mapping.object_is t.object s4
+          if b4
+          then
+            let b5 ← rdf_mapping.blank_subject t
+            if b5
+            then ok (rdf_mapping.Read.Skip state)
+            else ok rdf_mapping.Read.Fail
+          else
+            let b5 ← rdf_mapping.declares t.object
+            if b5
+            then rdf_mapping.declaration triples index state
+            else
+              let s5 ←
+                lift (Array.to_slice
+                  (Array.make 48#usize [
+                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
+                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                    70#u8, 117#u8, 110#u8, 99#u8, 116#u8, 105#u8, 111#u8,
+                    110#u8, 97#u8, 108#u8, 80#u8, 114#u8, 111#u8, 112#u8,
+                    101#u8, 114#u8, 116#u8, 121#u8
+                    ]))
+              let b6 ← rdf_mapping.object_is t.object s5
+              if b6
+              then rdf_mapping.characteristic triples kinds index state 0#u8
+              else
+                let s6 ←
+                  lift (Array.to_slice
+                    (Array.make 55#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 73#u8, 110#u8, 118#u8, 101#u8, 114#u8,
+                      115#u8, 101#u8, 70#u8, 117#u8, 110#u8, 99#u8, 116#u8,
+                      105#u8, 111#u8, 110#u8, 97#u8, 108#u8, 80#u8, 114#u8,
+                      111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                      ]))
+                let b7 ← rdf_mapping.object_is t.object s6
+                if b7
+                then rdf_mapping.characteristic triples kinds index state 1#u8
+                else
+                  let s7 ←
+                    lift (Array.to_slice
+                      (Array.make 47#usize [
+                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                        108#u8, 35#u8, 82#u8, 101#u8, 102#u8, 108#u8, 101#u8,
+                        120#u8, 105#u8, 118#u8, 101#u8, 80#u8, 114#u8, 111#u8,
+                        112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                        ]))
+                  let b8 ← rdf_mapping.object_is t.object s7
+                  if b8
+                  then
+                    rdf_mapping.characteristic triples kinds index state 2#u8
+                  else
+                    let s8 ←
+                      lift (Array.to_slice
+                        (Array.make 49#usize [
+                          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                          119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                          111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                          50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                          108#u8, 35#u8, 73#u8, 114#u8, 114#u8, 101#u8, 102#u8,
+                          108#u8, 101#u8, 120#u8, 105#u8, 118#u8, 101#u8,
+                          80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
+                          116#u8, 121#u8
+                          ]))
+                    let b9 ← rdf_mapping.object_is t.object s8
+                    if b9
+                    then
+                      rdf_mapping.characteristic triples kinds index state 3#u8
+                    else
+                      let s9 ←
+                        lift (Array.to_slice
+                          (Array.make 47#usize [
+                            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                            47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                            51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8,
+                            48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8,
+                            111#u8, 119#u8, 108#u8, 35#u8, 83#u8, 121#u8,
+                            109#u8, 109#u8, 101#u8, 116#u8, 114#u8, 105#u8,
+                            99#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8,
+                            114#u8, 116#u8, 121#u8
+                            ]))
+                      let b10 ← rdf_mapping.object_is t.object s9
+                      if b10
+                      then
+                        rdf_mapping.characteristic triples kinds index state
+                          4#u8
+                      else
+                        let s10 ←
+                          lift (Array.to_slice
+                            (Array.make 48#usize [
+                              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                              47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                              51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                              50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8,
+                              115#u8, 121#u8, 109#u8, 109#u8, 101#u8, 116#u8,
+                              114#u8, 105#u8, 99#u8, 80#u8, 114#u8, 111#u8,
+                              112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                              ]))
+                        let b11 ← rdf_mapping.object_is t.object s10
+                        if b11
+                        then
+                          rdf_mapping.characteristic triples kinds index state
+                            5#u8
+                        else
+                          let s11 ←
+                            lift (Array.to_slice
+                              (Array.make 48#usize [
+                                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                84#u8, 114#u8, 97#u8, 110#u8, 115#u8, 105#u8,
+                                116#u8, 105#u8, 118#u8, 101#u8, 80#u8, 114#u8,
+                                111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                                ]))
+                          let b12 ← rdf_mapping.object_is t.object s11
+                          if b12
+                          then
+                            rdf_mapping.characteristic triples kinds index
+                              state 6#u8
+                          else
+                            let s12 ←
+                              lift (Array.to_slice
+                                (Array.make 48#usize [
+                                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                  47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                  51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                  50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                  65#u8, 108#u8, 108#u8, 68#u8, 105#u8, 115#u8,
+                                  106#u8, 111#u8, 105#u8, 110#u8, 116#u8,
+                                  67#u8, 108#u8, 97#u8, 115#u8, 115#u8, 101#u8,
+                                  115#u8
+                                  ]))
+                            let b13 ← rdf_mapping.object_is t.object s12
+                            if b13
+                            then
+                              rdf_mapping.all_disjoint_classes triples kinds
+                                index state fuel
+                            else
+                              let s13 ←
+                                lift (Array.to_slice
+                                  (Array.make 51#usize [
+                                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
+                                    47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
+                                    46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
+                                    114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                                    50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+                                    119#u8, 108#u8, 35#u8, 65#u8, 108#u8,
+                                    108#u8, 68#u8, 105#u8, 115#u8, 106#u8,
+                                    111#u8, 105#u8, 110#u8, 116#u8, 80#u8,
+                                    114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
+                                    116#u8, 105#u8, 101#u8, 115#u8
+                                    ]))
+                              let b14 ← rdf_mapping.object_is t.object s13
+                              if b14
+                              then
+                                rdf_mapping.all_disjoint_properties triples
+                                  kinds index state fuel
+                              else
+                                let s14 ←
+                                  lift (Array.to_slice
+                                    (Array.make 42#usize [
+                                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
+                                      47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
+                                      46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
+                                      114#u8, 103#u8, 47#u8, 50#u8, 48#u8,
+                                      48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8,
+                                      111#u8, 119#u8, 108#u8, 35#u8, 65#u8,
+                                      108#u8, 108#u8, 68#u8, 105#u8, 102#u8,
+                                      102#u8, 101#u8, 114#u8, 101#u8, 110#u8,
+                                      116#u8
+                                      ]))
+                                let b15 ← rdf_mapping.object_is t.object s14
+                                if b15
+                                then
+                                  rdf_mapping.all_different triples index state
+                                    fuel
+                                else
+                                  let s15 ←
+                                    lift (Array.to_slice
+                                      (Array.make 55#usize [
+                                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
+                                        47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
+                                        46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
+                                        114#u8, 103#u8, 47#u8, 50#u8, 48#u8,
+                                        48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                                        47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                        78#u8, 101#u8, 103#u8, 97#u8, 116#u8,
+                                        105#u8, 118#u8, 101#u8, 80#u8, 114#u8,
+                                        111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+                                        121#u8, 65#u8, 115#u8, 115#u8, 101#u8,
+                                        114#u8, 116#u8, 105#u8, 111#u8, 110#u8
+                                        ]))
+                                  let b16 ←
+                                    rdf_mapping.object_is t.object s15
+                                  if b16
+                                  then
+                                    rdf_mapping.negative_assertion triples
+                                      kinds index state
+                                  else
+                                    let b17 ←
+                                      rdf_mapping.reserved_object t.object
+                                    if b17
+                                    then ok rdf_mapping.Read.Fail
+                                    else
+                                      rdf_mapping.class_assertion triples kinds
+                                        index state fuel
+
+/-- [rowl_kernel::rdf_mapping::key_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1329:0-1384:1 -/
+def rdf_mapping.key_members
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State)
+  (objects : alloc.vec.Vec model.ObjectPropertyExpression)
+  (datas : alloc.vec.Vec model.DataProperty) :
+  Result (Option ((alloc.vec.Vec model.ObjectPropertyExpression) ×
+    (alloc.vec.Vec model.DataProperty) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          let i2 := alloc.vec.Vec.len datas
+          if i2 = 0#usize
+          then
+            let o2 ← rdf_mapping.property_expression triples node state
+            match o2 with
+            | none => ok none
+            | some p =>
+              let (member, state1) := p
+              let i3 := alloc.vec.Vec.len objects
+              if i3 < core.num.Usize.MAX
+              then
+                let objects1 ← alloc.vec.Vec.push objects member
+                let i4 ← index + 1#usize
+                rdf_mapping.key_members triples kinds firsts i4 state1 objects1
+                  datas
+              else ok none
+          else ok none
+        | rdf_mapping.PropertyKind.Data =>
+          let o2 ← rdf_mapping.node_iri node
+          match o2 with
+          | none => ok none
+          | some iri =>
+            let i2 := alloc.vec.Vec.len datas
+            if i2 < core.num.Usize.MAX
+            then
+              let datas1 ←
+                alloc.vec.Vec.push datas ({ iri } : model.DataProperty)
+              let i3 ← index + 1#usize
+              rdf_mapping.key_members triples kinds firsts i3 state objects
+                datas1
+            else ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok (some (objects, datas, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::has_key]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2621:0-2640:1 -/
+def rdf_mapping.has_key
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.class_expression triples kinds subject state1 fuel
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let («class», state2) := p
+    let o1 ←
+      rdf_mapping.cells triples t.object state2 (alloc.vec.Vec.new Std.Usize)
+        fuel
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some p1 =>
+      let (firsts, state3) := p1
+      let o2 ←
+        rdf_mapping.key_members triples kinds firsts 0#usize state3
+          (alloc.vec.Vec.new model.ObjectPropertyExpression) (alloc.vec.Vec.new
+          model.DataProperty)
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t1 =>
+        let (objects, datas, state4) := t1
+        ok (rdf_mapping.Read.Found (model.Axiom.HasKey «class» objects datas)
+          state4)
+
+/-- [rowl_kernel::rdf_mapping::two]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2277:0-2283:1 -/
+def rdf_mapping.two
+  {T : Type} (first : T) (second : T) : Result (model.AtLeastTwo T) := do
+  ok { first, second, rest := (alloc.vec.Vec.new T) }
+
+/-- [rowl_kernel::rdf_mapping::different_individuals]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2611:0-2619:1 -/
+def rdf_mapping.different_individuals
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.individual_pair triples index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (left, right) := p
+    let alt ← rdf_mapping.two left right
+    let s ← rdf_mapping.take state index
+    ok (rdf_mapping.Read.Found (model.Axiom.DifferentIndividuals alt) s)
+
+/-- [rowl_kernel::rdf_mapping::same_individual]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2602:0-2609:1 -/
+def rdf_mapping.same_individual
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.individual_pair triples index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (left, right) := p
+    let alt ← rdf_mapping.two left right
+    let s ← rdf_mapping.take state index
+    ok (rdf_mapping.Read.Found (model.Axiom.SameIndividual alt) s)
+
+/-- [rowl_kernel::rdf_mapping::domain_range]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2520:0-2589:1 -/
+def rdf_mapping.domain_range
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (range : Bool)
+  (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.node_kind kinds subject
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_expression triples subject state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (role, state2) := p
+        let o2 ←
+          rdf_mapping.class_expression triples kinds t.object state2 fuel
+        match o2 with
+        | none => ok rdf_mapping.Read.Fail
+        | some p1 =>
+          let (filler, state3) := p1
+          if range
+          then
+            ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyRange role
+              filler) state3)
+          else
+            ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyDomain role
+              filler) state3)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.node_iri subject
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some iri =>
+        if range
+        then
+          let o2 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+          match o2 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p =>
+            let (filler, state2) := p
+            ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyRange 
+              { iri } filler) state2)
+        else
+          let o2 ←
+            rdf_mapping.class_expression triples kinds t.object state1 fuel
+          match o2 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p =>
+            let (filler, state2) := p
+            ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyDomain 
+              { iri } filler) state2)
+    | rdf_mapping.PropertyKind.Annotation =>
+      let o1 ← rdf_mapping.node_iri subject
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some iri =>
+        let o2 ← rdf_mapping.node_iri t.object
+        match o2 with
+        | none => ok rdf_mapping.Read.Fail
+        | some target =>
+          if range
+          then
+            ok (rdf_mapping.Read.Found (model.Axiom.AnnotationPropertyRange
+              { iri } target) state1)
+          else
+            ok (rdf_mapping.Read.Found (model.Axiom.AnnotationPropertyDomain
+              { iri } target) state1)
+
+/-- [rowl_kernel::rdf_mapping::property_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2383:0-2396:1 -/
+def rdf_mapping.property_pair
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result (Option (model.ObjectPropertyExpression ×
+    model.ObjectPropertyExpression × rdf_mapping.State))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.property_expression triples subject state
+  match o with
+  | none => ok none
+  | some p =>
+    let (left, state1) := p
+    let o1 ← rdf_mapping.property_expression triples t.object state1
+    match o1 with
+    | none => ok none
+    | some p1 => let (right, state2) := p1
+                 ok (some (left, right, state2))
+
+/-- [rowl_kernel::rdf_mapping::inverse_properties]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2504:0-2517:1 -/
+def rdf_mapping.inverse_properties
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  match t.subject with
+  | rdf.Subject.Iri _ =>
+    let state1 ← rdf_mapping.take state index
+    let o ← rdf_mapping.property_pair triples index state1
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some t1 =>
+      let (left, right, state2) := t1
+      ok (rdf_mapping.Read.Found (model.Axiom.InverseObjectProperties left
+        right) state2)
+  | rdf.Subject.Blank _ => ok (rdf_mapping.Read.Skip state)
+
+/-- [rowl_kernel::rdf_mapping::subject_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2411:0-2413:1 -/
+def rdf_mapping.subject_kind
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.subject_node t.subject
+  rdf_mapping.node_kind kinds o
+
+/-- [rowl_kernel::rdf_mapping::data_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2399:0-2408:1 -/
+def rdf_mapping.data_pair
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
+  Result (Option (model.DataProperty × model.DataProperty))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.node_iri subject
+  match o with
+  | none => ok none
+  | some left =>
+    let o1 ← rdf_mapping.node_iri t.object
+    match o1 with
+    | none => ok none
+    | some right => ok (some ({ iri := left }, { iri := right }))
+
+/-- [rowl_kernel::rdf_mapping::disjoint_property]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2485:0-2502:1 -/
+def rdf_mapping.disjoint_property
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let o ← rdf_mapping.subject_kind triples kinds index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_pair triples index state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t =>
+        let (left, right, state2) := t
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.DisjointObjectProperties alt)
+          state2)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (left, right) := p
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.DisjointDataProperties alt)
+          state1)
+    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::equivalent_property]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2466:0-2483:1 -/
+def rdf_mapping.equivalent_property
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let o ← rdf_mapping.subject_kind triples kinds index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_pair triples index state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t =>
+        let (left, right, state2) := t
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.EquivalentObjectProperties alt)
+          state2)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (left, right) := p
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.EquivalentDataProperties alt)
+          state1)
+    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::property_chain]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2443:0-2464:1 -/
+def rdf_mapping.property_chain
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.property_expression triples subject state1
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (sup, state2) := p
+    let o1 ← rdf_mapping.property_list2 triples kinds t.object state2 fuel
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some p1 =>
+      let (chain, state3) := p1
+      ok (rdf_mapping.Read.Found (model.Axiom.SubObjectPropertyOf
+        (model.SubObjectPropertyExpression.Chain chain) sup) state3)
+
+/-- [rowl_kernel::rdf_mapping::sub_property]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2415:0-2441:1 -/
+def rdf_mapping.sub_property
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let o ← rdf_mapping.subject_kind triples kinds index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_pair triples index state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t =>
+        let (sub, sup, state2) := t
+        ok (rdf_mapping.Read.Found (model.Axiom.SubObjectPropertyOf
+          (model.SubObjectPropertyExpression.Single sub) sup) state2)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (sub, sup) := p
+        ok (rdf_mapping.Read.Found (model.Axiom.SubDataPropertyOf sub sup)
+          state1)
+    | rdf_mapping.PropertyKind.Annotation =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (sub, sup) := p
+        ok (rdf_mapping.Read.Found (model.Axiom.SubAnnotationPropertyOf
+          { iri := sub.iri } { iri := sup.iri }) state1)
+
+/-- [rowl_kernel::rdf_mapping::disjoint_union]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2355:0-2380:1 -/
+def rdf_mapping.disjoint_union
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  match t.subject with
+  | rdf.Subject.Iri iri =>
+    let state1 ← rdf_mapping.take state index
+    let o ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some p =>
+      let (members, state2) := p
+      let i ← rdf_mapping.iri_of iri.spelling
+      ok (rdf_mapping.Read.Found (model.Axiom.DisjointUnion { iri := i }
+        members) state2)
+  | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::class_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2257:0-2275:1 -/
+def rdf_mapping.class_pair
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × model.ClassExpression ×
+    rdf_mapping.State))
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.class_expression triples kinds subject state1 fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (left, state2) := p
+    let o1 ← rdf_mapping.class_expression triples kinds t.object state2 fuel
+    match o1 with
+    | none => ok none
+    | some p1 => let (right, state3) := p1
+                 ok (some (left, right, state3))
+
+/-- [rowl_kernel::rdf_mapping::disjoint_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2342:0-2353:1 -/
+def rdf_mapping.disjoint_class
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.class_pair triples kinds index state fuel
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some t =>
+    let (left, right, state1) := t
+    let alt ← rdf_mapping.two left right
+    ok (rdf_mapping.Read.Found (model.Axiom.DisjointClasses alt) state1)
+
+/-- [rowl_kernel::rdf_mapping::datatype_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2299:0-2304:1 -/
+def rdf_mapping.datatype_subject
+  (kinds : rdf_mapping.Kinds) (subject : rdf.Subject) : Result Bool := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    rdf_mapping.has_kind kinds iri.spelling typing.EntityKind.Datatype
+  | rdf.Subject.Blank _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::equivalent_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2306:0-2340:1 -/
+def rdf_mapping.equivalent_class
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let b ← rdf_mapping.datatype_subject kinds t.subject
+  if b
+  then
+    let state1 ← rdf_mapping.take state index
+    match t.subject with
+    | rdf.Subject.Iri iri =>
+      let o ← rdf_mapping.data_range triples kinds t.object state1 fuel
+      match o with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (range, state2) := p
+        let i ← rdf_mapping.iri_of iri.spelling
+        ok (rdf_mapping.Read.Found (model.Axiom.DatatypeDefinition { iri := i }
+          range) state2)
+    | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
+  else
+    let o ← rdf_mapping.class_pair triples kinds index state fuel
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some t1 =>
+      let (left, right, state1) := t1
+      let alt ← rdf_mapping.two left right
+      ok (rdf_mapping.Read.Found (model.Axiom.EquivalentClasses alt) state1)
+
+/-- [rowl_kernel::rdf_mapping::sub_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2285:0-2296:1 -/
+def rdf_mapping.sub_class
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.class_pair triples kinds index state fuel
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some t =>
+    let (sub, sup, state1) := t
+    ok (rdf_mapping.Read.Found (model.Axiom.SubClassOf sub sup) state1)
+
+/-- [rowl_kernel::rdf_mapping::read_axiom]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3656:0-3699:1 -/
+def rdf_mapping.read_axiom
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
+        101#u8
+        ]))
+  let b ← rdf_mapping.same t.predicate.spelling s
+  if b
+  then rdf_mapping.typing triples kinds index state fuel
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 47#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
+          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
+          35#u8, 115#u8, 117#u8, 98#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8,
+          79#u8, 102#u8
+          ]))
+    let b1 ← rdf_mapping.same t.predicate.spelling s1
+    if b1
+    then rdf_mapping.sub_class triples kinds index state fuel
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 45#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 101#u8, 113#u8, 117#u8,
+            105#u8, 118#u8, 97#u8, 108#u8, 101#u8, 110#u8, 116#u8, 67#u8,
+            108#u8, 97#u8, 115#u8, 115#u8
+            ]))
+      let b2 ← rdf_mapping.same t.predicate.spelling s2
+      if b2
+      then rdf_mapping.equivalent_class triples kinds index state fuel
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 42#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 105#u8, 115#u8,
+              106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 87#u8, 105#u8, 116#u8,
+              104#u8
+              ]))
+        let b3 ← rdf_mapping.same t.predicate.spelling s3
+        if b3
+        then rdf_mapping.disjoint_class triples kinds index state fuel
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 45#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 105#u8, 115#u8,
+                106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 85#u8, 110#u8, 105#u8,
+                111#u8, 110#u8, 79#u8, 102#u8
+                ]))
+          let b4 ← rdf_mapping.same t.predicate.spelling s4
+          if b4
+          then rdf_mapping.disjoint_union triples kinds index state fuel
+          else
+            let s5 ←
+              lift (Array.to_slice
+                (Array.make 50#usize [
+                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8,
+                  49#u8, 47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8,
+                  104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8, 117#u8, 98#u8,
+                  80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+                  121#u8, 79#u8, 102#u8
+                  ]))
+            let b5 ← rdf_mapping.same t.predicate.spelling s5
+            if b5
+            then rdf_mapping.sub_property triples kinds index state
+            else
+              let s6 ←
+                lift (Array.to_slice
+                  (Array.make 48#usize [
+                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
+                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                    112#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+                    121#u8, 67#u8, 104#u8, 97#u8, 105#u8, 110#u8, 65#u8,
+                    120#u8, 105#u8, 111#u8, 109#u8
+                    ]))
+              let b6 ← rdf_mapping.same t.predicate.spelling s6
+              if b6
+              then rdf_mapping.property_chain triples kinds index state fuel
+              else
+                let s7 ←
+                  lift (Array.to_slice
+                    (Array.make 48#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 101#u8, 113#u8, 117#u8, 105#u8, 118#u8,
+                      97#u8, 108#u8, 101#u8, 110#u8, 116#u8, 80#u8, 114#u8,
+                      111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                      ]))
+                let b7 ← rdf_mapping.same t.predicate.spelling s7
+                if b7
+                then rdf_mapping.equivalent_property triples kinds index state
+                else
+                  let s8 ←
+                    lift (Array.to_slice
+                      (Array.make 50#usize [
+                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                        108#u8, 35#u8, 112#u8, 114#u8, 111#u8, 112#u8, 101#u8,
+                        114#u8, 116#u8, 121#u8, 68#u8, 105#u8, 115#u8, 106#u8,
+                        111#u8, 105#u8, 110#u8, 116#u8, 87#u8, 105#u8, 116#u8,
+                        104#u8
+                        ]))
+                  let b8 ← rdf_mapping.same t.predicate.spelling s8
+                  if b8
+                  then rdf_mapping.disjoint_property triples kinds index state
+                  else
+                    let s9 ←
+                      lift (Array.to_slice
+                        (Array.make 39#usize [
+                          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                          119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                          111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                          50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                          108#u8, 35#u8, 105#u8, 110#u8, 118#u8, 101#u8,
+                          114#u8, 115#u8, 101#u8, 79#u8, 102#u8
+                          ]))
+                    let b9 ← rdf_mapping.same t.predicate.spelling s9
+                    if b9
+                    then rdf_mapping.inverse_properties triples index state
+                    else
+                      let s10 ←
+                        lift (Array.to_slice
+                          (Array.make 43#usize [
+                            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                            47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                            51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8,
+                            48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8,
+                            114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8,
+                            104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8,
+                            111#u8, 109#u8, 97#u8, 105#u8, 110#u8
+                            ]))
+                      let b10 ← rdf_mapping.same t.predicate.spelling s10
+                      if b10
+                      then
+                        rdf_mapping.domain_range triples kinds index state
+                          false fuel
+                      else
+                        let s11 ←
+                          lift (Array.to_slice
+                            (Array.make 42#usize [
+                              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                              47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                              51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                              50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
+                              47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
+                              99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+                              114#u8, 97#u8, 110#u8, 103#u8, 101#u8
+                              ]))
+                        let b11 ← rdf_mapping.same t.predicate.spelling s11
+                        if b11
+                        then
+                          rdf_mapping.domain_range triples kinds index state
+                            true fuel
+                        else
+                          let s12 ←
+                            lift (Array.to_slice
+                              (Array.make 36#usize [
+                                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                115#u8, 97#u8, 109#u8, 101#u8, 65#u8, 115#u8
+                                ]))
+                          let b12 ← rdf_mapping.same t.predicate.spelling s12
+                          if b12
+                          then rdf_mapping.same_individual triples index state
+                          else
+                            let s13 ←
+                              lift (Array.to_slice
+                                (Array.make 43#usize [
+                                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                  47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                  51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                  50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                  100#u8, 105#u8, 102#u8, 102#u8, 101#u8,
+                                  114#u8, 101#u8, 110#u8, 116#u8, 70#u8,
+                                  114#u8, 111#u8, 109#u8
+                                  ]))
+                            let b13 ←
+                              rdf_mapping.same t.predicate.spelling s13
+                            if b13
+                            then
+                              rdf_mapping.different_individuals triples index
+                                state
+                            else
+                              let s14 ←
+                                lift (Array.to_slice
+                                  (Array.make 36#usize [
+                                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
+                                    47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
+                                    46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
+                                    114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                                    50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+                                    119#u8, 108#u8, 35#u8, 104#u8, 97#u8,
+                                    115#u8, 75#u8, 101#u8, 121#u8
+                                    ]))
+                              let b14 ←
+                                rdf_mapping.same t.predicate.spelling s14
+                              if b14
+                              then
+                                rdf_mapping.has_key triples kinds index state
+                                  fuel
+                              else
+                                let b15 ←
+                                  rdf_mapping.structural t.predicate.spelling
+                                if b15
+                                then ok (rdf_mapping.Read.Skip state)
+                                else
+                                  rdf_mapping.assertion triples kinds index
+                                    state
+
+/-- [rowl_kernel::rdf_mapping::main_triples]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3458:0-3520:1 -/
+def rdf_mapping.main_triples («axiom» : model.Axiom) : Result Std.U8 := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok 1#u8
+  | model.Axiom.SubClassOf _ _ => ok 1#u8
+  | model.Axiom.EquivalentClasses members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 2#u8
+    else ok 1#u8
+  | model.Axiom.DisjointClasses members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 0#u8
+    else ok 1#u8
+  | model.Axiom.DisjointUnion _ _ => ok 1#u8
+  | model.Axiom.SubObjectPropertyOf _ _ => ok 1#u8
+  | model.Axiom.EquivalentObjectProperties members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 2#u8
+    else ok 1#u8
+  | model.Axiom.DisjointObjectProperties members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 0#u8
+    else ok 1#u8
+  | model.Axiom.InverseObjectProperties _ _ => ok 1#u8
+  | model.Axiom.ObjectPropertyDomain _ _ => ok 1#u8
+  | model.Axiom.ObjectPropertyRange _ _ => ok 1#u8
+  | model.Axiom.FunctionalObjectProperty _ => ok 1#u8
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok 1#u8
+  | model.Axiom.ReflexiveObjectProperty _ => ok 1#u8
+  | model.Axiom.IrreflexiveObjectProperty _ => ok 1#u8
+  | model.Axiom.SymmetricObjectProperty _ => ok 1#u8
+  | model.Axiom.AsymmetricObjectProperty _ => ok 1#u8
+  | model.Axiom.TransitiveObjectProperty _ => ok 1#u8
+  | model.Axiom.SubDataPropertyOf _ _ => ok 1#u8
+  | model.Axiom.EquivalentDataProperties members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 2#u8
+    else ok 1#u8
+  | model.Axiom.DisjointDataProperties members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 0#u8
+    else ok 1#u8
+  | model.Axiom.DataPropertyDomain _ _ => ok 1#u8
+  | model.Axiom.DataPropertyRange _ _ => ok 1#u8
+  | model.Axiom.FunctionalDataProperty _ => ok 1#u8
+  | model.Axiom.DatatypeDefinition _ _ => ok 1#u8
+  | model.Axiom.HasKey _ _ _ => ok 1#u8
+  | model.Axiom.SameIndividual members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 2#u8
+    else ok 1#u8
+  | model.Axiom.DifferentIndividuals members =>
+    let i := alloc.vec.Vec.len members.rest
+    if 0#usize < i
+    then ok 0#u8
+    else ok 1#u8
+  | model.Axiom.ClassAssertion _ _ => ok 1#u8
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok 1#u8
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok 0#u8
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok 1#u8
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok 0#u8
+  | model.Axiom.AnnotationAssertion _ _ _ => ok 1#u8
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok 1#u8
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok 1#u8
+  | model.Axiom.AnnotationPropertyRange _ _ => ok 1#u8
+
+/-- [rowl_kernel::rdf_mapping::annotate]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3524:0-3560:1 -/
+def rdf_mapping.annotate
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) («axiom» : model.Axiom) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option (model.AnnotatedAxiom × rdf_mapping.State))
+  := do
+  let shape ← rdf_mapping.main_triples «axiom»
+  if shape = 0#u8
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    match t.subject with
+    | rdf.Subject.Iri _ => ok none
+    | rdf.Subject.Blank node =>
+      let o ←
+        rdf_mapping.node_annotations triples kinds node state
+          (alloc.vec.Vec.new model.Annotation) fuel
+      match o with
+      | none => ok none
+      | some p =>
+        let (annotations, state1) := p
+        ok (some ({ annotations, «axiom» }, state1))
+  else
+    if shape = 1#u8
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 35#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 120#u8, 105#u8,
+            111#u8, 109#u8
+            ]))
+      let o ← rdf_mapping.reified triples kinds index s state fuel
+      match o with
+      | none => ok none
+      | some p =>
+        let (annotations, state1) := p
+        ok (some ({ annotations, «axiom» }, state1))
+    else ok none
+
+/-- [rowl_kernel::rdf_mapping::axioms_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3703:0-3735:1 -/
+def rdf_mapping.axioms_from
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used state.used index
+    if b
+    then
+      let i1 ← index + 1#usize
+      rdf_mapping.axioms_from triples kinds i1 state out
+    else
+      let i1 := alloc.vec.Vec.len triples
+      let r ← rdf_mapping.read_axiom triples kinds index state i1
+      match r with
+      | rdf_mapping.Read.Skip state1 =>
+        let i2 ← index + 1#usize
+        rdf_mapping.axioms_from triples kinds i2 state1 out
+      | rdf_mapping.Read.Found «axiom» state1 =>
+        let i2 := alloc.vec.Vec.len triples
+        let o ← rdf_mapping.annotate triples kinds index «axiom» state1 i2
+        match o with
+        | none => ok none
+        | some p =>
+          let (annotated, state2) := p
+          let i3 := alloc.vec.Vec.len out
+          if i3 < core.num.Usize.MAX
+          then
+            let out1 ← alloc.vec.Vec.push out annotated
+            let i4 ← index + 1#usize
+            rdf_mapping.axioms_from triples kinds i4 state2 out1
+          else ok none
+      | rdf_mapping.Read.Fail => ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::is_source]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 319:0-327:1 -/
+def rdf_mapping.is_source (triple : rdf.Triple) : Result Bool := do
+  match triple.subject with
+  | rdf.Subject.Iri _ => ok false
+  | rdf.Subject.Blank _ =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 45#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 97#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8,
+          116#u8, 101#u8, 100#u8, 83#u8, 111#u8, 117#u8, 114#u8, 99#u8, 101#u8
+          ]))
+    rdf_mapping.same triple.predicate.spelling s
+
+/-- [rowl_kernel::rdf_mapping::hash_object]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 266:0-272:1 -/
+def rdf_mapping.hash_object (object : rdf.Object) : Result Std.Usize := do
+  match object with
+  | rdf.Object.Iri iri => rdf_mapping.hash_iri iri.spelling
+  | rdf.Object.Blank node => rdf_mapping.hash_blank node
+  | rdf.Object.Literal literal => rdf_mapping.hash_iri literal.lexical
+
+/-- [rowl_kernel::rdf_mapping::sources_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 331:0-349:1 -/
+def rdf_mapping.sources_from
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let b ← rdf_mapping.is_source t
+    let buckets1 ←
+      if b
+      then
+        do
+        let i1 ← rdf_mapping.hash_object t.object
+        let i2 := alloc.vec.Vec.len buckets
+        let bucket ← rdf_mapping.bucket_of i1 i2
+        let i3 := alloc.vec.Vec.len buckets
+        if bucket < i3
+        then
+          let v ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec Std.Usize)) buckets bucket
+          let i4 := alloc.vec.Vec.len v
+          if i4 < core.num.Usize.MAX
+          then
+            let (v1, index_mut_back) ←
+              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+                (alloc.vec.Vec Std.Usize)) buckets bucket
+            let v2 ← alloc.vec.Vec.push v1 index
+            ok (index_mut_back v2)
+          else ok buckets
+        else ok buckets
+      else ok buckets
+    let i1 ← index + 1#usize
+    rdf_mapping.sources_from triples i1 buckets1
+  else ok buckets
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::subjects_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 295:0-316:1 -/
+def rdf_mapping.subjects_from
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    match t.subject with
+    | rdf.Subject.Iri _ =>
+      let i1 ← index + 1#usize
+      rdf_mapping.subjects_from triples i1 buckets
+    | rdf.Subject.Blank node =>
+      let i1 ← rdf_mapping.hash_blank node
+      let i2 := alloc.vec.Vec.len buckets
+      let bucket ← rdf_mapping.bucket_of i1 i2
+      let i3 := alloc.vec.Vec.len buckets
+      let buckets1 ←
+        if bucket < i3
+        then
+          do
+          let v ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec Std.Usize)) buckets bucket
+          let i4 := alloc.vec.Vec.len v
+          if i4 < core.num.Usize.MAX
+          then
+            let (v1, index_mut_back) ←
+              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+                (alloc.vec.Vec Std.Usize)) buckets bucket
+            let v2 ← alloc.vec.Vec.push v1 index
+            ok (index_mut_back v2)
+          else ok buckets
+        else ok buckets
+      let i4 ← index + 1#usize
+      rdf_mapping.subjects_from triples i4 buckets1
+  else ok buckets
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::empty_buckets]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 284:0-291:1 -/
+def rdf_mapping.empty_buckets
+  {T : Type} (count : Std.Usize) (out : alloc.vec.Vec (alloc.vec.Vec T)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec T))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then
+    let out1 ← alloc.vec.Vec.push out (alloc.vec.Vec.new T)
+    rdf_mapping.empty_buckets count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::BUCKET_LIMIT]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 221:0-221:36 -/
+@[global_simps, irreducible]
+def rdf_mapping.BUCKET_LIMIT : Result Std.Usize := 1#usize <<< 20#i32
+
+/-- [rowl_kernel::rdf_mapping::bucket_count]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 224:0-230:1 -/
+def rdf_mapping.bucket_count (count : Std.Usize) : Result Std.Usize := do
+  let i ← rdf_mapping.BUCKET_LIMIT
+  if count < i
+  then count + 1#usize
+  else ok i
+
+/-- [rowl_kernel::rdf_mapping::Mapped]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 53:0-56:1
+    Visibility: public -/
+structure rdf_mapping.Mapped where
+  ontology : model.RawOntology
+  blanks : alloc.vec.Vec rdf.BlankNode
+
+/-- [rowl_kernel::rdf::RawGraph]
+    Source: 'crates/rowl-kernel/src/rdf.rs', lines 49:0-51:1
+    Visibility: public -/
+structure rdf.RawGraph where
+  triples : alloc.vec.Vec rdf.Triple
+
+/-- [rowl_kernel::rdf_mapping::map_graph]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 4030:0-4096:1
+    Visibility: public -/
+def rdf_mapping.map_graph
+  (graph : rdf.RawGraph) : Result (Option rdf_mapping.Mapped) := do
+  let i := alloc.vec.Vec.len graph.triples
+  let count ← rdf_mapping.bucket_count i
+  let v ←
+    rdf_mapping.empty_buckets count (alloc.vec.Vec.new (alloc.vec.Vec
+      rdf_mapping.Declared))
+  let o ← rdf_mapping.declared_kinds graph.triples 0#usize { buckets := v }
+  match o with
+  | none => ok none
+  | some kinds =>
+    let i1 := alloc.vec.Vec.len graph.triples
+    let v1 ← rdf_mapping.unused i1 (alloc.vec.Vec.new Bool)
+    let v2 ←
+      rdf_mapping.empty_buckets count (alloc.vec.Vec.new (alloc.vec.Vec
+        Std.Usize))
+    let v3 ← rdf_mapping.subjects_from graph.triples 0#usize v2
+    let v4 ← rdf_mapping.sources_from graph.triples 0#usize v2
+    let o1 ← rdf_mapping.find_header graph.triples v1 0#usize
+    match o1 with
+    | none =>
+      let o2 ←
+        rdf_mapping.axioms_from graph.triples kinds 0#usize
+          {
+            used := v1,
+            blanks := (alloc.vec.Vec.new rdf.BlankNode),
+            subjects := v3,
+            sources := v4
+          } (alloc.vec.Vec.new model.AnnotatedAxiom)
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (axioms, state) := p
+        let b ← rdf_mapping.all_read graph.triples state.used 0#usize
+        if b
+        then
+          ok (some
+            {
+              ontology :=
+                {
+                  identity := model.OntologyIdentity.Anonymous,
+                  imports := (alloc.vec.Vec.new model.Iri),
+                  annotations := (alloc.vec.Vec.new model.Annotation),
+                  axioms
+                },
+              blanks := state.blanks
+            })
+        else ok none
+    | some header =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          graph.triples header
+      match t.subject with
+      | rdf.Subject.Iri iri =>
+        let state ←
+          rdf_mapping.take
+            {
+              used := v1,
+              blanks := (alloc.vec.Vec.new rdf.BlankNode),
+              subjects := v3,
+              sources := v4
+            } header
+        let o2 ←
+          rdf_mapping.header_parts graph.triples kinds iri.spelling 0#usize
+            state none (alloc.vec.Vec.new model.Iri) (alloc.vec.Vec.new
+            model.Annotation)
+        match o2 with
+        | none => ok none
+        | some t1 =>
+          let (version, imports, annotations, state1) := t1
+          let i2 ← rdf_mapping.iri_of iri.spelling
+          let o3 ←
+            rdf_mapping.axioms_from graph.triples kinds 0#usize state1
+              (alloc.vec.Vec.new model.AnnotatedAxiom)
+          match o3 with
+          | none => ok none
+          | some p =>
+            let (axioms, state2) := p
+            let b ← rdf_mapping.all_read graph.triples state2.used 0#usize
+            if b
+            then
+              ok (some
+                {
+                  ontology :=
+                    {
+                      identity := (model.OntologyIdentity.Named i2 version),
+                      imports,
+                      annotations,
+                      axioms
+                    },
+                  blanks := state2.blanks
+                })
+            else ok none
+      | rdf.Subject.Blank _ => ok none
+
+/-- [rowl_kernel::import_catalog::graph_ontology]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 108:0-113:1 -/
+def import_catalog.graph_ontology
+  (graph : rdf.RawGraph) :
+  Result (core.result.Result model.RawOntology import_catalog.SourceError)
+  := do
+  let o ← rdf_mapping.map_graph graph
+  match o with
+  | none => ok (core.result.Result.Err import_catalog.SourceError.Graph)
+  | some mapped => ok (core.result.Result.Ok mapped.ontology)
+
+/-- [rowl_kernel::ntriples::eol]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 119:0-121:1 -/
+def ntriples.eol (cp : Std.U32) : Result Bool := do
+  if cp = 10#u32
+  then ok true
+  else ok (cp = 13#u32)
+
+/-- [rowl_kernel::ntriples::line_end]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 468:0-475:1 -/
+def ntriples.line_end
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result Unit ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok ())
+    | some p =>
+      let (cp, _) := p
+      let b ← ntriples.eol cp
+      if b
+      then ok (core.result.Result.Ok ())
+      else
+        let re ← ntriples.error ntriples.ErrorKind.ExpectedLineEnd position
+        ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Unit (core.convert.FromSame ntriples.ReadError) residual
+
+/-- [rowl_kernel::ntriples::same_literal_bytes]: loop 0:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 430:4-437:1 -/
+@[rust_loop]
+def ntriples.same_literal_bytes_loop
+  (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) (i : Std.Usize) :
+  Result Bool
+  := do
+  let i1 := alloc.vec.Vec.len a
+  if i < i1
+  then
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) a i
+    let i3 ← Slice.index_usize b i
+    if i2 != i3
+    then ok false
+    else let i4 ← i + 1#usize
+         ntriples.same_literal_bytes_loop a b i4
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::same_literal_bytes]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 425:0-437:1 -/
+def ntriples.same_literal_bytes
+  (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len a
+  let i1 := Slice.len b
+  if i != i1
+  then ok false
+  else ntriples.same_literal_bytes_loop a b 0#usize
+
+/-- [rowl_kernel::ntriples::ascii_alpha]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 351:0-353:1 -/
+def ntriples.ascii_alpha (cp : Std.U32) : Result Bool := do
+  if cp >= 65#u32
+  then
+    if cp <= 90#u32
+    then ok true
+    else if cp >= 97#u32
+         then ok (cp <= 122#u32)
+         else ok false
+  else if cp >= 97#u32
+       then ok (cp <= 122#u32)
+       else ok false
+
+/-- [rowl_kernel::ntriples::ascii_digit]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 292:0-294:1 -/
+def ntriples.ascii_digit (cp : Std.U32) : Result Bool := do
+  if cp >= 48#u32
+  then ok (cp <= 57#u32)
+  else ok false
+
+/-- [rowl_kernel::ntriples::tag_word]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 354:0-365:1 -/
+def ntriples.tag_word
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (letters : Bool) :
+  Result (core.result.Result Std.Usize ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok position)
+    | some p =>
+      let (cp, next) := p
+      let b ← ntriples.ascii_alpha cp
+      if b
+      then ntriples.tag_word bytes next letters
+      else
+        if letters
+        then ok (core.result.Result.Ok position)
+        else
+          let b1 ← ntriples.ascii_digit cp
+          if b1
+          then ntriples.tag_word bytes next false
+          else ok (core.result.Result.Ok position)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::tag_tail]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 366:0-378:1 -/
+def ntriples.tag_tail
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (start : Std.Usize) :
+  Result (core.result.Result Std.Usize ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok position)
+    | some p =>
+      let (i, next) := p
+      match i with
+      | 45#uscalar =>
+        let r1 ← ntriples.tag_word bytes next false
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          if val1 = next
+          then
+            let re ←
+              ntriples.error ntriples.ErrorKind.InvalidLanguageTag start
+            ok (core.result.Result.Err re)
+          else ntriples.tag_tail bytes val1 start
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+      | _ => ok (core.result.Result.Ok position)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::tag]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 379:0-391:1 -/
+def ntriples.tag
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    ntriples.ReadError)
+  := do
+  let r ←
+    ntriples.expect bytes start 64#u32 ntriples.ErrorKind.InvalidLanguageTag
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← ntriples.tag_word bytes val true
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      if val = val1
+      then
+        let re ← ntriples.error ntriples.ErrorKind.InvalidLanguageTag start
+        ok (core.result.Result.Err re)
+      else
+        let r2 ← ntriples.tag_tail bytes val1 start
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let r3 ← ntriples.copy_term bytes val val2 limit
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            let b ← langtag.well_formed val3
+            if b
+            then ok (core.result.Result.Ok (val3, val2))
+            else
+              let re ←
+                ntriples.error ntriples.ErrorKind.InvalidLanguageTag start
+              ok (core.result.Result.Err re)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+              ntriples.ReadError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+            ntriples.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        ntriples.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      ntriples.ReadError) residual
+
+/-- [rowl_kernel::ntriples::iri_character]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 202:0-213:1 -/
+def ntriples.iri_character (cp : Std.U32) : Result Bool := do
+  if cp > 32#u32
+  then
+    if cp != 60#u32
+    then
+      if cp != 62#u32
+      then
+        if cp != 34#u32
+        then
+          if cp != 123#u32
+          then
+            if cp != 125#u32
+            then
+              if cp != 124#u32
+              then
+                if cp != 94#u32
+                then if cp != 96#u32
+                     then ok (cp != 92#u32)
+                     else ok false
+                else ok false
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::ntriples::hex]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 147:0-157:1 -/
+def ntriples.hex (cp : Std.U32) : Result (Option Std.U32) := do
+  if cp >= 48#u32
+  then
+    if cp <= 57#u32
+    then let i ← cp - 48#u32
+         ok (some i)
+    else
+      if cp >= 65#u32
+      then
+        if cp <= 70#u32
+        then let i ← cp - 55#u32
+             ok (some i)
+        else
+          if cp >= 97#u32
+          then
+            if cp <= 102#u32
+            then let i ← cp - 87#u32
+                 ok (some i)
+            else ok none
+          else ok none
+      else
+        if cp >= 97#u32
+        then
+          if cp <= 102#u32
+          then let i ← cp - 87#u32
+               ok (some i)
+          else ok none
+        else ok none
+  else
+    if cp >= 65#u32
+    then
+      if cp <= 70#u32
+      then let i ← cp - 55#u32
+           ok (some i)
+      else
+        if cp >= 97#u32
+        then
+          if cp <= 102#u32
+          then let i ← cp - 87#u32
+               ok (some i)
+          else ok none
+        else ok none
+    else
+      if cp >= 97#u32
+      then if cp <= 102#u32
+           then let i ← cp - 87#u32
+                ok (some i)
+           else ok none
+      else ok none
+
+/-- [rowl_kernel::ntriples::unicode_escape]: loop 0:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 163:4-177:1 -/
+@[rust_loop]
+def ntriples.unicode_escape_loop
+  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (next : Std.Usize)
+  (count : Std.Usize) (value : Std.U64) (i : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
+  := do
+  if i < count
+  then
+    let r ← ntriples.required bytes next
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (cp, «end») := val
+      let o ← ntriples.hex cp
+      match o with
+      | none =>
+        let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
+        ok (core.result.Result.Err re)
+      | some d =>
+        let i1 ← value * 16#u64
+        let i2 ← lift (core.convert.num.FromU64U32.from d)
+        let value1 ← i1 + i2
+        let i3 ← i + 1#usize
+        ntriples.unicode_escape_loop bytes slash «end» count value1 i3
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+        residual
+  else
+    if value > 1114111#u64
+    then
+      let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
+      ok (core.result.Result.Err re)
+    else
+      if value >= 55296#u64
+      then
+        if value <= 57343#u64
+        then
+          let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
+          ok (core.result.Result.Err re)
+        else
+          let i1 ← lift (UScalar.cast .U32 value)
+          ok (core.result.Result.Ok (i1, next))
+      else
+        let i1 ← lift (UScalar.cast .U32 value)
+        ok (core.result.Result.Ok (i1, next))
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::unicode_escape]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 160:0-177:1 -/
+@[reducible]
+def ntriples.unicode_escape
+  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (next : Std.Usize)
+  (count : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
+  := do
+  ntriples.unicode_escape_loop bytes slash next count 0#u64 0#usize
+
+/-- [rowl_kernel::ntriples::escape]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 178:0-201:1 -/
+def ntriples.escape
+  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (after_slash : Std.Usize)
+  (iri : Bool) :
+  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.required bytes after_slash
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (marker, next) := val
+    if marker = 117#u32
+    then ntriples.unicode_escape bytes slash next 4#usize
+    else
+      if marker = 85#u32
+      then ntriples.unicode_escape bytes slash next 8#usize
+      else
+        if iri
+        then
+          let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
+          ok (core.result.Result.Err re)
+        else
+          match marker with
+          | 116#uscalar => ok (core.result.Result.Ok (9#u32, next))
+          | 98#uscalar => ok (core.result.Result.Ok (8#u32, next))
+          | 110#uscalar => ok (core.result.Result.Ok (10#u32, next))
+          | 114#uscalar => ok (core.result.Result.Ok (13#u32, next))
+          | 102#uscalar => ok (core.result.Result.Ok (12#u32, next))
+          | 34#uscalar => ok (core.result.Result.Ok val)
+          | 39#uscalar => ok (core.result.Result.Ok val)
+          | 92#uscalar => ok (core.result.Result.Ok val)
+          | _ =>
+            let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
+            ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::quoted_item]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 216:0-231:1 -/
+def ntriples.quoted_item
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
+  (next : Std.Usize) (iri : Bool) :
+  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
+  := do
+  if cp = 92#u32
+  then ntriples.escape bytes position next iri
+  else
+    if iri
+    then
+      let b ← ntriples.iri_character cp
+      if b
+      then ok (core.result.Result.Ok (cp, next))
+      else
+        let re ← ntriples.error ntriples.ErrorKind.InvalidCharacter position
+        ok (core.result.Result.Err re)
+    else
+      let b ← ntriples.eol cp
+      if b
+      then
+        let re ← ntriples.error ntriples.ErrorKind.InvalidCharacter position
+        ok (core.result.Result.Err re)
+      else ok (core.result.Result.Ok (cp, next))
+
+/-- [rowl_kernel::ntriples::quoted]: loop 0:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 246:4-260:5 -/
+@[rust_loop]
+def ntriples.quoted_loop
+  (bytes : alloc.vec.Vec Std.U8) (iri : Bool) (limit : Std.Usize)
+  (closing : Std.U32) (position : Std.Usize) (output : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    ntriples.ReadError)
+  := do
+  let r ← ntriples.required bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, next) := val
+    if cp = closing
+    then ok (core.result.Result.Ok (output, next))
+    else
+      let r1 ← ntriples.quoted_item bytes position cp next iri
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, «end») := val1
+        let o ← encoding.encode value
+        match o with
+        | none =>
+          let re ← ntriples.error ntriples.ErrorKind.InvalidEscape position
+          ok (core.result.Result.Err re)
+        | some value1 =>
+          let (b, output1) ← ntriples.append_encoded output value1 limit
+          if b
+          then ntriples.quoted_loop bytes iri limit closing «end» output1
+          else
+            let re ← ntriples.error ntriples.ErrorKind.ResourceLimit position
+            ok (core.result.Result.Err re)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+          ntriples.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      ntriples.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::quoted]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 232:0-261:1 -/
+def ntriples.quoted
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (iri : Bool)
+  (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    ntriples.ReadError)
+  := do
+  let opening ← if iri
+                  then ok 60#u32
+                  else ok 34#u32
+  let closing ← if iri
+                  then ok 62#u32
+                  else ok 34#u32
+  let ek ←
+    if iri
+    then ok ntriples.ErrorKind.ExpectedIri
+    else ok ntriples.ErrorKind.ExpectedObject
+  let r ← ntriples.expect bytes start opening ek
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    ntriples.quoted_loop bytes iri limit closing val (alloc.vec.Vec.new Std.U8)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      ntriples.ReadError) residual
+
+/-- [rowl_kernel::ntriples::read_iri]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 262:0-269:1 -/
+def ntriples.read_iri
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.quoted bytes start true limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (spelling, next) := val
+    let mr ← iri.validate_iri spelling
+    let b ←
+      match mr with
+      | regular.MatchResult.Matched b1 => if b1
+                                          then ok true
+                                          else ok false
+      | regular.MatchResult.MalformedUtf8 _ => ok false
+    if b
+    then ok (core.result.Result.Ok ({ spelling }, next))
+    else
+      let re ← ntriples.error ntriples.ErrorKind.InvalidIri start
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfIri × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::skip_comment]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 122:0-127:1 -/
+def ntriples.skip_comment
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result Std.Usize ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok position)
+    | some p =>
+      let (cp, next) := p
+      let b ← ntriples.eol cp
+      if b
+      then ok (core.result.Result.Ok position)
+      else ntriples.skip_comment bytes next
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::horizontal]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 116:0-118:1 -/
+def ntriples.horizontal (cp : Std.U32) : Result Bool := do
+  if cp = 9#u32
+  then ok true
+  else ok (cp = 32#u32)
+
+/-- [rowl_kernel::ntriples::skip]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 128:0-146:1 -/
+def ntriples.skip
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (lines : Bool) :
+  Result (core.result.Result Std.Usize ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok position)
+    | some p =>
+      let (cp, next) := p
+      let b ← ntriples.horizontal cp
+      if b
+      then ntriples.skip bytes next lines
+      else
+        if lines
+        then
+          let b1 ← ntriples.eol cp
+          if b1
+          then ntriples.skip bytes next true
+          else
+            if cp = 35#u32
+            then
+              let r1 ← ntriples.skip_comment bytes next
+              let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+              match cf1 with
+              | core.ops.control_flow.ControlFlow.Continue val1 =>
+                ntriples.skip bytes val1 true
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+            else ok (core.result.Result.Ok position)
+        else
+          if cp = 35#u32
+          then
+            let r1 ← ntriples.skip_comment bytes next
+            let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+            match cf1 with
+            | core.ops.control_flow.ControlFlow.Continue val1 =>
+              ok (core.result.Result.Ok val1)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+          else ok (core.result.Result.Ok position)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::copy]: loop 0:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 101:4-104:5 -/
+@[rust_loop]
+def ntriples.copy_loop
+  (values : Slice Std.U8) (output : alloc.vec.Vec Std.U8) (i : Std.Usize) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i1 := Slice.len values
+  if i < i1
+  then
+    let i2 ← Slice.index_usize values i
+    let output1 ← alloc.vec.Vec.push output i2
+    let i3 ← i + 1#usize
+    ntriples.copy_loop values output1 i3
+  else ok output
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::copy]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 98:0-106:1 -/
+@[reducible]
+def ntriples.copy (values : Slice Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  ntriples.copy_loop values (alloc.vec.Vec.new Std.U8) 0#usize
+
+/-- [rowl_kernel::ntriples::literal_kind]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 392:0-418:1 -/
+def ntriples.literal_kind
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.LiteralKind × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none =>
+      let s ←
+        lift (Array.to_slice
+          (Array.make 39#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8,
+            116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+            ]))
+      let v ← ntriples.copy s
+      ok (core.result.Result.Ok (rdf.LiteralKind.Datatype { spelling := v },
+        position))
+    | some p =>
+      let (i, next) := p
+      match i with
+      | 64#uscalar =>
+        let r1 ← ntriples.tag bytes position limit
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          let (value, next1) := val1
+          ok (core.result.Result.Ok (rdf.LiteralKind.Language value, next1))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+            ntriples.ReadError) residual
+      | 94#uscalar =>
+        let r1 ←
+          ntriples.expect bytes next 94#u32
+            ntriples.ErrorKind.InvalidLiteralKind
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          let r2 ← ntriples.skip bytes val1 false
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            let r3 ← ntriples.read_iri bytes val2 limit
+            let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+            match cf3 with
+            | core.ops.control_flow.ControlFlow.Continue val3 =>
+              let (datatype, next1) := val3
+              let s ←
+                lift (Array.to_slice
+                  (Array.make 53#usize [
+                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                    111#u8, 114#u8, 103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8,
+                    47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8, 45#u8, 114#u8,
+                    100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+                    97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 108#u8, 97#u8,
+                    110#u8, 103#u8, 83#u8, 116#u8, 114#u8, 105#u8, 110#u8,
+                    103#u8
+                    ]))
+              let b ← ntriples.same_literal_bytes datatype.spelling s
+              if b
+              then
+                let re ←
+                  ntriples.error ntriples.ErrorKind.InvalidLiteralKind position
+                ok (core.result.Result.Err re)
+              else
+                ok (core.result.Result.Ok (rdf.LiteralKind.Datatype datatype,
+                  next1))
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+                ntriples.ReadError) residual
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+              ntriples.ReadError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+            ntriples.ReadError) residual
+      | _ =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 39#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              115#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+              ]))
+        let v ← ntriples.copy s
+        ok (core.result.Result.Ok (rdf.LiteralKind.Datatype { spelling := v },
+          position))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.LiteralKind × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::literal]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 419:0-424:1 -/
+def ntriples.literal
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.quoted bytes start false limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (lexical, «end») := val
+    let r1 ← ntriples.skip bytes «end» false
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← ntriples.literal_kind bytes val1 limit
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (kind, next) := val2
+        ok (core.result.Result.Ok ({ lexical, kind }, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame
+          ntriples.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame
+        ntriples.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::in_range]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 270:0-272:1 -/
+def ntriples.in_range
+  (cp : Std.U32) (lower : Std.U32) (upper : Std.U32) : Result Bool := do
+  if cp >= lower
+  then ok (cp <= upper)
+  else ok false
+
+/-- [rowl_kernel::ntriples::pn_base]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 273:0-288:1 -/
+def ntriples.pn_base (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.in_range cp 65#u32 90#u32
+  if b
+  then ok true
+  else
+    let b1 ← ntriples.in_range cp 97#u32 122#u32
+    if b1
+    then ok true
+    else
+      let b2 ← ntriples.in_range cp 192#u32 214#u32
+      if b2
+      then ok true
+      else
+        let b3 ← ntriples.in_range cp 216#u32 246#u32
+        if b3
+        then ok true
+        else
+          let b4 ← ntriples.in_range cp 248#u32 767#u32
+          if b4
+          then ok true
+          else
+            let b5 ← ntriples.in_range cp 880#u32 893#u32
+            if b5
+            then ok true
+            else
+              let b6 ← ntriples.in_range cp 895#u32 8191#u32
+              if b6
+              then ok true
+              else
+                let b7 ← ntriples.in_range cp 8204#u32 8205#u32
+                if b7
+                then ok true
+                else
+                  let b8 ← ntriples.in_range cp 8304#u32 8591#u32
+                  if b8
+                  then ok true
+                  else
+                    let b9 ← ntriples.in_range cp 11264#u32 12271#u32
+                    if b9
+                    then ok true
+                    else
+                      let b10 ← ntriples.in_range cp 12289#u32 55295#u32
+                      if b10
+                      then ok true
+                      else
+                        let b11 ← ntriples.in_range cp 63744#u32 64975#u32
+                        if b11
+                        then ok true
+                        else
+                          let b12 ← ntriples.in_range cp 65008#u32 65533#u32
+                          if b12
+                          then ok true
+                          else ntriples.in_range cp 65536#u32 983039#u32
+
+/-- [rowl_kernel::ntriples::pn_u]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 289:0-291:1 -/
+def ntriples.pn_u (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.pn_base cp
+  if b
+  then ok true
+  else if cp = 95#u32
+       then ok true
+       else ok (cp = 58#u32)
+
+/-- [rowl_kernel::ntriples::pn]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 295:0-302:1 -/
+def ntriples.pn (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.pn_u cp
+  if b
+  then ok true
+  else
+    if cp = 45#u32
+    then ok true
+    else
+      let b1 ← ntriples.ascii_digit cp
+      if b1
+      then ok true
+      else
+        if cp = 183#u32
+        then ok true
+        else
+          if cp >= 768#u32
+          then
+            if cp <= 879#u32
+            then ok true
+            else if cp >= 8255#u32
+                 then ok (cp <= 8256#u32)
+                 else ok false
+          else if cp >= 8255#u32
+               then ok (cp <= 8256#u32)
+               else ok false
+
+/-- [rowl_kernel::ntriples::blank_end]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 303:0-316:1 -/
+def ntriples.blank_end
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
+  :
+  Result (core.result.Result Std.Usize ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok accepted)
+    | some p =>
+      let (cp, next) := p
+      let b ← ntriples.pn cp
+      if b
+      then ntriples.blank_end bytes next next
+      else
+        if cp = 46#u32
+        then ntriples.blank_end bytes next accepted
+        else ok (core.result.Result.Ok accepted)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::copy_vec]: loop 0:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 110:4-113:5 -/
+@[rust_loop]
+def ntriples.copy_vec_loop
+  (values : alloc.vec.Vec Std.U8) (output : alloc.vec.Vec Std.U8)
+  (i : Std.Usize) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i1 := alloc.vec.Vec.len values
+  if i < i1
+  then
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) values
+        i
+    let output1 ← alloc.vec.Vec.push output i2
+    let i3 ← i + 1#usize
+    ntriples.copy_vec_loop values output1 i3
+  else ok output
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::copy_vec]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 107:0-115:1 -/
+@[reducible]
+def ntriples.copy_vec
+  (values : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  ntriples.copy_vec_loop values (alloc.vec.Vec.new Std.U8) 0#usize
+
+/-- [rowl_kernel::ntriples::blank]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 334:0-350:1 -/
+def ntriples.blank
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.BlankNode × Std.Usize) ntriples.ReadError)
+  := do
+  let r ←
+    ntriples.expect bytes start 95#u32 ntriples.ErrorKind.InvalidBlankLabel
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ←
+      ntriples.expect bytes val 58#u32 ntriples.ErrorKind.InvalidBlankLabel
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← ntriples.required bytes val1
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (first, position) := val2
+        let b ← ntriples.pn_u first
+        if b
+        then
+          let r3 ← ntriples.blank_end bytes position position
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            let r4 ← ntriples.copy_term bytes val1 val3 limit
+            let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+            match cf4 with
+            | core.ops.control_flow.ControlFlow.Continue val4 =>
+              let v ← ntriples.copy_vec scope
+              ok (core.result.Result.Ok ({ scope := v, label := val4 }, val3))
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+                ntriples.ReadError) residual
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+              ntriples.ReadError) residual
+        else
+          let b1 ← ntriples.ascii_digit first
+          if b1
+          then
+            let r3 ← ntriples.blank_end bytes position position
+            let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+            match cf3 with
+            | core.ops.control_flow.ControlFlow.Continue val3 =>
+              let r4 ← ntriples.copy_term bytes val1 val3 limit
+              let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+              match cf4 with
+              | core.ops.control_flow.ControlFlow.Continue val4 =>
+                let v ← ntriples.copy_vec scope
+                ok (core.result.Result.Ok ({ scope := v, label := val4 },
+                  val3))
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+                  ntriples.ReadError) residual
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+                ntriples.ReadError) residual
+          else
+            let re ← ntriples.error ntriples.ErrorKind.InvalidBlankLabel val1
+            ok (core.result.Result.Err re)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+          ntriples.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.BlankNode × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.BlankNode × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::object]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 451:0-467:1 -/
+def ntriples.object
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.Object × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.required bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (i, _) := val
+    match i with
+    | 60#uscalar =>
+      let r1 ← ntriples.read_iri bytes start limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (rdf.Object.Iri value, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+          residual
+    | 95#uscalar =>
+      let r1 ← ntriples.blank bytes start scope limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (rdf.Object.Blank value, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+          residual
+    | 34#uscalar =>
+      let r1 ← ntriples.literal bytes start limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (rdf.Object.Literal value, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+          residual
+    | _ =>
+      let re ← ntriples.error ntriples.ErrorKind.ExpectedObject start
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::subject]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 438:0-450:1 -/
+def ntriples.subject
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.Subject × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.required bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (i, _) := val
+    match i with
+    | 60#uscalar =>
+      let r1 ← ntriples.read_iri bytes start limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (rdf.Subject.Iri value, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+          residual
+    | 95#uscalar =>
+      let r1 ← ntriples.blank bytes start scope limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (rdf.Subject.Blank value, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+          residual
+    | _ =>
+      let re ← ntriples.error ntriples.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Subject × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::read_triple]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 476:0-494:1 -/
+def ntriples.read_triple
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.Triple × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.subject bytes position scope limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (subject, next) := val
+    let r1 ← ntriples.skip bytes next false
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← ntriples.read_iri bytes val1 limit
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (predicate, next1) := val2
+        let r3 ← ntriples.skip bytes next1 false
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let r4 ← ntriples.object bytes val3 scope limit
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (object, next2) := val4
+            let r5 ← ntriples.skip bytes next2 false
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              let r6 ←
+                ntriples.expect bytes val5 46#u32
+                  ntriples.ErrorKind.ExpectedPeriod
+              let cf6 ← core.result.Result.Insts.CoreOpsTry.branch r6
+              match cf6 with
+              | core.ops.control_flow.ControlFlow.Continue val6 =>
+                let r7 ← ntriples.skip bytes val6 false
+                let cf7 ← core.result.Result.Insts.CoreOpsTry.branch r7
+                match cf7 with
+                | core.ops.control_flow.ControlFlow.Continue val7 =>
+                  let r8 ← ntriples.line_end bytes val7
+                  let cf8 ← core.result.Result.Insts.CoreOpsTry.branch r8
+                  match cf8 with
+                  | core.ops.control_flow.ControlFlow.Continue _ =>
+                    ok (core.result.Result.Ok ({ subject, predicate, object },
+                      val7))
+                  | core.ops.control_flow.ControlFlow.Break residual =>
+                    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                      (rdf.Triple × Std.Usize) (core.convert.FromSame
+                      ntriples.ReadError) residual
+                | core.ops.control_flow.ControlFlow.Break residual =>
+                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                    (rdf.Triple × Std.Usize) (core.convert.FromSame
+                    ntriples.ReadError) residual
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  (rdf.Triple × Std.Usize) (core.convert.FromSame
+                  ntriples.ReadError) residual
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                (rdf.Triple × Std.Usize) (core.convert.FromSame
+                ntriples.ReadError) residual
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.Triple × Std.Usize) (core.convert.FromSame
+              ntriples.ReadError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.Triple × Std.Usize) (core.convert.FromSame
+            ntriples.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Triple × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Triple × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Triple × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_kernel::ntriples::Limits]
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 40:0-43:1
+    Visibility: public -/
+structure ntriples.Limits where
+  max_term_bytes : Std.Usize
+  max_triples : Std.Usize
+
+/-- [rowl_kernel::ntriples::read_from]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 495:0-513:1 -/
+def ntriples.read_from
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (limits : ntriples.Limits) (position : Std.Usize)
+  (triples : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result rdf.RawGraph ntriples.ReadError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if position < i
+  then
+    let r ← ntriples.read_triple bytes position scope limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (triple, next) := val
+      let i1 := alloc.vec.Vec.len triples
+      if i1 >= limits.max_triples
+      then
+        let re ← ntriples.error ntriples.ErrorKind.ResourceLimit position
+        ok (core.result.Result.Err re)
+      else
+        let triples1 ← alloc.vec.Vec.push triples triple
+        let r1 ← ntriples.skip bytes next true
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          ntriples.read_from bytes scope limits val1 triples1
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            rdf.RawGraph (core.convert.FromSame ntriples.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        rdf.RawGraph (core.convert.FromSame ntriples.ReadError) residual
+  else ok (core.result.Result.Ok { triples })
+partial_fixpoint
+
+/-- [rowl_kernel::ntriples::read_impl]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 514:0-517:1 -/
+def ntriples.read_impl
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (limits : ntriples.Limits) :
+  Result (core.result.Result rdf.RawGraph ntriples.ReadError)
+  := do
+  let r ← ntriples.skip bytes 0#usize true
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    ntriples.read_from bytes scope limits val (alloc.vec.Vec.new rdf.Triple)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      rdf.RawGraph (core.convert.FromSame ntriples.ReadError) residual
+
+/-- [rowl_kernel::ntriples::ReadResult]
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 36:0-39:1
+    Visibility: public -/
+@[discriminant isize]
+inductive ntriples.ReadResult where
+| Graph : rdf.RawGraph → ntriples.ReadResult
+| Error : ntriples.ReadError → ntriples.ReadResult
+
+/-- [rowl_kernel::ntriples::read_with_limits]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 521:0-526:1
+    Visibility: public -/
+def ntriples.read_with_limits
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (limits : ntriples.Limits) :
+  Result ntriples.ReadResult
+  := do
+  let r ← ntriples.read_impl bytes scope limits
+  match r with
+  | core.result.Result.Ok graph => ok (ntriples.ReadResult.Graph graph)
+  | core.result.Result.Err error => ok (ntriples.ReadResult.Error error)
+
+/-- [rowl_kernel::ntriples::read]:
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 529:0-538:1
+    Visibility: public -/
+def ntriples.read
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8) :
+  Result ntriples.ReadResult
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let i1 := alloc.vec.Vec.len bytes
+  ntriples.read_with_limits bytes scope
+    { max_term_bytes := i, max_triples := i1 }
+
+/-- [rowl_kernel::import_catalog::read_ntriples]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 116:0-121:1 -/
+def import_catalog.read_ntriples
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result model.RawOntology import_catalog.SourceError)
+  := do
+  let rr ← ntriples.read bytes scope
+  match rr with
+  | ntriples.ReadResult.Graph graph => import_catalog.graph_ontology graph
+  | ntriples.ReadResult.Error error =>
+    ok (core.result.Result.Err (import_catalog.SourceError.Triples error))
+
+/-- [rowl_kernel::turtle::Prefix]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 94:0-97:1
+    Visibility: public -/
+structure turtle.Prefix where
+  «name» : alloc.vec.Vec Std.U8
+  iri : alloc.vec.Vec Std.U8
+
+/-- [rowl_kernel::turtle::declare]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1604:0-1607:1 -/
+def turtle.declare
+  (prefixes : alloc.vec.Vec turtle.Prefix) («prefix» : turtle.Prefix) :
+  Result (alloc.vec.Vec turtle.Prefix)
+  := do
+  alloc.vec.Vec.push prefixes «prefix»
+
+/-- [rowl_kernel::turtle::State]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1598:0-1602:1 -/
+structure turtle.State where
+  base : alloc.vec.Vec Std.U8
+  prefixes : alloc.vec.Vec turtle.Prefix
+  triples : alloc.vec.Vec rdf.Triple
+
+/-- [rowl_kernel::turtle::valid_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 652:0-654:1 -/
+def turtle.valid_iri (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let mr ← iri.validate_iri bytes
+  match mr with
+  | regular.MatchResult.Matched b => if b
+                                     then ok true
+                                     else ok false
+  | regular.MatchResult.MalformedUtf8 _ => ok false
+
+/-- [rowl_kernel::turtle::error]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 103:0-105:1 -/
+def turtle.error
+  (kind : turtle.ErrorKind) (offset : Std.Usize) :
+  Result turtle.ReadError
+  := do
+  ok { kind, offset }
+
+/-- [rowl_kernel::turtle::checked_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 657:0-663:1 -/
+def turtle.checked_iri
+  (spelling : alloc.vec.Vec Std.U8) (start : Std.Usize) (next : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let b ← turtle.valid_iri spelling
+  if b
+  then ok (core.result.Result.Ok ({ spelling }, next))
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidIri start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::bounded_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 666:0-672:1 -/
+def turtle.bounded_iri
+  (spelling : alloc.vec.Vec Std.U8) (start : Std.Usize) (next : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len spelling
+  if limit < i
+  then
+    let re ← turtle.error turtle.ErrorKind.ResourceLimit start
+    ok (core.result.Result.Err re)
+  else turtle.checked_iri spelling start next
+
+/-- [rowl_kernel::turtle::kind_of]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 109:0-126:1 -/
+def turtle.kind_of (kind : ntriples.ErrorKind) : Result turtle.ErrorKind := do
+  match kind with
+  | ntriples.ErrorKind.MalformedUtf8 => ok turtle.ErrorKind.MalformedUtf8
+  | ntriples.ErrorKind.UnexpectedEnd => ok turtle.ErrorKind.UnexpectedEnd
+  | ntriples.ErrorKind.ExpectedIri => ok turtle.ErrorKind.ExpectedIri
+  | ntriples.ErrorKind.ExpectedSubject => ok turtle.ErrorKind.ExpectedSubject
+  | ntriples.ErrorKind.ExpectedObject => ok turtle.ErrorKind.ExpectedObject
+  | ntriples.ErrorKind.ExpectedPeriod => ok turtle.ErrorKind.ExpectedPeriod
+  | ntriples.ErrorKind.ExpectedLineEnd => ok turtle.ErrorKind.ExpectedPeriod
+  | ntriples.ErrorKind.InvalidCharacter => ok turtle.ErrorKind.InvalidCharacter
+  | ntriples.ErrorKind.InvalidEscape => ok turtle.ErrorKind.InvalidEscape
+  | ntriples.ErrorKind.InvalidIri => ok turtle.ErrorKind.InvalidIri
+  | ntriples.ErrorKind.InvalidBlankLabel =>
+    ok turtle.ErrorKind.InvalidBlankLabel
+  | ntriples.ErrorKind.InvalidLanguageTag =>
+    ok turtle.ErrorKind.InvalidLanguageTag
+  | ntriples.ErrorKind.InvalidLiteralKind =>
+    ok turtle.ErrorKind.InvalidLiteralKind
+  | ntriples.ErrorKind.ResourceLimit => ok turtle.ErrorKind.ResourceLimit
+
+/-- [rowl_kernel::turtle::from_ntriples]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 128:0-133:1 -/
+def turtle.from_ntriples
+  (e : ntriples.ReadError) : Result turtle.ReadError := do
+  let ek ← turtle.kind_of e.kind
+  ok { kind := ek, offset := e.offset }
+
+/-- [rowl_kernel::turtle::quoted_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 168:0-173:1 -/
+def turtle.quoted_iri
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← ntriples.quoted bytes start true limit
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::references::plain]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 433:0-441:1 -/
+def references.plain (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else
+      if 97#u8 <= byte
+      then
+        if byte <= 122#u8
+        then ok true
+        else
+          if 48#u8 <= byte
+          then
+            if byte <= 57#u8
+            then ok true
+            else
+              if byte = 45#u8
+              then ok true
+              else
+                if byte = 46#u8
+                then ok true
+                else if byte = 95#u8
+                     then ok true
+                     else ok (byte = 126#u8)
+          else
+            if byte = 45#u8
+            then ok true
+            else
+              if byte = 46#u8
+              then ok true
+              else if byte = 95#u8
+                   then ok true
+                   else ok (byte = 126#u8)
+      else
+        if 48#u8 <= byte
+        then
+          if byte <= 57#u8
+          then ok true
+          else
+            if byte = 45#u8
+            then ok true
+            else
+              if byte = 46#u8
+              then ok true
+              else if byte = 95#u8
+                   then ok true
+                   else ok (byte = 126#u8)
+        else
+          if byte = 45#u8
+          then ok true
+          else
+            if byte = 46#u8
+            then ok true
+            else if byte = 95#u8
+                 then ok true
+                 else ok (byte = 126#u8)
+  else
+    if 97#u8 <= byte
+    then
+      if byte <= 122#u8
+      then ok true
+      else
+        if 48#u8 <= byte
+        then
+          if byte <= 57#u8
+          then ok true
+          else
+            if byte = 45#u8
+            then ok true
+            else
+              if byte = 46#u8
+              then ok true
+              else if byte = 95#u8
+                   then ok true
+                   else ok (byte = 126#u8)
+        else
+          if byte = 45#u8
+          then ok true
+          else
+            if byte = 46#u8
+            then ok true
+            else if byte = 95#u8
+                 then ok true
+                 else ok (byte = 126#u8)
+    else
+      if 48#u8 <= byte
+      then
+        if byte <= 57#u8
+        then ok true
+        else
+          if byte = 45#u8
+          then ok true
+          else
+            if byte = 46#u8
+            then ok true
+            else if byte = 95#u8
+                 then ok true
+                 else ok (byte = 126#u8)
+      else
+        if byte = 45#u8
+        then ok true
+        else
+          if byte = 46#u8
+          then ok true
+          else if byte = 95#u8
+               then ok true
+               else ok (byte = 126#u8)
+
+/-- [rowl_kernel::references::path_byte]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 444:0-446:1 -/
+def references.path_byte
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← references.plain i1
+    if b
+    then ok true
+    else ok (i1 = 47#u8)
+  else ok false
+
+/-- [rowl_kernel::references::plain_end]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 449:0-455:1 -/
+def references.plain_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let b ← references.path_byte bytes index
+  if b
+  then let i ← index + 1#usize
+       references.plain_end bytes i
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::references::plain_relative]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 459:0-466:1 -/
+def references.plain_relative
+  (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let «end» ← references.plain_end bytes 0#usize
+  let i := alloc.vec.Vec.len bytes
+  if «end» < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        «end»
+    if i1 = 35#u8
+    then
+      let i2 ← «end» + 1#usize
+      let i3 ← references.plain_end bytes i2
+      let i4 := alloc.vec.Vec.len bytes
+      ok (i3 = i4)
+    else ok false
+  else ok true
+
+/-- [rowl_kernel::iri::segment_nz_nc]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 156:0-161:1 -/
+def iri.segment_nz_nc : Result regular.Expression := do
+  let e ← iri.iunreserved
+  let e1 ← iri.pct_encoded
+  let e2 ← iri.sub_delims
+  let e3 ← iri.chr 64#u32
+  let e4 ← iri.alt e2 e3
+  let e5 ← iri.alt e1 e4
+  let e6 ← iri.alt e e5
+  iri.plus e6
+
+/-- [rowl_kernel::iri::path_noscheme]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 171:0-173:1 -/
+def iri.path_noscheme : Result regular.Expression := do
+  let e ← iri.segment_nz_nc
+  let e1 ← iri.path_tail
+  iri.cat e e1
+
+/-- [rowl_kernel::iri::relative_part]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 303:0-308:1 -/
+def iri.relative_part : Result regular.Expression := do
+  let e ← iri.authority_path
+  let e1 ← iri.path_absolute
+  let e2 ← iri.path_noscheme
+  let e3 ← iri.alt e2 regular.Expression.Epsilon
+  let e4 ← iri.alt e1 e3
+  iri.alt e e4
+
+/-- [rowl_kernel::iri::relative_ref]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 318:0-320:1 -/
+def iri.relative_ref : Result regular.Expression := do
+  let e ← iri.relative_part
+  let e1 ← iri.suffix
+  iri.cat e e1
+
+/-- [rowl_kernel::iri::iri_reference]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 322:0-324:1
+    Visibility: public -/
+def iri.iri_reference : Result regular.Expression := do
+  let e ← iri.iri
+  let e1 ← iri.relative_ref
+  iri.alt e e1
+
+/-- [rowl_kernel::iri::validate_reference]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 451:0-453:1
+    Visibility: public -/
+def iri.validate_reference
+  (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
+  let e ← iri.iri_reference
+  iri.validate e bytes
+
+/-- [rowl_kernel::references::is_reference]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 470:0-474:1
+    Visibility: public -/
+def references.is_reference (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let b ← references.plain_relative bytes
+  if b
+  then ok true
+  else
+    let mr ← iri.validate_iri bytes
+    let b1 ←
+      match mr with
+      | regular.MatchResult.Matched b2 => if b2
+                                          then ok true
+                                          else ok false
+      | regular.MatchResult.MalformedUtf8 _ => ok false
+    if b1
+    then ok true
+    else
+      let mr1 ← iri.validate_reference bytes
+      match mr1 with
+      | regular.MatchResult.Matched b2 => if b2
+                                          then ok true
+                                          else ok false
+      | regular.MatchResult.MalformedUtf8 _ => ok false
+
+/-- [rowl_kernel::references::small]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 406:0-408:1 -/
+def references.small
+  (base : alloc.vec.Vec Std.U8) (reference : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len base
+  let i1 ← core.num.Usize.MAX / 8#usize
+  if i < i1
+  then let i2 := alloc.vec.Vec.len reference
+       ok (i2 < i1)
+  else ok false
+
+/-- [rowl_kernel::references::Step]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 242:0-261:1 -/
+@[discriminant isize]
+inductive references.Step where
+| Finish : references.Step
+| RemoveParent : references.Step
+| RemoveCurrent : references.Step
+| SkipCurrent : references.Step
+| FinalCurrent : references.Step
+| SkipParent : references.Step
+| FinalParent : references.Step
+| DropDots : references.Step
+| MoveSegment : references.Step
+
+/-- [rowl_kernel::references::exhausted]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 196:0-198:1 -/
+def references.exhausted
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if «end» <= index
+  then ok true
+  else let i := alloc.vec.Vec.len bytes
+       ok (i < «end»)
+
+/-- [rowl_kernel::references::byte_is]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 65:0-67:1 -/
+def references.byte_is
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (value : Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    ok (i1 = value)
+  else ok false
+
+/-- [rowl_kernel::references::at]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 161:0-163:1 -/
+def references.at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (value : Std.U8) :
+  Result Bool
+  := do
+  if index < «end»
+  then references.byte_is bytes index value
+  else ok false
+
+/-- [rowl_kernel::references::starts2]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 166:0-168:1 -/
+def references.starts2
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.at bytes index «end» a
+  if b1
+  then let i ← index + 1#usize
+       references.at bytes i «end» b
+  else ok false
+
+/-- [rowl_kernel::references::starts3]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 171:0-173:1 -/
+def references.starts3
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) (c : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts2 bytes index «end» a b
+  if b1
+  then let i ← index + 2#usize
+       references.at bytes i «end» c
+  else ok false
+
+/-- [rowl_kernel::references::is3]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 191:0-193:1 -/
+def references.is3
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) (c : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts3 bytes index «end» a b c
+  if b1
+  then let i ← index + 3#usize
+       ok (i = «end»)
+  else ok false
+
+/-- [rowl_kernel::references::is2]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 186:0-188:1 -/
+def references.is2
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts2 bytes index «end» a b
+  if b1
+  then let i ← index + 2#usize
+       ok (i = «end»)
+  else ok false
+
+/-- [rowl_kernel::references::is1]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 181:0-183:1 -/
+def references.is1
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) :
+  Result Bool
+  := do
+  let b ← references.at bytes index «end» a
+  if b
+  then let i ← index + 1#usize
+       ok (i = «end»)
+  else ok false
+
+/-- [rowl_kernel::references::starts4]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 176:0-178:1 -/
+def references.starts4
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) (c : Std.U8) (d : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts3 bytes index «end» a b c
+  if b1
+  then let i ← index + 3#usize
+       references.at bytes i «end» d
+  else ok false
+
+/-- [rowl_kernel::references::step]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 264:0-286:1 -/
+def references.step
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result references.Step
+  := do
+  let b ← references.exhausted bytes index «end»
+  if b
+  then ok references.Step.Finish
+  else
+    let b1 ← references.starts3 bytes index «end» 46#u8 46#u8 47#u8
+    if b1
+    then ok references.Step.RemoveParent
+    else
+      let b2 ← references.starts2 bytes index «end» 46#u8 47#u8
+      if b2
+      then ok references.Step.RemoveCurrent
+      else
+        let b3 ← references.starts3 bytes index «end» 47#u8 46#u8 47#u8
+        if b3
+        then ok references.Step.SkipCurrent
+        else
+          let b4 ← references.is2 bytes index «end» 47#u8 46#u8
+          if b4
+          then ok references.Step.FinalCurrent
+          else
+            let b5 ←
+              references.starts4 bytes index «end» 47#u8 46#u8 46#u8 47#u8
+            if b5
+            then ok references.Step.SkipParent
+            else
+              let b6 ← references.is3 bytes index «end» 47#u8 46#u8 46#u8
+              if b6
+              then ok references.Step.FinalParent
+              else
+                let b7 ← references.is1 bytes index «end» 46#u8
+                if b7
+                then ok references.Step.DropDots
+                else
+                  let b8 ← references.is2 bytes index «end» 46#u8 46#u8
+                  if b8
+                  then ok references.Step.DropDots
+                  else ok references.Step.MoveSegment
+
+/-- [rowl_kernel::references::searching]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 215:0-217:1 -/
+def references.searching
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  if start < index
+  then let i := alloc.vec.Vec.len bytes
+       ok (index <= i)
+  else ok false
+
+/-- [rowl_kernel::references::last_slash]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 220:0-230:1 -/
+def references.last_slash
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let b ← references.searching bytes start index
+  if b
+  then
+    let i ← index - 1#usize
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        i
+    if i1 = 47#u8
+    then ok (some i)
+    else references.last_slash bytes start i
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::references::before]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 140:0-142:1 -/
+def references.before
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if index < «end»
+  then let i := alloc.vec.Vec.len bytes
+       ok (index < i)
+  else ok false
+
+/-- [rowl_kernel::references::append]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 145:0-152:1 -/
+def references.append
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let b ← references.before bytes index «end»
+  if b
+  then
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let out1 ← alloc.vec.Vec.push out i
+    let i1 ← index + 1#usize
+    references.append bytes i1 «end» out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::references::pop_segment]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 234:0-239:1 -/
+def references.pop_segment
+  (out : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  let i := alloc.vec.Vec.len out
+  let o ← references.last_slash out 0#usize i
+  match o with
+  | none => ok (alloc.vec.Vec.new Std.U8)
+  | some slash =>
+    references.append out 0#usize slash (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::references::inside_segment]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 201:0-203:1 -/
+def references.inside_segment
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  let b ← references.before bytes index «end»
+  if b
+  then
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    ok (i != 47#u8)
+  else ok false
+
+/-- [rowl_kernel::references::segment_end]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 206:0-212:1 -/
+def references.segment_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  let b ← references.inside_segment bytes index «end»
+  if b
+  then let i ← index + 1#usize
+       references.segment_end bytes i «end»
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::references::put]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 155:0-158:1 -/
+def references.put
+  (out : alloc.vec.Vec Std.U8) (byte : Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  alloc.vec.Vec.push out byte
+
+/-- [rowl_kernel::references::remove_dots]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 293:0-308:1 -/
+def references.remove_dots
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let s ← references.step bytes index «end»
+  match s with
+  | references.Step.Finish => ok out
+  | references.Step.RemoveParent =>
+    let i ← index + 3#usize
+    references.remove_dots bytes i «end» out
+  | references.Step.RemoveCurrent =>
+    let i ← index + 2#usize
+    references.remove_dots bytes i «end» out
+  | references.Step.SkipCurrent =>
+    let i ← index + 2#usize
+    references.remove_dots bytes i «end» out
+  | references.Step.FinalCurrent => references.put out 47#u8
+  | references.Step.SkipParent =>
+    let i ← index + 3#usize
+    let v ← references.pop_segment out
+    references.remove_dots bytes i «end» v
+  | references.Step.FinalParent =>
+    let v ← references.pop_segment out
+    references.put v 47#u8
+  | references.Step.DropDots => ok out
+  | references.Step.MoveSegment =>
+    let i ← index + 1#usize
+    let stop ← references.segment_end bytes i «end»
+    let v ← references.append bytes index stop out
+    references.remove_dots bytes stop «end» v
+partial_fixpoint
+
+/-- [rowl_kernel::references::Span]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 24:0-27:1
+    Visibility: public -/
+structure references.Span where
+  start : Std.Usize
+  «end» : Std.Usize
+
+/-- [rowl_kernel::references::clean_path]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 347:0-350:1 -/
+def references.clean_path
+  (bytes : alloc.vec.Vec Std.U8) (span : references.Span)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let path ←
+    references.remove_dots bytes span.start span.end (alloc.vec.Vec.new Std.U8)
+  let i := alloc.vec.Vec.len path
+  references.append path 0#usize i out
+
+/-- [rowl_kernel::references::Parts]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 32:0-38:1
+    Visibility: public -/
+structure references.Parts where
+  scheme : Option references.Span
+  authority : Option references.Span
+  path : references.Span
+  query : Option references.Span
+  fragment : Option references.Span
+
+/-- [rowl_kernel::references::bare_authority]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 327:0-329:1 -/
+def references.bare_authority (b : references.Parts) : Result Bool := do
+  let b1 := core.option.Option.is_some b.authority
+  if b1
+  then ok (b.path.end <= b.path.start)
+  else ok false
+
+/-- [rowl_kernel::references::merge]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 334:0-344:1 -/
+def references.merge
+  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
+  (reference : alloc.vec.Vec Std.U8) (path : references.Span) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let b1 ← references.bare_authority b
+  let directory ←
+    if b1
+    then references.put (alloc.vec.Vec.new Std.U8) 47#u8
+    else
+      do
+      let o ← references.last_slash base b.path.start b.path.end
+      match o with
+      | none => ok (alloc.vec.Vec.new Std.U8)
+      | some slash =>
+        let i ← slash + 1#usize
+        references.append base b.path.start i (alloc.vec.Vec.new Std.U8)
+  references.append reference path.start path.end directory
+
+/-- [rowl_kernel::references::authority]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 319:0-324:1 -/
+def references.authority
+  (bytes : alloc.vec.Vec Std.U8) (span : Option references.Span)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  match span with
+  | none => ok out
+  | some span1 =>
+    let v ← references.put out 47#u8
+    let v1 ← references.put v 47#u8
+    references.append bytes span1.start span1.end v1
+
+/-- [rowl_kernel::references::component]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 311:0-316:1 -/
+def references.component
+  (bytes : alloc.vec.Vec Std.U8) (span : Option references.Span)
+  (before : Std.U8) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  match span with
+  | none => ok out
+  | some span1 =>
+    let v ← references.put out before
+    references.append bytes span1.start span1.end v
+
+/-- [rowl_kernel::references::relative_path]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 354:0-378:1 -/
+def references.relative_path
+  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
+  (reference : alloc.vec.Vec Std.U8) (r : references.Parts)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let out1 ← references.authority base b.authority out
+  if r.path.end <= r.path.start
+  then
+    let out2 ← references.append base b.path.start b.path.end out1
+    let b1 := core.option.Option.is_some r.query
+    if b1
+    then references.component reference r.query 63#u8 out2
+    else references.component base b.query 63#u8 out2
+  else
+    let b1 ← references.byte_is reference r.path.start 47#u8
+    if b1
+    then
+      let out2 ← references.clean_path reference r.path out1
+      references.component reference r.query 63#u8 out2
+    else
+      let merged ← references.merge base b reference r.path
+      let i := alloc.vec.Vec.len merged
+      let out2 ←
+        references.clean_path merged { start := 0#usize, «end» := i } out1
+      references.component reference r.query 63#u8 out2
+
+/-- [rowl_kernel::references::relative]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 392:0-402:1 -/
+def references.relative
+  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
+  (scheme : references.Span) (reference : alloc.vec.Vec Std.U8)
+  (r : references.Parts) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let v ←
+    references.append base scheme.start scheme.end (alloc.vec.Vec.new Std.U8)
+  let out ← references.put v 58#u8
+  let b1 := core.option.Option.is_some r.authority
+  let out1 ←
+    if b1
+    then
+      do
+      let out2 ← references.authority reference r.authority out
+      let out3 ← references.clean_path reference r.path out2
+      references.component reference r.query 63#u8 out3
+    else references.relative_path base b reference r out
+  references.component reference r.fragment 35#u8 out1
+
+/-- [rowl_kernel::references::absolute]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 382:0-388:1 -/
+def references.absolute
+  (reference : alloc.vec.Vec Std.U8) (own : references.Span)
+  (r : references.Parts) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let v ←
+    references.append reference own.start own.end (alloc.vec.Vec.new Std.U8)
+  let out ← references.put v 58#u8
+  let out1 ← references.authority reference r.authority out
+  let out2 ← references.clean_path reference r.path out1
+  let out3 ← references.component reference r.query 63#u8 out2
+  references.component reference r.fragment 35#u8 out3
+
+/-- [rowl_kernel::references::double_slash]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 75:0-77:1 -/
+def references.double_slash
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let b ← references.byte_is bytes index 47#u8
+  if b
+  then let i ← index + 1#usize
+       references.byte_is bytes i 47#u8
+  else ok false
+
+/-- [rowl_kernel::references::scheme_ends]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 70:0-72:1 -/
+def references.scheme_ends
+  (bytes : alloc.vec.Vec Std.U8) (colon : Std.Usize) : Result Bool := do
+  if 0#usize < colon
+  then references.byte_is bytes colon 58#u8
+  else ok false
+
+/-- [rowl_kernel::references::stops]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 43:0-48:1 -/
+def references.stops (level : Std.U8) (byte : Std.U8) : Result Bool := do
+  if byte = 35#u8
+  then ok true
+  else
+    if 0#u8 < level
+    then
+      if byte = 63#u8
+      then ok true
+      else
+        if 1#u8 < level
+        then
+          if byte = 47#u8
+          then ok true
+          else if 2#u8 < level
+               then ok (byte = 58#u8)
+               else ok false
+        else if 2#u8 < level
+             then ok (byte = 58#u8)
+             else ok false
+    else
+      if 1#u8 < level
+      then
+        if byte = 47#u8
+        then ok true
+        else if 2#u8 < level
+             then ok (byte = 58#u8)
+             else ok false
+      else if 2#u8 < level
+           then ok (byte = 58#u8)
+           else ok false
+
+/-- [rowl_kernel::references::scan]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 52:0-62:1 -/
+def references.scan
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (level : Std.U8) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← references.stops level i1
+    if b
+    then ok index
+    else let i2 ← index + 1#usize
+         references.scan bytes i2 level
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::references::split]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 81:0-137:1
+    Visibility: public -/
+def references.split
+  (bytes : alloc.vec.Vec Std.U8) : Result references.Parts := do
+  let colon ← references.scan bytes 0#usize 3#u8
+  let has_scheme ← references.scheme_ends bytes colon
+  let start ← if has_scheme
+                then colon + 1#usize
+                else ok 0#usize
+  let has_authority ← references.double_slash bytes start
+  let path_start ←
+    if has_authority
+    then do
+         let i ← start + 2#usize
+         references.scan bytes i 2#u8
+    else ok start
+  let path_end ← references.scan bytes path_start 1#u8
+  let has_query ← references.byte_is bytes path_end 63#u8
+  let query_end ←
+    if has_query
+    then do
+         let i ← path_end + 1#usize
+         references.scan bytes i 0#u8
+    else ok path_end
+  let i := alloc.vec.Vec.len bytes
+  let o ←
+    if has_scheme
+    then ok (some ({ start := 0#usize, «end» := colon } : references.Span))
+    else ok none
+  let o1 ←
+    if has_authority
+    then
+      do
+      let i1 ← start + 2#usize
+      ok (some ({ start := i1, «end» := path_start } : references.Span))
+    else ok none
+  let o2 ←
+    if has_query
+    then
+      do
+      let i1 ← path_end + 1#usize
+      ok (some ({ start := i1, «end» := query_end } : references.Span))
+    else ok none
+  if query_end < i
+  then
+    let i1 ← query_end + 1#usize
+    let i2 := alloc.vec.Vec.len bytes
+    ok
+      {
+        scheme := o,
+        authority := o1,
+        path := { start := path_start, «end» := path_end },
+        query := o2,
+        fragment := (some { start := i1, «end» := i2 })
+      }
+  else
+    ok
+      {
+        scheme := o,
+        authority := o1,
+        path := { start := path_start, «end» := path_end },
+        query := o2,
+        fragment := none
+      }
+
+/-- [rowl_kernel::references::resolve]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 413:0-429:1
+    Visibility: public -/
+def references.resolve
+  (base : alloc.vec.Vec Std.U8) (reference : alloc.vec.Vec Std.U8) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  let b ← references.small base reference
+  if b
+  then
+    let r ← references.split reference
+    match r.scheme with
+    | none =>
+      let b1 ← references.split base
+      match b1.scheme with
+      | none => ok none
+      | some scheme =>
+        let v ← references.relative base b1 scheme reference r
+        ok (some v)
+    | some own => let v ← references.absolute reference own r
+                  ok (some v)
+  else ok none
+
+/-- [rowl_kernel::turtle::iri_ref]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 697:0-707:1 -/
+def turtle.iri_ref
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.quoted_iri bytes start limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (reference, next) := val
+    let b ← references.is_reference reference
+    if b
+    then
+      let o ← references.resolve base reference
+      match o with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.InvalidIri start
+        ok (core.result.Result.Err re)
+      | some spelling => turtle.bounded_iri spelling start next limit
+    else
+      let re ← turtle.error turtle.ErrorKind.InvalidIri start
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::space]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 152:0-157:1 -/
+def turtle.space
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← ntriples.skip bytes position true
+  match r with
+  | core.result.Result.Ok next => ok (core.result.Result.Ok next)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::base_declaration]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1586:0-1595:1 -/
+def turtle.base_declaration
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.iri_ref bytes val base limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (iri, next) := val1
+      ok (core.result.Result.Ok (iri.spelling, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::pn_u]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 359:0-361:1 -/
+def turtle.pn_u (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.pn_base cp
+  if b
+  then ok true
+  else ok (cp = 95#u32)
+
+/-- [rowl_kernel::turtle::pn_chars]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 364:0-371:1 -/
+def turtle.pn_chars (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_u cp
+  if b
+  then ok true
+  else
+    if cp = 45#u32
+    then ok true
+    else
+      let b1 ← ntriples.ascii_digit cp
+      if b1
+      then ok true
+      else
+        if cp = 183#u32
+        then ok true
+        else
+          let b2 ← ntriples.in_range cp 768#u32 879#u32
+          if b2
+          then ok true
+          else ntriples.in_range cp 8255#u32 8256#u32
+
+/-- [rowl_kernel::turtle::unit]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 136:0-141:1 -/
+def turtle.unit
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Option (Std.U32 × Std.Usize)) turtle.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::name_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 409:0-422:1 -/
+def turtle.name_end
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
+  :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok accepted)
+    | some p =>
+      let (cp, next) := p
+      let b ← turtle.pn_chars cp
+      if b
+      then turtle.name_end bytes next next
+      else
+        if cp = 46#u32
+        then turtle.name_end bytes next accepted
+        else ok (core.result.Result.Ok accepted)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::byte_is]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 201:0-203:1 -/
+def turtle.byte_is
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (value : Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    ok (i1 = value)
+  else ok false
+
+/-- [rowl_kernel::turtle::prefix_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 425:0-432:1 -/
+def turtle.prefix_end
+  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.name_end bytes next next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is bytes val 58#u8
+    if b
+    then ok (core.result.Result.Ok (some val))
+    else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::prefix_colon]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 435:0-448:1 -/
+def turtle.prefix_colon
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, next) := p
+      if cp = 58#u32
+      then ok (core.result.Result.Ok (some start))
+      else
+        let b ← ntriples.pn_base cp
+        if b
+        then turtle.prefix_end bytes next
+        else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::copied]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 160:0-165:1 -/
+def turtle.copied
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) turtle.ReadError)
+  := do
+  let r ← ntriples.copy_term bytes start «end» limit
+  match r with
+  | core.result.Result.Ok value => ok (core.result.Result.Ok value)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::prefix_name]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1555:0-1564:1 -/
+def turtle.prefix_name
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.prefix_colon bytes val
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      match val1 with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.ExpectedPrefix val
+        ok (core.result.Result.Err re)
+      | some colon =>
+        let r2 ← turtle.copied bytes val colon limit
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let i ← colon + 1#usize
+          ok (core.result.Result.Ok (val2, i))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+            turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::prefix_declaration]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1567:0-1583:1 -/
+def turtle.prefix_declaration
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (turtle.Prefix × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.prefix_name bytes position limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let («name», after) := val
+    let r1 ← turtle.space bytes after
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← turtle.iri_ref bytes val1 base limit
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let («namespace», next) := val2
+        ok (core.result.Result.Ok ({ «name», iri := «namespace».spelling },
+          next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::Statement]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1522:0-1528:1 -/
+@[discriminant isize]
+inductive turtle.Statement where
+| AtPrefix : Std.Usize → turtle.Statement
+| AtBase : Std.Usize → turtle.Statement
+| Prefix : Std.Usize → turtle.Statement
+| Base : Std.Usize → turtle.Statement
+| Triples : turtle.Statement
+
+/-- [rowl_kernel::turtle::sparql]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1532:0-1537:1 -/
+def turtle.sparql
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (keyword : turtle.Statement) :
+  Result (core.result.Result turtle.Statement turtle.ReadError)
+  := do
+  let r ← turtle.prefix_colon bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok keyword)
+    | some _ => ok (core.result.Result.Ok turtle.Statement.Triples)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      turtle.Statement (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::letter_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1117:0-1119:1 -/
+def turtle.letter_byte (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else if 97#u8 <= byte
+         then ok (byte <= 122#u8)
+         else ok false
+  else if 97#u8 <= byte
+       then ok (byte <= 122#u8)
+       else ok false
+
+/-- [rowl_kernel::turtle::digit_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 960:0-962:1 -/
+def turtle.digit_byte (byte : Std.U8) : Result Bool := do
+  if 48#u8 <= byte
+  then ok (byte <= 57#u8)
+  else ok false
+
+/-- [rowl_kernel::turtle::tag_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1122:0-1124:1 -/
+def turtle.tag_byte (byte : Std.U8) : Result Bool := do
+  let b ← turtle.letter_byte byte
+  if b
+  then ok true
+  else
+    let b1 ← turtle.digit_byte byte
+    if b1
+    then ok true
+    else ok (byte = 45#u8)
+
+/-- [rowl_kernel::turtle::tag_continues]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1127:0-1129:1 -/
+def turtle.tag_continues
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    turtle.tag_byte i1
+  else ok false
+
+/-- [rowl_kernel::turtle::word_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1081:0-1091:1 -/
+def turtle.word_from
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := Slice.len word
+  if index < i
+  then
+    let i1 ← start + index
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        i1
+    let i3 ← Slice.index_usize word index
+    if i2 = i3
+    then let i4 ← index + 1#usize
+         turtle.word_from bytes start word i4
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::word_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1077:0-1079:1 -/
+def turtle.word_at
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if start <= i
+  then
+    let i1 := Slice.len word
+    let i2 := alloc.vec.Vec.len bytes
+    let i3 ← i2 - start
+    if i1 <= i3
+    then turtle.word_from bytes start word 0#usize
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::at_keyword]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1133:0-1137:1 -/
+def turtle.at_keyword
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8) :
+  Result Bool
+  := do
+  let b ← turtle.byte_is bytes start 64#u8
+  if b
+  then
+    let i ← start + 1#usize
+    let b1 ← turtle.word_at bytes i word
+    if b1
+    then
+      let i1 := Slice.len word
+      let i2 ← i + i1
+      let b2 ← turtle.tag_continues bytes i2
+      ok (¬ b2)
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::either]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1094:0-1096:1 -/
+def turtle.either
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (upper : Std.U8)
+  (lower : Std.U8) :
+  Result Bool
+  := do
+  let b ← turtle.byte_is bytes index upper
+  if b
+  then ok true
+  else turtle.byte_is bytes index lower
+
+/-- [rowl_kernel::turtle::base_word]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1109:0-1114:1 -/
+def turtle.base_word
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) : Result Bool := do
+  let b ← turtle.either bytes start 66#u8 98#u8
+  if b
+  then
+    let i ← start + 1#usize
+    let b1 ← turtle.either bytes i 65#u8 97#u8
+    if b1
+    then
+      let i1 ← start + 2#usize
+      let b2 ← turtle.either bytes i1 83#u8 115#u8
+      if b2
+      then let i2 ← start + 3#usize
+           turtle.either bytes i2 69#u8 101#u8
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::prefix_word]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1099:0-1106:1 -/
+def turtle.prefix_word
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) : Result Bool := do
+  let b ← turtle.either bytes start 80#u8 112#u8
+  if b
+  then
+    let i ← start + 1#usize
+    let b1 ← turtle.either bytes i 82#u8 114#u8
+    if b1
+    then
+      let i1 ← start + 2#usize
+      let b2 ← turtle.either bytes i1 69#u8 101#u8
+      if b2
+      then
+        let i2 ← start + 3#usize
+        let b3 ← turtle.either bytes i2 70#u8 102#u8
+        if b3
+        then
+          let i3 ← start + 4#usize
+          let b4 ← turtle.either bytes i3 73#u8 105#u8
+          if b4
+          then let i4 ← start + 5#usize
+               turtle.either bytes i4 88#u8 120#u8
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::statement_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1539:0-1551:1 -/
+def turtle.statement_start
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result turtle.Statement turtle.ReadError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 112#u8, 114#u8, 101#u8, 102#u8, 105#u8, 120#u8 ]))
+  let b ← turtle.at_keyword bytes start s
+  if b
+  then
+    let i ← start + 7#usize
+    ok (core.result.Result.Ok (turtle.Statement.AtPrefix i))
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 4#usize [ 98#u8, 97#u8, 115#u8, 101#u8 ]))
+    let b1 ← turtle.at_keyword bytes start s1
+    if b1
+    then
+      let i ← start + 5#usize
+      ok (core.result.Result.Ok (turtle.Statement.AtBase i))
+    else
+      let b2 ← turtle.prefix_word bytes start
+      if b2
+      then
+        let i ← start + 6#usize
+        turtle.sparql bytes start (turtle.Statement.Prefix i)
+      else
+        let b3 ← turtle.base_word bytes start
+        if b3
+        then
+          let i ← start + 4#usize
+          turtle.sparql bytes start (turtle.Statement.Base i)
+        else ok (core.result.Result.Ok turtle.Statement.Triples)
+
+/-- [rowl_kernel::turtle::period]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1512:0-1519:1 -/
+def turtle.period
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is bytes val 46#u8
+    if b
+    then let i ← val + 1#usize
+         ok (core.result.Result.Ok i)
+    else
+      let re ← turtle.error turtle.ErrorKind.ExpectedPeriod val
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::verb_follows]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1427:0-1429:1 -/
+def turtle.verb_follows
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 != 59#u8
+    then if i1 != 46#u8
+         then ok (i1 != 93#u8)
+         else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::constant_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 224:0-231:1 -/
+def turtle.constant_from
+  (values : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := Slice.len values
+  if index < i
+  then
+    let i1 ← Slice.index_usize values index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    turtle.constant_from values i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::constant]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 220:0-222:1 -/
+def turtle.constant
+  (values : Slice Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  turtle.constant_from values 0#usize (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::turtle::rdf_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 257:0-261:1 -/
+def turtle.rdf_iri (spelling : Slice Std.U8) : Result rdf.RdfIri := do
+  let v ← turtle.constant spelling
+  ok { spelling := v }
+
+/-- [rowl_kernel::turtle::rdf_type]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 263:0-265:1 -/
+def turtle.rdf_type : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
+        101#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::keyword_a]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1395:0-1401:1 -/
+def turtle.keyword_a
+  (cp : Std.U32) (start : Std.Usize) (next : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  if cp = 97#u32
+  then let ri ← turtle.rdf_type
+       ok (core.result.Result.Ok (ri, next))
+  else
+    let re ← turtle.error turtle.ErrorKind.ExpectedVerb start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::Limits]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 88:0-91:1
+    Visibility: public -/
+structure turtle.Limits where
+  max_term_bytes : Std.Usize
+  max_triples : Std.Usize
+
+/-- [rowl_kernel::turtle::Context]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1223:0-1229:1 -/
+structure turtle.Context where
+  bytes : alloc.vec.Vec Std.U8
+  scope : alloc.vec.Vec Std.U8
+  base : alloc.vec.Vec Std.U8
+  prefixes : alloc.vec.Vec turtle.Prefix
+  limits : turtle.Limits
+
+/-- [rowl_kernel::turtle::word_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1150:0-1152:1 -/
+def turtle.word_start (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.pn_base cp
+  if b
+  then ok true
+  else ok (cp = 58#u32)
+
+/-- [rowl_kernel::turtle::same_span_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 620:0-630:1 -/
+def turtle.same_span_from
+  («name» : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
+  (start : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len «name»
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        «name» index
+    let i2 ← start + index
+    let i3 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        i2
+    if i1 = i3
+    then
+      let i4 ← index + 1#usize
+      turtle.same_span_from «name» bytes start i4
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::same_span]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 616:0-618:1 -/
+def turtle.same_span
+  («name» : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
+  (start : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len «name»
+  let i1 ← «end» - start
+  if i = i1
+  then turtle.same_span_from «name» bytes start 0#usize
+  else ok false
+
+/-- [rowl_kernel::turtle::lookup]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 633:0-649:1 -/
+def turtle.lookup
+  (prefixes : alloc.vec.Vec turtle.Prefix) (bytes : alloc.vec.Vec Std.U8)
+  (start : Std.Usize) («end» : Std.Usize) (count : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  if 0#usize < count
+  then
+    let i ← count - 1#usize
+    let p ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice turtle.Prefix)
+        prefixes i
+    let b ← turtle.same_span p.name bytes start «end»
+    if b
+    then ok (some i)
+    else turtle.lookup prefixes bytes start «end» i
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::before]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 562:0-564:1 -/
+def turtle.before
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if index < «end»
+  then let i := alloc.vec.Vec.len bytes
+       ok (index < i)
+  else ok false
+
+/-- [rowl_kernel::turtle::escaped_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 577:0-583:1 -/
+def turtle.escaped_byte
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result (Std.U8 × Std.Usize)
+  := do
+  let b ← turtle.before bytes index «end»
+  if b
+  then
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i1 ← index + 1#usize
+    ok (i, i1)
+  else ok (92#u8, index)
+
+/-- [rowl_kernel::turtle::local_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 587:0-593:1 -/
+def turtle.local_byte
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result (Std.U8 × Std.Usize)
+  := do
+  let i ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+      index
+  if i = 92#u8
+  then let i1 ← index + 1#usize
+       turtle.escaped_byte bytes i1 «end»
+  else let i1 ← index + 1#usize
+       ok (i, i1)
+
+/-- [rowl_kernel::turtle::push_limited]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 567:0-574:1 -/
+def turtle.push_limited
+  (out : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < limit
+  then let out1 ← alloc.vec.Vec.push out byte
+       ok (some out1)
+  else ok none
+
+/-- [rowl_kernel::turtle::unescape]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 597:0-613:1 -/
+def turtle.unescape
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  let b ← turtle.before bytes index «end»
+  if b
+  then
+    let (byte, next) ← turtle.local_byte bytes index «end»
+    let o ← turtle.push_limited out byte limit
+    match o with
+    | none => ok none
+    | some out1 => turtle.unescape bytes next «end» out1 limit
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::Local]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 512:0-516:1 -/
+@[discriminant isize]
+inductive turtle.Local where
+| Name : Std.Usize → turtle.Local
+| Dot : Std.Usize → turtle.Local
+| End : turtle.Local
+
+/-- [rowl_kernel::turtle::local_escape]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 391:0-400:1 -/
+def turtle.local_escape (cp : Std.U32) : Result Bool := do
+  if cp = 33#u32
+  then ok true
+  else
+    let b ← ntriples.in_range cp 35#u32 47#u32
+    if b
+    then ok true
+    else
+      if cp = 59#u32
+      then ok true
+      else
+        if cp = 61#u32
+        then ok true
+        else
+          if cp = 63#u32
+          then ok true
+          else
+            if cp = 64#u32
+            then ok true
+            else if cp = 95#u32
+                 then ok true
+                 else ok (cp = 126#u32)
+
+/-- [rowl_kernel::turtle::local_escaped]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 473:0-484:1 -/
+def turtle.local_escaped
+  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, after) := p
+      let b ← turtle.local_escape cp
+      if b
+      then ok (core.result.Result.Ok (some after))
+      else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::hex_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 451:0-462:1 -/
+def turtle.hex_at
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, next) := p
+      let o ← ntriples.hex cp
+      let b := core.option.Option.is_some o
+      if b
+      then ok (core.result.Result.Ok (some next))
+      else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::percent]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 465:0-470:1 -/
+def turtle.percent
+  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.hex_at bytes next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some second => turtle.hex_at bytes second
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::plx]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 487:0-493:1 -/
+def turtle.plx
+  (bytes : alloc.vec.Vec Std.U8) (cp : Std.U32) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  if cp = 37#u32
+  then turtle.percent bytes next
+  else turtle.local_escaped bytes next
+
+/-- [rowl_kernel::turtle::local_plx]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 519:0-524:1 -/
+def turtle.local_plx
+  (bytes : alloc.vec.Vec Std.U8) (cp : Std.U32) (next : Std.Usize) :
+  Result (core.result.Result turtle.Local turtle.ReadError)
+  := do
+  let r ← turtle.plx bytes cp next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok turtle.Local.End)
+    | some after => ok (core.result.Result.Ok (turtle.Local.Name after))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      turtle.Local (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::plx_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 403:0-405:1 -/
+def turtle.plx_start (cp : Std.U32) : Result Bool := do
+  if cp = 37#u32
+  then ok true
+  else ok (cp = 92#u32)
+
+/-- [rowl_kernel::turtle::local_char]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 385:0-387:1 -/
+def turtle.local_char (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_chars cp
+  if b
+  then ok true
+  else ok (cp = 58#u32)
+
+/-- [rowl_kernel::turtle::local_next]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 526:0-541:1 -/
+def turtle.local_next
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result turtle.Local turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok turtle.Local.End)
+    | some p =>
+      let (cp, next) := p
+      let b ← turtle.plx_start cp
+      if b
+      then turtle.local_plx bytes cp next
+      else
+        let b1 ← turtle.local_char cp
+        if b1
+        then ok (core.result.Result.Ok (turtle.Local.Name next))
+        else
+          if cp = 46#u32
+          then ok (core.result.Result.Ok (turtle.Local.Dot next))
+          else ok (core.result.Result.Ok turtle.Local.End)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      turtle.Local (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::local_rest]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 545:0-551:1 -/
+def turtle.local_rest
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
+  :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.local_next bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | turtle.Local.Name next => turtle.local_rest bytes next next
+    | turtle.Local.Dot next => turtle.local_rest bytes next accepted
+    | turtle.Local.End => ok (core.result.Result.Ok accepted)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::local_first_char]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 380:0-382:1 -/
+def turtle.local_first_char (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_u cp
+  if b
+  then ok true
+  else if cp = 58#u32
+       then ok true
+       else ntriples.ascii_digit cp
+
+/-- [rowl_kernel::turtle::local_first]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 496:0-509:1 -/
+def turtle.local_first
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, next) := p
+      let b ← turtle.plx_start cp
+      if b
+      then turtle.plx bytes cp next
+      else
+        let b1 ← turtle.local_first_char cp
+        if b1
+        then ok (core.result.Result.Ok (some next))
+        else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::local_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 554:0-559:1 -/
+def turtle.local_end
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.local_first bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok start)
+    | some next => turtle.local_rest bytes next next
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::copy_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 210:0-217:1 -/
+def turtle.copy_from
+  (values : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) values
+        index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    turtle.copy_from values i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::copy_bytes]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 206:0-208:1 -/
+def turtle.copy_bytes
+  (values : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  turtle.copy_from values 0#usize (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::turtle::prefixed]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 676:0-694:1 -/
+def turtle.prefixed
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (colon : Std.Usize)
+  (prefixes : alloc.vec.Vec turtle.Prefix) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len prefixes
+  let o ← turtle.lookup prefixes bytes start colon i
+  match o with
+  | none =>
+    let re ← turtle.error turtle.ErrorKind.UndefinedPrefix start
+    ok (core.result.Result.Err re)
+  | some entry =>
+    let i1 ← colon + 1#usize
+    let r ← turtle.local_end bytes i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let p ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          turtle.Prefix) prefixes entry
+      let «namespace» ← turtle.copy_bytes p.iri
+      let o1 ← turtle.unescape bytes i1 val «namespace» limit
+      match o1 with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.ResourceLimit start
+        ok (core.result.Result.Err re)
+      | some spelling => turtle.bounded_iri spelling start val limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+
+/-- [rowl_kernel::turtle::needed]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 144:0-149:1 -/
+def turtle.needed
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← ntriples.required bytes position
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::verb]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1404:0-1423:1 -/
+def turtle.verb
+  (cx : turtle.Context) (position : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.needed cx.bytes val
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (cp, next) := val1
+      if cp = 60#u32
+      then turtle.iri_ref cx.bytes val cx.base cx.limits.max_term_bytes
+      else
+        let b ← turtle.word_start cp
+        if b
+        then
+          let r2 ← turtle.prefix_colon cx.bytes val
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            match val2 with
+            | none => turtle.keyword_a cp val next
+            | some colon =>
+              turtle.prefixed cx.bytes val colon cx.prefixes
+                cx.limits.max_term_bytes
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.RdfIri × Std.Usize) (core.convert.FromSame
+              turtle.ReadError) residual
+        else
+          let re ← turtle.error turtle.ErrorKind.ExpectedVerb val
+          ok (core.result.Result.Err re)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::xsd]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 279:0-281:1 -/
+def turtle.xsd (kind : Slice Std.U8) : Result rdf.LiteralKind := do
+  let ri ← turtle.rdf_iri kind
+  ok (rdf.LiteralKind.Datatype ri)
+
+/-- [rowl_kernel::turtle::boolean]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1187:0-1192:1 -/
+def turtle.boolean (lexical : Slice Std.U8) : Result rdf.RdfLiteral := do
+  let v ← turtle.constant lexical
+  let s ←
+    lift (Array.to_slice
+      (Array.make 40#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
+        104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8, 111#u8, 111#u8, 108#u8,
+        101#u8, 97#u8, 110#u8
+        ]))
+  let lk ← turtle.xsd s
+  ok { lexical := v, kind := lk }
+
+/-- [rowl_kernel::turtle::boolean_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1195:0-1203:1 -/
+def turtle.boolean_at
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+  let b ← turtle.word_at bytes start s
+  if b
+  then
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+    let rl ← turtle.boolean s1
+    let i ← start + 4#usize
+    ok (core.result.Result.Ok (rdf.Object.Literal rl, i))
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
+    let b1 ← turtle.word_at bytes start s1
+    if b1
+    then
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
+      let rl ← turtle.boolean s2
+      let i ← start + 5#usize
+      ok (core.result.Result.Ok (rdf.Object.Literal rl, i))
+    else
+      let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+      ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::word_object]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1206:0-1219:1 -/
+def turtle.word_object
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (prefixes : alloc.vec.Vec turtle.Prefix) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.prefix_colon bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => turtle.boolean_at bytes start
+    | some colon =>
+      let r1 ← turtle.prefixed bytes start colon prefixes limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (iri, next) := val1
+        ok (core.result.Result.Ok (rdf.Object.Iri iri, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+          residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::Start]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1155:0-1164:1 -/
+@[discriminant isize]
+inductive turtle.Start where
+| Iri : turtle.Start
+| Blank : turtle.Start
+| Bracket : turtle.Start
+| Paren : turtle.Start
+| Quote : turtle.Start
+| Number : turtle.Start
+| Word : turtle.Start
+| Other : turtle.Start
+
+/-- [rowl_kernel::turtle::Number]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1017:0-1021:1 -/
+@[discriminant isize]
+inductive turtle.Number where
+| Integer : turtle.Number
+| Decimal : turtle.Number
+| Double : turtle.Number
+
+/-- [rowl_kernel::turtle::sign_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 978:0-980:1 -/
+def turtle.sign_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let b ← turtle.byte_is bytes index 43#u8
+  if b
+  then ok true
+  else turtle.byte_is bytes index 45#u8
+
+/-- [rowl_kernel::turtle::unsigned]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 988:0-994:1 -/
+def turtle.unsigned
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let b ← turtle.sign_at bytes index
+  if b
+  then index + 1#usize
+  else ok index
+
+/-- [rowl_kernel::turtle::digits_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 965:0-975:1 -/
+def turtle.digits_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← turtle.digit_byte i1
+    if b
+    then let i2 ← index + 1#usize
+         turtle.digits_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::exponent_digits]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 997:0-1005:1 -/
+def turtle.exponent_digits
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i ← index + 1#usize
+  let digits ← turtle.unsigned bytes i
+  let «end» ← turtle.digits_end bytes digits
+  if digits < «end»
+  then ok (some «end»)
+  else ok none
+
+/-- [rowl_kernel::turtle::exponent_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 983:0-985:1 -/
+def turtle.exponent_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let b ← turtle.byte_is bytes index 101#u8
+  if b
+  then ok true
+  else turtle.byte_is bytes index 69#u8
+
+/-- [rowl_kernel::turtle::exponent_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1008:0-1014:1 -/
+def turtle.exponent_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let b ← turtle.exponent_at bytes index
+  if b
+  then turtle.exponent_digits bytes index
+  else ok none
+
+/-- [rowl_kernel::turtle::with_exponent]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1024:0-1029:1 -/
+def turtle.with_exponent
+  (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize) (plain : turtle.Number)
+  :
+  Result (Std.Usize × turtle.Number)
+  := do
+  let o ← turtle.exponent_end bytes «end»
+  match o with
+  | none => ok («end», plain)
+  | some after => ok (after, turtle.Number.Double)
+
+/-- [rowl_kernel::turtle::fraction]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1033:0-1045:1 -/
+def turtle.fraction
+  (bytes : alloc.vec.Vec Std.U8) (digits : Std.Usize) (point : Std.Usize) :
+  Result (Option (Std.Usize × turtle.Number))
+  := do
+  let i ← point + 1#usize
+  let «end» ← turtle.digits_end bytes i
+  if i < «end»
+  then
+    let p ← turtle.with_exponent bytes «end» turtle.Number.Decimal
+    ok (some p)
+  else
+    if digits < point
+    then
+      let o ← turtle.exponent_end bytes i
+      match o with
+      | none => ok (some (point, turtle.Number.Integer))
+      | some after => ok (some (after, turtle.Number.Double))
+    else ok none
+
+/-- [rowl_kernel::turtle::number_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1048:0-1058:1 -/
+def turtle.number_end
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (Option (Std.Usize × turtle.Number))
+  := do
+  let digits ← turtle.unsigned bytes start
+  let point ← turtle.digits_end bytes digits
+  let b ← turtle.byte_is bytes point 46#u8
+  if b
+  then turtle.fraction bytes digits point
+  else
+    if digits < point
+    then
+      let p ← turtle.with_exponent bytes point turtle.Number.Integer
+      ok (some p)
+    else ok none
+
+/-- [rowl_kernel::turtle::number]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1061:0-1074:1 -/
+def turtle.number
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) turtle.ReadError)
+  := do
+  let o ← turtle.number_end bytes start
+  match o with
+  | none =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+  | some p =>
+    let («end», kind) := p
+    let r ← turtle.copied bytes start «end» limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      match kind with
+      | turtle.Number.Integer =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 40#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              105#u8, 110#u8, 116#u8, 101#u8, 103#u8, 101#u8, 114#u8
+              ]))
+        let kind1 ← turtle.xsd s
+        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
+      | turtle.Number.Decimal =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 40#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              100#u8, 101#u8, 99#u8, 105#u8, 109#u8, 97#u8, 108#u8
+              ]))
+        let kind1 ← turtle.xsd s
+        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
+      | turtle.Number.Double =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 39#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              100#u8, 111#u8, 117#u8, 98#u8, 108#u8, 101#u8
+              ]))
+        let kind1 ← turtle.xsd s
+        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+
+/-- [rowl_kernel::turtle::iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 710:0-725:1 -/
+def turtle.iri
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let b ← turtle.byte_is bytes start 60#u8
+  if b
+  then turtle.iri_ref bytes start base limit
+  else
+    let r ← turtle.prefix_colon bytes start
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      match val with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.ExpectedIri start
+        ok (core.result.Result.Err re)
+      | some colon => turtle.prefixed bytes start colon prefixes limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+
+/-- [rowl_kernel::turtle::same_constant_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 295:0-305:1 -/
+def turtle.same_constant_from
+  (value : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len value
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) value
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         turtle.same_constant_from value pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::same_constant]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 291:0-293:1 -/
+def turtle.same_constant
+  (value : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len value
+  let i1 := Slice.len pattern
+  if i = i1
+  then turtle.same_constant_from value pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::turtle::lang_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 284:0-289:1 -/
+def turtle.lang_string (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 53#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 108#u8, 97#u8, 110#u8,
+        103#u8, 83#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  turtle.same_constant spelling s
+
+/-- [rowl_kernel::turtle::datatype]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 906:0-924:1 -/
+def turtle.datatype
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.LiteralKind × Std.Usize) turtle.ReadError)
+  := do
+  let i ← position + 1#usize
+  let b ← turtle.byte_is bytes i 94#u8
+  if b
+  then
+    let i1 ← position + 2#usize
+    let r ← turtle.space bytes i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← turtle.iri bytes val base prefixes limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (datatype, next) := val1
+        let b1 ← turtle.lang_string datatype.spelling
+        if b1
+        then
+          let re ← turtle.error turtle.ErrorKind.InvalidLiteralKind position
+          ok (core.result.Result.Err re)
+        else
+          ok (core.result.Result.Ok (rdf.LiteralKind.Datatype datatype, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.LiteralKind × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidLiteralKind position
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::alnum_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 856:0-858:1 -/
+def turtle.alnum_byte (byte : Std.U8) : Result Bool := do
+  let b ← turtle.letter_byte byte
+  if b
+  then ok true
+  else turtle.digit_byte byte
+
+/-- [rowl_kernel::turtle::alnums_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 861:0-871:1 -/
+def turtle.alnums_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← turtle.alnum_byte i1
+    if b
+    then let i2 ← index + 1#usize
+         turtle.alnums_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::subtags_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 875:0-886:1 -/
+def turtle.subtags_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let b ← turtle.byte_is bytes index 45#u8
+  if b
+  then
+    let i ← index + 1#usize
+    let «end» ← turtle.alnums_end bytes i
+    if i < «end»
+    then turtle.subtags_end bytes «end»
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::letters_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 843:0-853:1 -/
+def turtle.letters_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← turtle.letter_byte i1
+    if b
+    then let i2 ← index + 1#usize
+         turtle.letters_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::language]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 890:0-903:1 -/
+def turtle.language
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let head ← turtle.letters_end bytes i
+  if i < head
+  then
+    let «end» ← turtle.subtags_end bytes head
+    let r ← turtle.copied bytes i «end» limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let b ← langtag.well_formed val
+      if b
+      then ok (core.result.Result.Ok (val, «end»))
+      else
+        let re ← turtle.error turtle.ErrorKind.InvalidLanguageTag start
+        ok (core.result.Result.Err re)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidLanguageTag start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::literal_kind]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 928:0-944:1 -/
+def turtle.literal_kind
+  (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.LiteralKind × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.space bytes «end»
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is bytes val 64#u8
+    if b
+    then
+      let r1 ← turtle.language bytes val limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (tag, next) := val1
+        ok (core.result.Result.Ok (rdf.LiteralKind.Language tag, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+    else
+      let b1 ← turtle.byte_is bytes val 94#u8
+      if b1
+      then turtle.datatype bytes val base prefixes limit
+      else
+        let s ←
+          lift (Array.to_slice
+            (Array.make 39#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              115#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+              ]))
+        let lk ← turtle.xsd s
+        ok (core.result.Result.Ok (lk, «end»))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.LiteralKind × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::bounded_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 812:0-818:1 -/
+def turtle.bounded_string
+  (value : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len value
+  if limit < i
+  then
+    let re ← turtle.error turtle.ErrorKind.ResourceLimit start
+    ok (core.result.Result.Err re)
+  else ok (core.result.Result.Ok (value, «end»))
+
+/-- [rowl_kernel::turtle::string_escape]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 193:0-198:1 -/
+def turtle.string_escape
+  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (next : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← ntriples.escape bytes slash next false
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::long_item]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 788:0-795:1 -/
+def turtle.long_item
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.needed bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, next) := val
+    if cp = 92#u32
+    then turtle.string_escape bytes position next
+    else ok (core.result.Result.Ok val)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.U32 × Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::triple_quote]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 781:0-785:1 -/
+def turtle.triple_quote
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (quote : Std.U8) :
+  Result Bool
+  := do
+  let b ← turtle.byte_is bytes position quote
+  if b
+  then
+    let i ← position + 1#usize
+    let b1 ← turtle.byte_is bytes i quote
+    if b1
+    then let i1 ← position + 2#usize
+         turtle.byte_is bytes i1 quote
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::add]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 750:0-766:1 -/
+def turtle.add
+  (output : alloc.vec.Vec Std.U8) (value : Std.U32) (limit : Std.Usize)
+  (position : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) turtle.ReadError)
+  := do
+  let o ← encoding.encode value
+  match o with
+  | none =>
+    let re ← turtle.error turtle.ErrorKind.InvalidEscape position
+    ok (core.result.Result.Err re)
+  | some encoded =>
+    let (b, output1) ← ntriples.append_encoded output encoded limit
+    if b
+    then ok (core.result.Result.Ok output1)
+    else
+      let re ← turtle.error turtle.ErrorKind.ResourceLimit position
+      ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::long_body]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 800:0-808:1 -/
+def turtle.long_body
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (quote : Std.U8)
+  (output : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let b ← turtle.triple_quote bytes position quote
+  if b
+  then let i ← position + 3#usize
+       ok (core.result.Result.Ok (output, i))
+  else
+    let r ← turtle.long_item bytes position
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (value, «end») := val
+      let r1 ← turtle.add output value core.num.Usize.MAX position
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        turtle.long_body bytes «end» quote val1
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::long_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 822:0-827:1 -/
+def turtle.long_string
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (quote : Std.U8)
+  (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let i ← start + 3#usize
+  let r ← turtle.long_body bytes i quote (alloc.vec.Vec.new Std.U8)
+  match r with
+  | core.result.Result.Ok p =>
+    let (value, «end») := p
+    turtle.bounded_string value start «end» limit
+  | core.result.Result.Err _ =>
+    let i1 ← start + 2#usize
+    ok (core.result.Result.Ok (alloc.vec.Vec.new Std.U8, i1))
+
+/-- [rowl_kernel::turtle::string_item]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 185:0-190:1 -/
+def turtle.string_item
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
+  (next : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← ntriples.quoted_item bytes position cp next false
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::single_body]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 769:0-778:1 -/
+def turtle.single_body
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (output : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← turtle.needed bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, next) := val
+    if cp = 39#u32
+    then ok (core.result.Result.Ok (output, next))
+    else
+      let r1 ← turtle.string_item bytes position cp next
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, «end») := val1
+        let r2 ← turtle.add output value limit position
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          turtle.single_body bytes «end» val2 limit
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::quoted_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 176:0-181:1 -/
+def turtle.quoted_string
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← ntriples.quoted bytes start false limit
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 830:0-840:1 -/
+def turtle.string
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let b ← turtle.triple_quote bytes start 34#u8
+  if b
+  then turtle.long_string bytes start 34#u8 limit
+  else
+    let b1 ← turtle.triple_quote bytes start 39#u8
+    if b1
+    then turtle.long_string bytes start 39#u8 limit
+    else
+      let b2 ← turtle.byte_is bytes start 34#u8
+      if b2
+      then turtle.quoted_string bytes start limit
+      else
+        let i ← start + 1#usize
+        turtle.single_body bytes i (alloc.vec.Vec.new Std.U8) limit
+
+/-- [rowl_kernel::turtle::literal]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 947:0-957:1 -/
+def turtle.literal
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.string bytes start limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (lexical, «end») := val
+    let r1 ← turtle.literal_kind bytes «end» base prefixes limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (kind, next) := val1
+      ok (core.result.Result.Ok ({ lexical, kind }, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::label_first]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 374:0-376:1 -/
+def turtle.label_first (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_u cp
+  if b
+  then ok true
+  else ntriples.ascii_digit cp
+
+/-- [rowl_kernel::turtle::blank_label]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 728:0-747:1 -/
+def turtle.blank_label
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.BlankNode × Std.Usize) turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let b ← turtle.byte_is bytes i 58#u8
+  if b
+  then
+    let i1 ← start + 2#usize
+    let r ← turtle.needed bytes i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (first, next) := val
+      let b1 ← turtle.label_first first
+      if b1
+      then
+        let r1 ← turtle.name_end bytes next next
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          let r2 ← turtle.copied bytes i1 val1 limit
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            let v ← turtle.copy_bytes scope
+            ok (core.result.Result.Ok ({ scope := v, label := val2 }, val1))
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+              turtle.ReadError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+            turtle.ReadError) residual
+      else
+        let re ← turtle.error turtle.ErrorKind.InvalidBlankLabel i1
+        ok (core.result.Result.Err re)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.BlankNode × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidBlankLabel start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::term]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1233:0-1257:1 -/
+def turtle.term
+  (cx : turtle.Context) (start : Std.Usize) (kind : turtle.Start) :
+  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
+  := do
+  match kind with
+  | turtle.Start.Iri =>
+    let r ← turtle.iri_ref cx.bytes start cx.base cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (iri, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Iri iri, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Blank =>
+    let r ←
+      turtle.blank_label cx.bytes start cx.scope cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (node, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Blank node, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Bracket =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+  | turtle.Start.Paren =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+  | turtle.Start.Quote =>
+    let r ←
+      turtle.literal cx.bytes start cx.base cx.prefixes
+        cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (literal, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Literal literal, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Number =>
+    let r ← turtle.number cx.bytes start cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (literal, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Literal literal, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Word =>
+    turtle.word_object cx.bytes start cx.prefixes cx.limits.max_term_bytes
+  | turtle.Start.Other =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::number_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1145:0-1147:1 -/
+def turtle.number_start (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.ascii_digit cp
+  if b
+  then ok true
+  else
+    if cp = 43#u32
+    then ok true
+    else if cp = 45#u32
+         then ok true
+         else ok (cp = 46#u32)
+
+/-- [rowl_kernel::turtle::quote]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1140:0-1142:1 -/
+def turtle.quote (cp : Std.U32) : Result Bool := do
+  if cp = 34#u32
+  then ok true
+  else ok (cp = 39#u32)
+
+/-- [rowl_kernel::turtle::start_of]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1166:0-1184:1 -/
+def turtle.start_of (cp : Std.U32) : Result turtle.Start := do
+  if cp = 60#u32
+  then ok turtle.Start.Iri
+  else
+    if cp = 95#u32
+    then ok turtle.Start.Blank
+    else
+      if cp = 91#u32
+      then ok turtle.Start.Bracket
+      else
+        if cp = 40#u32
+        then ok turtle.Start.Paren
+        else
+          let b ← turtle.quote cp
+          if b
+          then ok turtle.Start.Quote
+          else
+            let b1 ← turtle.number_start cp
+            if b1
+            then ok turtle.Start.Number
+            else
+              let b2 ← turtle.word_start cp
+              if b2
+              then ok turtle.Start.Word
+              else ok turtle.Start.Other
+
+/-- [rowl_kernel::turtle::emit]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 342:0-354:1 -/
+def turtle.emit
+  (triples : alloc.vec.Vec rdf.Triple) (triple : rdf.Triple)
+  (limits : turtle.Limits) (position : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec rdf.Triple) turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if i < limits.max_triples
+  then
+    let triples1 ← alloc.vec.Vec.push triples triple
+    ok (core.result.Result.Ok triples1)
+  else
+    let re ← turtle.error turtle.ErrorKind.ResourceLimit position
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::digits]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 308:0-316:1 -/
+def turtle.digits
+  (number : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let out1 ←
+    if number < 10#usize
+    then ok out
+    else do
+         let i ← number / 10#usize
+         turtle.digits i out
+  let i ← number % 10#usize
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← 48#u8 + i1
+  alloc.vec.Vec.push out1 i2
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::marked]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 319:0-323:1 -/
+def turtle.marked
+  (marker : Std.U8) (number : Std.Usize) : Result (alloc.vec.Vec Std.U8) := do
+  let label ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) marker
+  turtle.digits number label
+
+/-- [rowl_kernel::turtle::list_node]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 334:0-339:1 -/
+def turtle.list_node
+  (scope : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result rdf.BlankNode
+  := do
+  let v ← turtle.copy_bytes scope
+  let v1 ← turtle.marked 254#u8 start
+  ok { scope := v, label := v1 }
+
+/-- [rowl_kernel::turtle::bracket_node]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 326:0-331:1 -/
+def turtle.bracket_node
+  (scope : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result rdf.BlankNode
+  := do
+  let v ← turtle.copy_bytes scope
+  let v1 ← turtle.marked 255#u8 start
+  ok { scope := v, label := v1 }
+
+/-- [rowl_kernel::turtle::rdf_nil]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 275:0-277:1 -/
+def turtle.rdf_nil : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 46#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 110#u8, 105#u8, 108#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::rdf_rest]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 271:0-273:1 -/
+def turtle.rdf_rest : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 114#u8, 101#u8, 115#u8,
+        116#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::rdf_first]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 267:0-269:1 -/
+def turtle.rdf_first : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 48#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
+        115#u8, 116#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::object_of]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 250:0-255:1 -/
+def turtle.object_of (subject : rdf.Subject) : Result rdf.Object := do
+  match subject with
+  | rdf.Subject.Iri iri => ok (rdf.Object.Iri iri)
+  | rdf.Subject.Blank node => ok (rdf.Object.Blank node)
+
+/-- [rowl_kernel::turtle::copy_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 233:0-237:1 -/
+def turtle.copy_iri (iri : rdf.RdfIri) : Result rdf.RdfIri := do
+  let v ← turtle.copy_bytes iri.spelling
+  ok { spelling := v }
+
+/-- [rowl_kernel::turtle::copy_subject]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 239:0-247:1 -/
+def turtle.copy_subject (subject : rdf.Subject) : Result rdf.Subject := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    let ri ← turtle.copy_iri iri
+    ok (rdf.Subject.Iri ri)
+  | rdf.Subject.Blank node =>
+    let v ← turtle.copy_bytes node.scope
+    let v1 ← turtle.copy_bytes node.label
+    ok (rdf.Subject.Blank { scope := v, label := v1 })
+
+mutual
+
+/-- [rowl_kernel::turtle::node]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1261:0-1277:1 -/
+def turtle.node
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.Object × Std.Usize × (alloc.vec.Vec
+    rdf.Triple)) turtle.ReadError)
+  := do
+  let r ← turtle.needed cx.bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, _) := val
+    let s ← turtle.start_of cp
+    match s with
+    | turtle.Start.Iri =>
+      let r1 ← turtle.term cx start turtle.Start.Iri
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Blank =>
+      let r1 ← turtle.term cx start turtle.Start.Blank
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Bracket =>
+      let r1 ← turtle.bracket cx start out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (node, next, out1, _) := val1
+        ok (core.result.Result.Ok (rdf.Object.Blank node, next, out1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Paren =>
+      let r1 ← turtle.collection cx start out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (head, next, out1) := val1
+        let o ← turtle.object_of head
+        ok (core.result.Result.Ok (o, next, out1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Quote =>
+      let r1 ← turtle.term cx start turtle.Start.Quote
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Number =>
+      let r1 ← turtle.term cx start turtle.Start.Number
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Word =>
+      let r1 ← turtle.term cx start turtle.Start.Word
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Other =>
+      let r1 ← turtle.term cx start turtle.Start.Other
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+      (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::bracket]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1281:0-1299:1 -/
+def turtle.bracket
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.BlankNode × Std.Usize × (alloc.vec.Vec
+    rdf.Triple) × Bool) turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let r ← turtle.space cx.bytes i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 93#u8
+    if b
+    then
+      let bn ← turtle.bracket_node cx.scope start
+      let i1 ← val + 1#usize
+      ok (core.result.Result.Ok (bn, i1, out, false))
+    else
+      let bn ← turtle.bracket_node cx.scope start
+      let r1 ← turtle.predicate_object_list cx val (rdf.Subject.Blank bn) out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out1) := val1
+        let r2 ← turtle.space cx.bytes after
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let b1 ← turtle.byte_is cx.bytes val2 93#u8
+          if b1
+          then
+            let i1 ← val2 + 1#usize
+            ok (core.result.Result.Ok (bn, i1, out1, true))
+          else
+            let re ← turtle.error turtle.ErrorKind.ExpectedBracket val2
+            ok (core.result.Result.Err re)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
+            (core.convert.FromSame turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
+          (core.convert.FromSame turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
+      (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::collection]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1303:0-1312:1 -/
+def turtle.collection
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.Subject × Std.Usize × (alloc.vec.Vec
+    rdf.Triple)) turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let r ← turtle.space cx.bytes i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 41#u8
+    if b
+    then
+      let ri ← turtle.rdf_nil
+      let i1 ← val + 1#usize
+      ok (core.result.Result.Ok (rdf.Subject.Iri ri, i1, out))
+    else
+      let r1 ← turtle.member cx val out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out1) := val1
+        let r2 ← turtle.members cx after val out1
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let («end», out2) := val2
+          let bn ← turtle.list_node cx.scope val
+          ok (core.result.Result.Ok (rdf.Subject.Blank bn, «end», out2))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+            (core.convert.FromSame turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+      (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::member]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1316:0-1320:1 -/
+def turtle.member
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let bn ← turtle.list_node cx.scope start
+  let predicate ← turtle.rdf_first
+  turtle.object cx start (rdf.Subject.Blank bn) predicate out
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::members]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1324:0-1345:1 -/
+def turtle.members
+  (cx : turtle.Context) (position : Std.Usize) (last : Std.Usize)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let bn ← turtle.list_node cx.scope last
+    let b ← turtle.byte_is cx.bytes val 41#u8
+    if b
+    then
+      let ri ← turtle.rdf_rest
+      let ri1 ← turtle.rdf_nil
+      let r1 ←
+        turtle.emit out
+          {
+            subject := (rdf.Subject.Blank bn),
+            predicate := ri,
+            object := (rdf.Object.Iri ri1)
+          } cx.limits val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let i ← val + 1#usize
+        ok (core.result.Result.Ok (i, val1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    else
+      let ri ← turtle.rdf_rest
+      let bn1 ← turtle.list_node cx.scope val
+      let r1 ←
+        turtle.emit out
+          {
+            subject := (rdf.Subject.Blank bn),
+            predicate := ri,
+            object := (rdf.Object.Blank bn1)
+          } cx.limits val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r2 ← turtle.member cx val val1
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let (after, out1) := val2
+          turtle.members cx after val out1
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::object]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1348:0-1364:1 -/
+def turtle.object
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.node cx val out
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (value, next, out1) := val1
+      let s ← turtle.copy_subject subject
+      let ri ← turtle.copy_iri predicate
+      let r2 ←
+        turtle.emit out1 { subject := s, predicate := ri, object := value }
+          cx.limits val
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        ok (core.result.Result.Ok (next, val2))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::object_list]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1367:0-1376:1 -/
+def turtle.object_list
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.object cx position subject predicate out
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (next, out1) := val
+    turtle.more_objects cx next subject predicate out1
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::more_objects]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1378:0-1392:1 -/
+def turtle.more_objects
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 44#u8
+    if b
+    then
+      let i ← val + 1#usize
+      let r1 ← turtle.object cx i subject predicate out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out1) := val1
+        turtle.more_objects cx after subject predicate out1
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    else ok (core.result.Result.Ok (val, out))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::predicate_object_list]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1432:0-1441:1 -/
+def turtle.predicate_object_list
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.verb cx position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (predicate, next) := val
+    let r1 ← turtle.object_list cx next subject predicate out
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (after, out1) := val1
+      turtle.more_predicates cx after subject out1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::more_predicates]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1443:0-1457:1 -/
+def turtle.more_predicates
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 59#u8
+    if b
+    then
+      let i ← val + 1#usize
+      let r1 ← turtle.space cx.bytes i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let b1 ← turtle.verb_follows cx.bytes val1
+        if b1
+        then
+          let r2 ← turtle.verb cx val1
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            let (predicate, objects) := val2
+            let r3 ← turtle.object_list cx objects subject predicate out
+            let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+            match cf3 with
+            | core.ops.control_flow.ControlFlow.Continue val3 =>
+              let («end», out1) := val3
+              turtle.more_predicates cx «end» subject out1
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                (Std.Usize × (alloc.vec.Vec rdf.Triple))
+                (core.convert.FromSame turtle.ReadError) residual
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+              turtle.ReadError) residual
+        else turtle.more_predicates cx val1 subject out
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    else ok (core.result.Result.Ok (val, out))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::turtle::optional_list]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1486:0-1493:1 -/
+def turtle.optional_list
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 46#u8
+    if b
+    then ok (core.result.Result.Ok (val, out))
+    else turtle.predicate_object_list cx val subject out
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::subject]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1460:0-1482:1 -/
+def turtle.subject
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.Subject × Std.Usize × (alloc.vec.Vec
+    rdf.Triple)) turtle.ReadError)
+  := do
+  let r ← turtle.needed cx.bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, _) := val
+    let s ← turtle.start_of cp
+    match s with
+    | turtle.Start.Iri =>
+      let r1 ← turtle.iri_ref cx.bytes start cx.base cx.limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (iri, next) := val1
+        ok (core.result.Result.Ok (rdf.Subject.Iri iri, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Blank =>
+      let r1 ←
+        turtle.blank_label cx.bytes start cx.scope cx.limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (node, next) := val1
+        ok (core.result.Result.Ok (rdf.Subject.Blank node, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Bracket =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+    | turtle.Start.Paren => turtle.collection cx start out
+    | turtle.Start.Quote =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+    | turtle.Start.Number =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+    | turtle.Start.Word =>
+      let r1 ← turtle.prefix_colon cx.bytes start
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        match val1 with
+        | none =>
+          let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+          ok (core.result.Result.Err re)
+        | some colon =>
+          let r2 ←
+            turtle.prefixed cx.bytes start colon cx.prefixes
+              cx.limits.max_term_bytes
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            let (iri, next) := val2
+            ok (core.result.Result.Ok (rdf.Subject.Iri iri, next, out))
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+              (core.convert.FromSame turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Other =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+      (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::triples]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1496:0-1509:1 -/
+def turtle.triples
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let b ← turtle.byte_is cx.bytes start 91#u8
+  if b
+  then
+    let r ← turtle.bracket cx start out
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (node, next, out1, listed) := val
+      if listed
+      then turtle.optional_list cx next (rdf.Subject.Blank node) out1
+      else turtle.predicate_object_list cx next (rdf.Subject.Blank node) out1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+  else
+    let r ← turtle.subject cx start out
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (subject, next, out1) := val
+      turtle.predicate_object_list cx next subject out1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::statement]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1610:0-1692:1 -/
+def turtle.statement
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (limits : turtle.Limits) (start : Std.Usize) (state : turtle.State) :
+  Result (core.result.Result (Std.Usize × turtle.State) turtle.ReadError)
+  := do
+  let r ← turtle.statement_start bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | turtle.Statement.AtPrefix after =>
+      let r1 ←
+        turtle.prefix_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let («prefix», next) := val1
+        let r2 ← turtle.period bytes next
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let prefixes ← turtle.declare state.prefixes «prefix»
+          ok (core.result.Result.Ok (val2, { state with prefixes }))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × turtle.State) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.AtBase after =>
+      let r1 ←
+        turtle.base_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (base, next) := val1
+        let r2 ← turtle.period bytes next
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          ok (core.result.Result.Ok (val2, { state with base }))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × turtle.State) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.Prefix after =>
+      let r1 ←
+        turtle.prefix_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let («prefix», «end») := val1
+        let prefixes ← turtle.declare state.prefixes «prefix»
+        ok (core.result.Result.Ok («end», { state with prefixes }))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.Base after =>
+      let r1 ←
+        turtle.base_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (base, «end») := val1
+        ok (core.result.Result.Ok («end», { state with base }))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.Triples =>
+      let r1 ←
+        turtle.triples
+          {
+            bytes,
+            scope,
+            base := state.base,
+            prefixes := state.prefixes,
+            limits
+          } start state.triples
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out) := val1
+        let r2 ← turtle.period bytes after
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          ok (core.result.Result.Ok (val2, { state with triples := out }))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × turtle.State) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::statements]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1695:0-1709:1 -/
+def turtle.statements
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (limits : turtle.Limits) (position : Std.Usize) (state : turtle.State) :
+  Result (core.result.Result (alloc.vec.Vec rdf.Triple) turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let i := alloc.vec.Vec.len bytes
+    if val < i
+    then
+      let r1 ← turtle.statement bytes scope limits val state
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let («end», state1) := val1
+        turtle.statements bytes scope limits «end» state1
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec rdf.Triple) (core.convert.FromSame turtle.ReadError)
+          residual
+    else ok (core.result.Result.Ok state.triples)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec rdf.Triple) (core.convert.FromSame turtle.ReadError)
+      residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::ReadResult]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 83:0-86:1
+    Visibility: public -/
+@[discriminant isize]
+inductive turtle.ReadResult where
+| Graph : rdf.RawGraph → turtle.ReadResult
+| Error : turtle.ReadError → turtle.ReadResult
+
+/-- [rowl_kernel::turtle::read_with_limits]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1715:0-1730:1
+    Visibility: public -/
+def turtle.read_with_limits
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (base : alloc.vec.Vec Std.U8) (limits : turtle.Limits) :
+  Result turtle.ReadResult
+  := do
+  let v ← turtle.copy_bytes base
+  let r ←
+    turtle.statements bytes scope limits 0#usize
+      {
+        base := v,
+        prefixes := (alloc.vec.Vec.new turtle.Prefix),
+        triples := (alloc.vec.Vec.new rdf.Triple)
+      }
+  match r with
+  | core.result.Result.Ok triples => ok (turtle.ReadResult.Graph { triples })
+  | core.result.Result.Err e => ok (turtle.ReadResult.Error e)
+
+/-- [rowl_kernel::turtle::read]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1733:0-1743:1
+    Visibility: public -/
+def turtle.read
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (base : alloc.vec.Vec Std.U8) :
+  Result turtle.ReadResult
+  := do
+  turtle.read_with_limits bytes scope base
+    { max_term_bytes := core.num.Usize.MAX, max_triples := core.num.Usize.MAX }
+
+/-- [rowl_kernel::import_catalog::read_turtle]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 124:0-133:1 -/
+def import_catalog.read_turtle
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (base : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result model.RawOntology import_catalog.SourceError)
+  := do
+  let rr ← turtle.read bytes scope base
+  match rr with
+  | turtle.ReadResult.Graph graph => import_catalog.graph_ontology graph
+  | turtle.ReadResult.Error error =>
+    ok (core.result.Result.Err (import_catalog.SourceError.Turtle error))
+
+/-- [rowl_kernel::import_catalog::read_source]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 137:0-147:1
+    Visibility: public -/
+def import_catalog.read_source
+  (source : import_catalog.Source)
+  (limits : functional_document.DocumentLimits) (scope : alloc.vec.Vec Std.U8)
+  :
+  Result (core.result.Result model.RawOntology import_catalog.SourceError)
+  := do
+  match source.format with
+  | import_catalog.Format.Functional =>
+    import_catalog.read_functional source.bytes limits scope
+  | import_catalog.Format.NTriples =>
+    import_catalog.read_ntriples source.bytes scope
+  | import_catalog.Format.Turtle base =>
+    import_catalog.read_turtle source.bytes scope base
+
+/-- [rowl_kernel::import_catalog::read_at]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 150:0-156:1 -/
+def import_catalog.read_at
+  (sources : alloc.vec.Vec import_catalog.Source)
+  (limits : functional_document.DocumentLimits) (index : Std.Usize) :
+  Result (core.result.Result model.RawOntology import_catalog.SourceError)
+  := do
+  let s ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+      import_catalog.Source) sources index
+  let v ← import_catalog.document_scope index
+  import_catalog.read_source s limits v
+
+/-- [rowl_kernel::import_catalog::read_from]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 159:0-179:1 -/
+def import_catalog.read_from
+  (sources : alloc.vec.Vec import_catalog.Source)
+  (limits : functional_document.DocumentLimits) (index : Std.Usize)
+  (out : alloc.vec.Vec model.RawOntology) :
+  Result (core.result.Result (alloc.vec.Vec model.RawOntology)
+    import_catalog.Unread)
+  := do
+  let i := alloc.vec.Vec.len sources
+  if index < i
+  then
+    let r ← import_catalog.read_at sources limits index
+    match r with
+    | core.result.Result.Ok ontology =>
+      let out1 ← alloc.vec.Vec.push out ontology
+      let i1 ← index + 1#usize
+      import_catalog.read_from sources limits i1 out1
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err { document := index, error })
+  else ok (core.result.Result.Ok out)
+partial_fixpoint
+
+/-- [rowl_kernel::import_catalog::read_sources]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 183:0-188:1
+    Visibility: public -/
+def import_catalog.read_sources
+  (sources : alloc.vec.Vec import_catalog.Source)
+  (limits : functional_document.DocumentLimits) :
+  Result (core.result.Result (alloc.vec.Vec model.RawOntology)
+    import_catalog.Unread)
+  := do
+  import_catalog.read_from sources limits 0#usize (alloc.vec.Vec.new
+    model.RawOntology)
+
+/-- [rowl_kernel::import_catalog::names]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 192:0-206:1
+    Visibility: public -/
+def import_catalog.names
+  (identity : model.OntologyIdentity) (iri : model.Iri) : Result Bool := do
+  match identity with
+  | model.OntologyIdentity.Anonymous => ok false
+  | model.OntologyIdentity.Named ontology version =>
+    let b ← dl_validity.same_bytes ontology.spelling iri.spelling
+    if b
+    then ok true
+    else
+      match version with
+      | none => ok false
+      | some version1 => dl_validity.same_bytes version1.spelling iri.spelling
+
 /-- [rowl_kernel::imports::DocumentIds]
     Source: 'crates/rowl-kernel/src/imports.rs', lines 8:0-11:1
     Visibility: public -/
@@ -48613,6 +59920,88 @@ def functional_ranges.RangeForm.Insts.CoreMarkerCopy : core.marker.Copy
 inductive imports.DocumentIds where
 | Empty : imports.DocumentIds
 | Cons : Std.U32 → imports.DocumentIds → imports.DocumentIds
+
+/-- [rowl_kernel::import_catalog::targets_from]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 210:0-221:1 -/
+def import_catalog.targets_from
+  (ontologies : alloc.vec.Vec model.RawOntology) (iri : model.Iri)
+  (index : Std.Usize) :
+  Result imports.DocumentIds
+  := do
+  let i := alloc.vec.Vec.len ontologies
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let rest ← import_catalog.targets_from ontologies iri i1
+    let ro ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.RawOntology) ontologies index
+    let b ← import_catalog.names ro.identity iri
+    if b
+    then
+      let i2 ← lift (UScalar.cast .U32 index)
+      ok (imports.DocumentIds.Cons i2 rest)
+    else ok rest
+  else ok imports.DocumentIds.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::import_catalog::targets]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 224:0-226:1
+    Visibility: public -/
+def import_catalog.targets
+  (ontologies : alloc.vec.Vec model.RawOntology) (iri : model.Iri) :
+  Result imports.DocumentIds
+  := do
+  import_catalog.targets_from ontologies iri 0#usize
+
+/-- [rowl_kernel::import_catalog::lookup]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 229:0-237:1
+    Visibility: public -/
+def import_catalog.lookup
+  (ontologies : alloc.vec.Vec model.RawOntology) (iri : model.Iri) :
+  Result import_catalog.Lookup
+  := do
+  let di ← import_catalog.targets_from ontologies iri 0#usize
+  match di with
+  | imports.DocumentIds.Empty => ok import_catalog.Lookup.Missing
+  | imports.DocumentIds.Cons first rest =>
+    match rest with
+    | imports.DocumentIds.Empty => ok (import_catalog.Lookup.Unique first)
+    | imports.DocumentIds.Cons second _ =>
+      ok (import_catalog.Lookup.Ambiguous first second)
+
+/-- [rowl_kernel::import_catalog::append]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 239:0-244:1 -/
+def import_catalog.append
+  (left : imports.DocumentIds) (right : imports.DocumentIds) :
+  Result imports.DocumentIds
+  := do
+  match left with
+  | imports.DocumentIds.Empty => ok right
+  | imports.DocumentIds.Cons key tail =>
+    let di ← import_catalog.append tail right
+    ok (imports.DocumentIds.Cons key di)
+partial_fixpoint
+
+/-- [rowl_kernel::import_catalog::dependencies_from]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 247:0-256:1 -/
+def import_catalog.dependencies_from
+  (ontologies : alloc.vec.Vec model.RawOntology)
+  (iris : alloc.vec.Vec model.Iri) (index : Std.Usize) :
+  Result imports.DocumentIds
+  := do
+  let i := alloc.vec.Vec.len iris
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Iri)
+        iris index
+    let di ← import_catalog.targets_from ontologies i1 0#usize
+    let i2 ← index + 1#usize
+    let di1 ← import_catalog.dependencies_from ontologies iris i2
+    import_catalog.append di di1
+  else ok imports.DocumentIds.Empty
+partial_fixpoint
 
 /-- [rowl_kernel::imports::DocumentCatalog]
     Source: 'crates/rowl-kernel/src/imports.rs', lines 13:0-21:1
@@ -48626,6 +60015,40 @@ inductive imports.DocumentCatalog where
   imports.DocumentIds →
   imports.DocumentCatalog →
   imports.DocumentCatalog
+
+/-- [rowl_kernel::import_catalog::catalog_from]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 260:0-271:1 -/
+def import_catalog.catalog_from
+  (ontologies : alloc.vec.Vec model.RawOntology) (index : Std.Usize) :
+  Result imports.DocumentCatalog
+  := do
+  let i := alloc.vec.Vec.len ontologies
+  if index < i
+  then
+    let i1 ← lift (UScalar.cast .U32 index)
+    let ro ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.RawOntology) ontologies index
+    let di ← import_catalog.dependencies_from ontologies ro.imports 0#usize
+    let i2 ← index + 1#usize
+    let dc ← import_catalog.catalog_from ontologies i2
+    ok (imports.DocumentCatalog.Document i1 (alloc.vec.Vec.new Std.U8) di dc)
+  else ok imports.DocumentCatalog.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::import_catalog::catalog]:
+    Source: 'crates/rowl-kernel/src/import_catalog.rs', lines 275:0-281:1
+    Visibility: public -/
+def import_catalog.catalog
+  (ontologies : alloc.vec.Vec model.RawOntology) :
+  Result (Option imports.DocumentCatalog)
+  := do
+  let i := alloc.vec.Vec.len ontologies
+  let i1 ← lift (UScalar.cast .Usize core.num.U32.MAX)
+  if i <= i1
+  then let dc ← import_catalog.catalog_from ontologies 0#usize
+       ok (some dc)
+  else ok none
 
 /-- [rowl_kernel::imports::Taken]
     Source: 'crates/rowl-kernel/src/imports.rs', lines 23:0-30:1 -/
@@ -49192,58 +60615,6 @@ def indexing.check_ontology_typing
   | indexing.IndexResult.CapacityExceeded st iri =>
     ok (indexing.IndexedTyping.CapacityExceeded st iri)
 
-/-- [rowl_kernel::iri::segment_nz_nc]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 156:0-161:1 -/
-def iri.segment_nz_nc : Result regular.Expression := do
-  let e ← iri.iunreserved
-  let e1 ← iri.pct_encoded
-  let e2 ← iri.sub_delims
-  let e3 ← iri.chr 64#u32
-  let e4 ← iri.alt e2 e3
-  let e5 ← iri.alt e1 e4
-  let e6 ← iri.alt e e5
-  iri.plus e6
-
-/-- [rowl_kernel::iri::path_noscheme]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 171:0-173:1 -/
-def iri.path_noscheme : Result regular.Expression := do
-  let e ← iri.segment_nz_nc
-  let e1 ← iri.path_tail
-  iri.cat e e1
-
-/-- [rowl_kernel::iri::relative_part]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 303:0-308:1 -/
-def iri.relative_part : Result regular.Expression := do
-  let e ← iri.authority_path
-  let e1 ← iri.path_absolute
-  let e2 ← iri.path_noscheme
-  let e3 ← iri.alt e2 regular.Expression.Epsilon
-  let e4 ← iri.alt e1 e3
-  iri.alt e e4
-
-/-- [rowl_kernel::iri::relative_ref]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 318:0-320:1 -/
-def iri.relative_ref : Result regular.Expression := do
-  let e ← iri.relative_part
-  let e1 ← iri.suffix
-  iri.cat e e1
-
-/-- [rowl_kernel::iri::iri_reference]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 322:0-324:1
-    Visibility: public -/
-def iri.iri_reference : Result regular.Expression := do
-  let e ← iri.iri
-  let e1 ← iri.relative_ref
-  iri.alt e e1
-
-/-- [rowl_kernel::iri::validate_reference]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 451:0-453:1
-    Visibility: public -/
-def iri.validate_reference
-  (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
-  let e ← iri.iri_reference
-  iri.validate e bytes
-
 /-- [rowl_kernel::model::invert]:
     Source: 'crates/rowl-kernel/src/model.rs', lines 84:0-89:1
     Visibility: public -/
@@ -49277,1332 +60648,6 @@ def names.validate_node
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
   let e ← names.node_grammar
   regular.matches_utf8 e bytes
-
-/-- [rowl_kernel::rdf::RdfIri]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 10:0-12:1
-    Visibility: public -/
-structure rdf.RdfIri where
-  spelling : alloc.vec.Vec Std.U8
-
-/-- [rowl_kernel::rdf::LiteralKind]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 21:0-25:1
-    Visibility: public -/
-@[discriminant isize]
-inductive rdf.LiteralKind where
-| Datatype : rdf.RdfIri → rdf.LiteralKind
-| Language : alloc.vec.Vec Std.U8 → rdf.LiteralKind
-
-/-- [rowl_kernel::rdf::RdfLiteral]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 27:0-30:1
-    Visibility: public -/
-structure rdf.RdfLiteral where
-  lexical : alloc.vec.Vec Std.U8
-  kind : rdf.LiteralKind
-
-/-- [rowl_kernel::rdf::BlankNode]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 16:0-19:1
-    Visibility: public -/
-structure rdf.BlankNode where
-  scope : alloc.vec.Vec Std.U8
-  label : alloc.vec.Vec Std.U8
-
-/-- [rowl_kernel::rdf::Object]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 37:0-41:1
-    Visibility: public -/
-@[discriminant isize]
-inductive rdf.Object where
-| Iri : rdf.RdfIri → rdf.Object
-| Blank : rdf.BlankNode → rdf.Object
-| Literal : rdf.RdfLiteral → rdf.Object
-
-/-- [rowl_kernel::rdf::Subject]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 32:0-35:1
-    Visibility: public -/
-@[discriminant isize]
-inductive rdf.Subject where
-| Iri : rdf.RdfIri → rdf.Subject
-| Blank : rdf.BlankNode → rdf.Subject
-
-/-- [rowl_kernel::rdf::Triple]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 43:0-47:1
-    Visibility: public -/
-structure rdf.Triple where
-  subject : rdf.Subject
-  predicate : rdf.RdfIri
-  object : rdf.Object
-
-/-- [rowl_kernel::rdf::RawGraph]
-    Source: 'crates/rowl-kernel/src/rdf.rs', lines 49:0-51:1
-    Visibility: public -/
-structure rdf.RawGraph where
-  triples : alloc.vec.Vec rdf.Triple
-
-/-- [rowl_kernel::ntriples::ReadResult]
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 36:0-39:1
-    Visibility: public -/
-@[discriminant isize]
-inductive ntriples.ReadResult where
-| Graph : rdf.RawGraph → ntriples.ReadResult
-| Error : ntriples.ReadError → ntriples.ReadResult
-
-/-- [rowl_kernel::ntriples::Limits]
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 40:0-43:1
-    Visibility: public -/
-structure ntriples.Limits where
-  max_term_bytes : Std.Usize
-  max_triples : Std.Usize
-
-/-- [rowl_kernel::ntriples::copy]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 101:4-104:5 -/
-@[rust_loop]
-def ntriples.copy_loop
-  (values : Slice Std.U8) (output : alloc.vec.Vec Std.U8) (i : Std.Usize) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i1 := Slice.len values
-  if i < i1
-  then
-    let i2 ← Slice.index_usize values i
-    let output1 ← alloc.vec.Vec.push output i2
-    let i3 ← i + 1#usize
-    ntriples.copy_loop values output1 i3
-  else ok output
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::copy]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 98:0-106:1 -/
-@[reducible]
-def ntriples.copy (values : Slice Std.U8) : Result (alloc.vec.Vec Std.U8) := do
-  ntriples.copy_loop values (alloc.vec.Vec.new Std.U8) 0#usize
-
-/-- [rowl_kernel::ntriples::copy_vec]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 110:4-113:5 -/
-@[rust_loop]
-def ntriples.copy_vec_loop
-  (values : alloc.vec.Vec Std.U8) (output : alloc.vec.Vec Std.U8)
-  (i : Std.Usize) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i1 := alloc.vec.Vec.len values
-  if i < i1
-  then
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) values
-        i
-    let output1 ← alloc.vec.Vec.push output i2
-    let i3 ← i + 1#usize
-    ntriples.copy_vec_loop values output1 i3
-  else ok output
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::copy_vec]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 107:0-115:1 -/
-@[reducible]
-def ntriples.copy_vec
-  (values : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
-  ntriples.copy_vec_loop values (alloc.vec.Vec.new Std.U8) 0#usize
-
-/-- [rowl_kernel::ntriples::horizontal]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 116:0-118:1 -/
-def ntriples.horizontal (cp : Std.U32) : Result Bool := do
-  if cp = 9#u32
-  then ok true
-  else ok (cp = 32#u32)
-
-/-- [rowl_kernel::ntriples::eol]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 119:0-121:1 -/
-def ntriples.eol (cp : Std.U32) : Result Bool := do
-  if cp = 10#u32
-  then ok true
-  else ok (cp = 13#u32)
-
-/-- [rowl_kernel::ntriples::skip_comment]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 122:0-127:1 -/
-def ntriples.skip_comment
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result Std.Usize ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok position)
-    | some p =>
-      let (cp, next) := p
-      let b ← ntriples.eol cp
-      if b
-      then ok (core.result.Result.Ok position)
-      else ntriples.skip_comment bytes next
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::skip]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 128:0-146:1 -/
-def ntriples.skip
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (lines : Bool) :
-  Result (core.result.Result Std.Usize ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok position)
-    | some p =>
-      let (cp, next) := p
-      let b ← ntriples.horizontal cp
-      if b
-      then ntriples.skip bytes next lines
-      else
-        if lines
-        then
-          let b1 ← ntriples.eol cp
-          if b1
-          then ntriples.skip bytes next true
-          else
-            if cp = 35#u32
-            then
-              let r1 ← ntriples.skip_comment bytes next
-              let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-              match cf1 with
-              | core.ops.control_flow.ControlFlow.Continue val1 =>
-                ntriples.skip bytes val1 true
-              | core.ops.control_flow.ControlFlow.Break residual =>
-                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                  Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-            else ok (core.result.Result.Ok position)
-        else
-          if cp = 35#u32
-          then
-            let r1 ← ntriples.skip_comment bytes next
-            let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-            match cf1 with
-            | core.ops.control_flow.ControlFlow.Continue val1 =>
-              ok (core.result.Result.Ok val1)
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-          else ok (core.result.Result.Ok position)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::hex]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 147:0-157:1 -/
-def ntriples.hex (cp : Std.U32) : Result (Option Std.U32) := do
-  if cp >= 48#u32
-  then
-    if cp <= 57#u32
-    then let i ← cp - 48#u32
-         ok (some i)
-    else
-      if cp >= 65#u32
-      then
-        if cp <= 70#u32
-        then let i ← cp - 55#u32
-             ok (some i)
-        else
-          if cp >= 97#u32
-          then
-            if cp <= 102#u32
-            then let i ← cp - 87#u32
-                 ok (some i)
-            else ok none
-          else ok none
-      else
-        if cp >= 97#u32
-        then
-          if cp <= 102#u32
-          then let i ← cp - 87#u32
-               ok (some i)
-          else ok none
-        else ok none
-  else
-    if cp >= 65#u32
-    then
-      if cp <= 70#u32
-      then let i ← cp - 55#u32
-           ok (some i)
-      else
-        if cp >= 97#u32
-        then
-          if cp <= 102#u32
-          then let i ← cp - 87#u32
-               ok (some i)
-          else ok none
-        else ok none
-    else
-      if cp >= 97#u32
-      then if cp <= 102#u32
-           then let i ← cp - 87#u32
-                ok (some i)
-           else ok none
-      else ok none
-
-/-- [rowl_kernel::ntriples::unicode_escape]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 163:4-177:1 -/
-@[rust_loop]
-def ntriples.unicode_escape_loop
-  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (next : Std.Usize)
-  (count : Std.Usize) (value : Std.U64) (i : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
-  := do
-  if i < count
-  then
-    let r ← ntriples.required bytes next
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (cp, «end») := val
-      let o ← ntriples.hex cp
-      match o with
-      | none =>
-        let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
-        ok (core.result.Result.Err re)
-      | some d =>
-        let i1 ← value * 16#u64
-        let i2 ← lift (core.convert.num.FromU64U32.from d)
-        let value1 ← i1 + i2
-        let i3 ← i + 1#usize
-        ntriples.unicode_escape_loop bytes slash «end» count value1 i3
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-        residual
-  else
-    if value > 1114111#u64
-    then
-      let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
-      ok (core.result.Result.Err re)
-    else
-      if value >= 55296#u64
-      then
-        if value <= 57343#u64
-        then
-          let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
-          ok (core.result.Result.Err re)
-        else
-          let i1 ← lift (UScalar.cast .U32 value)
-          ok (core.result.Result.Ok (i1, next))
-      else
-        let i1 ← lift (UScalar.cast .U32 value)
-        ok (core.result.Result.Ok (i1, next))
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::unicode_escape]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 160:0-177:1 -/
-@[reducible]
-def ntriples.unicode_escape
-  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (next : Std.Usize)
-  (count : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
-  := do
-  ntriples.unicode_escape_loop bytes slash next count 0#u64 0#usize
-
-/-- [rowl_kernel::ntriples::escape]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 178:0-201:1 -/
-def ntriples.escape
-  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (after_slash : Std.Usize)
-  (iri : Bool) :
-  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.required bytes after_slash
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (marker, next) := val
-    if marker = 117#u32
-    then ntriples.unicode_escape bytes slash next 4#usize
-    else
-      if marker = 85#u32
-      then ntriples.unicode_escape bytes slash next 8#usize
-      else
-        if iri
-        then
-          let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
-          ok (core.result.Result.Err re)
-        else
-          match marker with
-          | 116#uscalar => ok (core.result.Result.Ok (9#u32, next))
-          | 98#uscalar => ok (core.result.Result.Ok (8#u32, next))
-          | 110#uscalar => ok (core.result.Result.Ok (10#u32, next))
-          | 114#uscalar => ok (core.result.Result.Ok (13#u32, next))
-          | 102#uscalar => ok (core.result.Result.Ok (12#u32, next))
-          | 34#uscalar => ok (core.result.Result.Ok val)
-          | 39#uscalar => ok (core.result.Result.Ok val)
-          | 92#uscalar => ok (core.result.Result.Ok val)
-          | _ =>
-            let re ← ntriples.error ntriples.ErrorKind.InvalidEscape slash
-            ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::iri_character]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 202:0-213:1 -/
-def ntriples.iri_character (cp : Std.U32) : Result Bool := do
-  if cp > 32#u32
-  then
-    if cp != 60#u32
-    then
-      if cp != 62#u32
-      then
-        if cp != 34#u32
-        then
-          if cp != 123#u32
-          then
-            if cp != 125#u32
-            then
-              if cp != 124#u32
-              then
-                if cp != 94#u32
-                then if cp != 96#u32
-                     then ok (cp != 92#u32)
-                     else ok false
-                else ok false
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::ntriples::quoted_item]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 216:0-231:1 -/
-def ntriples.quoted_item
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
-  (next : Std.Usize) (iri : Bool) :
-  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
-  := do
-  if cp = 92#u32
-  then ntriples.escape bytes position next iri
-  else
-    if iri
-    then
-      let b ← ntriples.iri_character cp
-      if b
-      then ok (core.result.Result.Ok (cp, next))
-      else
-        let re ← ntriples.error ntriples.ErrorKind.InvalidCharacter position
-        ok (core.result.Result.Err re)
-    else
-      let b ← ntriples.eol cp
-      if b
-      then
-        let re ← ntriples.error ntriples.ErrorKind.InvalidCharacter position
-        ok (core.result.Result.Err re)
-      else ok (core.result.Result.Ok (cp, next))
-
-/-- [rowl_kernel::ntriples::quoted]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 246:4-260:5 -/
-@[rust_loop]
-def ntriples.quoted_loop
-  (bytes : alloc.vec.Vec Std.U8) (iri : Bool) (limit : Std.Usize)
-  (closing : Std.U32) (position : Std.Usize) (output : alloc.vec.Vec Std.U8) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    ntriples.ReadError)
-  := do
-  let r ← ntriples.required bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, next) := val
-    if cp = closing
-    then ok (core.result.Result.Ok (output, next))
-    else
-      let r1 ← ntriples.quoted_item bytes position cp next iri
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, «end») := val1
-        let o ← encoding.encode value
-        match o with
-        | none =>
-          let re ← ntriples.error ntriples.ErrorKind.InvalidEscape position
-          ok (core.result.Result.Err re)
-        | some value1 =>
-          let (b, output1) ← ntriples.append_encoded output value1 limit
-          if b
-          then ntriples.quoted_loop bytes iri limit closing «end» output1
-          else
-            let re ← ntriples.error ntriples.ErrorKind.ResourceLimit position
-            ok (core.result.Result.Err re)
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-          ntriples.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      ntriples.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::quoted]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 232:0-261:1 -/
-def ntriples.quoted
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (iri : Bool)
-  (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    ntriples.ReadError)
-  := do
-  let opening ← if iri
-                  then ok 60#u32
-                  else ok 34#u32
-  let closing ← if iri
-                  then ok 62#u32
-                  else ok 34#u32
-  let ek ←
-    if iri
-    then ok ntriples.ErrorKind.ExpectedIri
-    else ok ntriples.ErrorKind.ExpectedObject
-  let r ← ntriples.expect bytes start opening ek
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    ntriples.quoted_loop bytes iri limit closing val (alloc.vec.Vec.new Std.U8)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      ntriples.ReadError) residual
-
-/-- [rowl_kernel::ntriples::read_iri]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 262:0-269:1 -/
-def ntriples.read_iri
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.quoted bytes start true limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (spelling, next) := val
-    let mr ← iri.validate_iri spelling
-    let b ←
-      match mr with
-      | regular.MatchResult.Matched b1 => if b1
-                                          then ok true
-                                          else ok false
-      | regular.MatchResult.MalformedUtf8 _ => ok false
-    if b
-    then ok (core.result.Result.Ok ({ spelling }, next))
-    else
-      let re ← ntriples.error ntriples.ErrorKind.InvalidIri start
-      ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.RdfIri × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::in_range]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 270:0-272:1 -/
-def ntriples.in_range
-  (cp : Std.U32) (lower : Std.U32) (upper : Std.U32) : Result Bool := do
-  if cp >= lower
-  then ok (cp <= upper)
-  else ok false
-
-/-- [rowl_kernel::ntriples::pn_base]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 273:0-288:1 -/
-def ntriples.pn_base (cp : Std.U32) : Result Bool := do
-  let b ← ntriples.in_range cp 65#u32 90#u32
-  if b
-  then ok true
-  else
-    let b1 ← ntriples.in_range cp 97#u32 122#u32
-    if b1
-    then ok true
-    else
-      let b2 ← ntriples.in_range cp 192#u32 214#u32
-      if b2
-      then ok true
-      else
-        let b3 ← ntriples.in_range cp 216#u32 246#u32
-        if b3
-        then ok true
-        else
-          let b4 ← ntriples.in_range cp 248#u32 767#u32
-          if b4
-          then ok true
-          else
-            let b5 ← ntriples.in_range cp 880#u32 893#u32
-            if b5
-            then ok true
-            else
-              let b6 ← ntriples.in_range cp 895#u32 8191#u32
-              if b6
-              then ok true
-              else
-                let b7 ← ntriples.in_range cp 8204#u32 8205#u32
-                if b7
-                then ok true
-                else
-                  let b8 ← ntriples.in_range cp 8304#u32 8591#u32
-                  if b8
-                  then ok true
-                  else
-                    let b9 ← ntriples.in_range cp 11264#u32 12271#u32
-                    if b9
-                    then ok true
-                    else
-                      let b10 ← ntriples.in_range cp 12289#u32 55295#u32
-                      if b10
-                      then ok true
-                      else
-                        let b11 ← ntriples.in_range cp 63744#u32 64975#u32
-                        if b11
-                        then ok true
-                        else
-                          let b12 ← ntriples.in_range cp 65008#u32 65533#u32
-                          if b12
-                          then ok true
-                          else ntriples.in_range cp 65536#u32 983039#u32
-
-/-- [rowl_kernel::ntriples::pn_u]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 289:0-291:1 -/
-def ntriples.pn_u (cp : Std.U32) : Result Bool := do
-  let b ← ntriples.pn_base cp
-  if b
-  then ok true
-  else if cp = 95#u32
-       then ok true
-       else ok (cp = 58#u32)
-
-/-- [rowl_kernel::ntriples::ascii_digit]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 292:0-294:1 -/
-def ntriples.ascii_digit (cp : Std.U32) : Result Bool := do
-  if cp >= 48#u32
-  then ok (cp <= 57#u32)
-  else ok false
-
-/-- [rowl_kernel::ntriples::pn]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 295:0-302:1 -/
-def ntriples.pn (cp : Std.U32) : Result Bool := do
-  let b ← ntriples.pn_u cp
-  if b
-  then ok true
-  else
-    if cp = 45#u32
-    then ok true
-    else
-      let b1 ← ntriples.ascii_digit cp
-      if b1
-      then ok true
-      else
-        if cp = 183#u32
-        then ok true
-        else
-          if cp >= 768#u32
-          then
-            if cp <= 879#u32
-            then ok true
-            else if cp >= 8255#u32
-                 then ok (cp <= 8256#u32)
-                 else ok false
-          else if cp >= 8255#u32
-               then ok (cp <= 8256#u32)
-               else ok false
-
-/-- [rowl_kernel::ntriples::blank_end]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 303:0-316:1 -/
-def ntriples.blank_end
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
-  :
-  Result (core.result.Result Std.Usize ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok accepted)
-    | some p =>
-      let (cp, next) := p
-      let b ← ntriples.pn cp
-      if b
-      then ntriples.blank_end bytes next next
-      else
-        if cp = 46#u32
-        then ntriples.blank_end bytes next accepted
-        else ok (core.result.Result.Ok accepted)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::blank]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 334:0-350:1 -/
-def ntriples.blank
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.BlankNode × Std.Usize) ntriples.ReadError)
-  := do
-  let r ←
-    ntriples.expect bytes start 95#u32 ntriples.ErrorKind.InvalidBlankLabel
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let r1 ←
-      ntriples.expect bytes val 58#u32 ntriples.ErrorKind.InvalidBlankLabel
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let r2 ← ntriples.required bytes val1
-      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-      match cf2 with
-      | core.ops.control_flow.ControlFlow.Continue val2 =>
-        let (first, position) := val2
-        let b ← ntriples.pn_u first
-        if b
-        then
-          let r3 ← ntriples.blank_end bytes position position
-          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
-          match cf3 with
-          | core.ops.control_flow.ControlFlow.Continue val3 =>
-            let r4 ← ntriples.copy_term bytes val1 val3 limit
-            let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
-            match cf4 with
-            | core.ops.control_flow.ControlFlow.Continue val4 =>
-              let v ← ntriples.copy_vec scope
-              ok (core.result.Result.Ok ({ scope := v, label := val4 }, val3))
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                (rdf.BlankNode × Std.Usize) (core.convert.FromSame
-                ntriples.ReadError) residual
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (rdf.BlankNode × Std.Usize) (core.convert.FromSame
-              ntriples.ReadError) residual
-        else
-          let b1 ← ntriples.ascii_digit first
-          if b1
-          then
-            let r3 ← ntriples.blank_end bytes position position
-            let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
-            match cf3 with
-            | core.ops.control_flow.ControlFlow.Continue val3 =>
-              let r4 ← ntriples.copy_term bytes val1 val3 limit
-              let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
-              match cf4 with
-              | core.ops.control_flow.ControlFlow.Continue val4 =>
-                let v ← ntriples.copy_vec scope
-                ok (core.result.Result.Ok ({ scope := v, label := val4 },
-                  val3))
-              | core.ops.control_flow.ControlFlow.Break residual =>
-                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                  (rdf.BlankNode × Std.Usize) (core.convert.FromSame
-                  ntriples.ReadError) residual
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                (rdf.BlankNode × Std.Usize) (core.convert.FromSame
-                ntriples.ReadError) residual
-          else
-            let re ← ntriples.error ntriples.ErrorKind.InvalidBlankLabel val1
-            ok (core.result.Result.Err re)
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.BlankNode × Std.Usize) (core.convert.FromSame
-          ntriples.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.BlankNode × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-        residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.BlankNode × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::ascii_alpha]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 351:0-353:1 -/
-def ntriples.ascii_alpha (cp : Std.U32) : Result Bool := do
-  if cp >= 65#u32
-  then
-    if cp <= 90#u32
-    then ok true
-    else if cp >= 97#u32
-         then ok (cp <= 122#u32)
-         else ok false
-  else if cp >= 97#u32
-       then ok (cp <= 122#u32)
-       else ok false
-
-/-- [rowl_kernel::ntriples::tag_word]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 354:0-365:1 -/
-def ntriples.tag_word
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (letters : Bool) :
-  Result (core.result.Result Std.Usize ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok position)
-    | some p =>
-      let (cp, next) := p
-      let b ← ntriples.ascii_alpha cp
-      if b
-      then ntriples.tag_word bytes next letters
-      else
-        if letters
-        then ok (core.result.Result.Ok position)
-        else
-          let b1 ← ntriples.ascii_digit cp
-          if b1
-          then ntriples.tag_word bytes next false
-          else ok (core.result.Result.Ok position)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::tag_tail]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 366:0-378:1 -/
-def ntriples.tag_tail
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (start : Std.Usize) :
-  Result (core.result.Result Std.Usize ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok position)
-    | some p =>
-      let (i, next) := p
-      match i with
-      | 45#uscalar =>
-        let r1 ← ntriples.tag_word bytes next false
-        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-        match cf1 with
-        | core.ops.control_flow.ControlFlow.Continue val1 =>
-          if val1 = next
-          then
-            let re ←
-              ntriples.error ntriples.ErrorKind.InvalidLanguageTag start
-            ok (core.result.Result.Err re)
-          else ntriples.tag_tail bytes val1 start
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-      | _ => ok (core.result.Result.Ok position)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::tag]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 379:0-391:1 -/
-def ntriples.tag
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    ntriples.ReadError)
-  := do
-  let r ←
-    ntriples.expect bytes start 64#u32 ntriples.ErrorKind.InvalidLanguageTag
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let r1 ← ntriples.tag_word bytes val true
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      if val = val1
-      then
-        let re ← ntriples.error ntriples.ErrorKind.InvalidLanguageTag start
-        ok (core.result.Result.Err re)
-      else
-        let r2 ← ntriples.tag_tail bytes val1 start
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          let r3 ← ntriples.copy_term bytes val val2 limit
-          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
-          match cf3 with
-          | core.ops.control_flow.ControlFlow.Continue val3 =>
-            let b ← langtag.well_formed val3
-            if b
-            then ok (core.result.Result.Ok (val3, val2))
-            else
-              let re ←
-                ntriples.error ntriples.ErrorKind.InvalidLanguageTag start
-              ok (core.result.Result.Err re)
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-              ntriples.ReadError) residual
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-            ntriples.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-        ntriples.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      ntriples.ReadError) residual
-
-/-- [rowl_kernel::ntriples::same_literal_bytes]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 430:4-437:1 -/
-@[rust_loop]
-def ntriples.same_literal_bytes_loop
-  (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) (i : Std.Usize) :
-  Result Bool
-  := do
-  let i1 := alloc.vec.Vec.len a
-  if i < i1
-  then
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) a i
-    let i3 ← Slice.index_usize b i
-    if i2 != i3
-    then ok false
-    else let i4 ← i + 1#usize
-         ntriples.same_literal_bytes_loop a b i4
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::same_literal_bytes]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 425:0-437:1 -/
-def ntriples.same_literal_bytes
-  (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len a
-  let i1 := Slice.len b
-  if i != i1
-  then ok false
-  else ntriples.same_literal_bytes_loop a b 0#usize
-
-/-- [rowl_kernel::ntriples::literal_kind]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 392:0-418:1 -/
-def ntriples.literal_kind
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.LiteralKind × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none =>
-      let s ←
-        lift (Array.to_slice
-          (Array.make 39#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8,
-            116#u8, 114#u8, 105#u8, 110#u8, 103#u8
-            ]))
-      let v ← ntriples.copy s
-      ok (core.result.Result.Ok (rdf.LiteralKind.Datatype { spelling := v },
-        position))
-    | some p =>
-      let (i, next) := p
-      match i with
-      | 64#uscalar =>
-        let r1 ← ntriples.tag bytes position limit
-        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-        match cf1 with
-        | core.ops.control_flow.ControlFlow.Continue val1 =>
-          let (value, next1) := val1
-          ok (core.result.Result.Ok (rdf.LiteralKind.Language value, next1))
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
-            ntriples.ReadError) residual
-      | 94#uscalar =>
-        let r1 ←
-          ntriples.expect bytes next 94#u32
-            ntriples.ErrorKind.InvalidLiteralKind
-        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-        match cf1 with
-        | core.ops.control_flow.ControlFlow.Continue val1 =>
-          let r2 ← ntriples.skip bytes val1 false
-          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-          match cf2 with
-          | core.ops.control_flow.ControlFlow.Continue val2 =>
-            let r3 ← ntriples.read_iri bytes val2 limit
-            let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
-            match cf3 with
-            | core.ops.control_flow.ControlFlow.Continue val3 =>
-              let (datatype, next1) := val3
-              let s ←
-                lift (Array.to_slice
-                  (Array.make 53#usize [
-                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                    111#u8, 114#u8, 103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8,
-                    47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8, 45#u8, 114#u8,
-                    100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-                    97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 108#u8, 97#u8,
-                    110#u8, 103#u8, 83#u8, 116#u8, 114#u8, 105#u8, 110#u8,
-                    103#u8
-                    ]))
-              let b ← ntriples.same_literal_bytes datatype.spelling s
-              if b
-              then
-                let re ←
-                  ntriples.error ntriples.ErrorKind.InvalidLiteralKind position
-                ok (core.result.Result.Err re)
-              else
-                ok (core.result.Result.Ok (rdf.LiteralKind.Datatype datatype,
-                  next1))
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
-                ntriples.ReadError) residual
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
-              ntriples.ReadError) residual
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
-            ntriples.ReadError) residual
-      | _ =>
-        let s ←
-          lift (Array.to_slice
-            (Array.make 39#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
-              115#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
-              ]))
-        let v ← ntriples.copy s
-        ok (core.result.Result.Ok (rdf.LiteralKind.Datatype { spelling := v },
-          position))
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.LiteralKind × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::literal]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 419:0-424:1 -/
-def ntriples.literal
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.quoted bytes start false limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (lexical, «end») := val
-    let r1 ← ntriples.skip bytes «end» false
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let r2 ← ntriples.literal_kind bytes val1 limit
-      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-      match cf2 with
-      | core.ops.control_flow.ControlFlow.Continue val2 =>
-        let (kind, next) := val2
-        ok (core.result.Result.Ok ({ lexical, kind }, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame
-          ntriples.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame
-        ntriples.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::subject]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 438:0-450:1 -/
-def ntriples.subject
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.Subject × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.required bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (i, _) := val
-    match i with
-    | 60#uscalar =>
-      let r1 ← ntriples.read_iri bytes start limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (rdf.Subject.Iri value, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Subject × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-          residual
-    | 95#uscalar =>
-      let r1 ← ntriples.blank bytes start scope limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (rdf.Subject.Blank value, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Subject × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-          residual
-    | _ =>
-      let re ← ntriples.error ntriples.ErrorKind.ExpectedSubject start
-      ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.Subject × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::object]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 451:0-467:1 -/
-def ntriples.object
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.Object × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.required bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (i, _) := val
-    match i with
-    | 60#uscalar =>
-      let r1 ← ntriples.read_iri bytes start limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (rdf.Object.Iri value, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-          residual
-    | 95#uscalar =>
-      let r1 ← ntriples.blank bytes start scope limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (rdf.Object.Blank value, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-          residual
-    | 34#uscalar =>
-      let r1 ← ntriples.literal bytes start limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (rdf.Object.Literal value, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-          residual
-    | _ =>
-      let re ← ntriples.error ntriples.ErrorKind.ExpectedObject start
-      ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.Object × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::line_end]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 468:0-475:1 -/
-def ntriples.line_end
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result Unit ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok ())
-    | some p =>
-      let (cp, _) := p
-      let b ← ntriples.eol cp
-      if b
-      then ok (core.result.Result.Ok ())
-      else
-        let re ← ntriples.error ntriples.ErrorKind.ExpectedLineEnd position
-        ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Unit (core.convert.FromSame ntriples.ReadError) residual
-
-/-- [rowl_kernel::ntriples::read_triple]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 476:0-494:1 -/
-def ntriples.read_triple
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
-  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.Triple × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.subject bytes position scope limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (subject, next) := val
-    let r1 ← ntriples.skip bytes next false
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let r2 ← ntriples.read_iri bytes val1 limit
-      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-      match cf2 with
-      | core.ops.control_flow.ControlFlow.Continue val2 =>
-        let (predicate, next1) := val2
-        let r3 ← ntriples.skip bytes next1 false
-        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
-        match cf3 with
-        | core.ops.control_flow.ControlFlow.Continue val3 =>
-          let r4 ← ntriples.object bytes val3 scope limit
-          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
-          match cf4 with
-          | core.ops.control_flow.ControlFlow.Continue val4 =>
-            let (object, next2) := val4
-            let r5 ← ntriples.skip bytes next2 false
-            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
-            match cf5 with
-            | core.ops.control_flow.ControlFlow.Continue val5 =>
-              let r6 ←
-                ntriples.expect bytes val5 46#u32
-                  ntriples.ErrorKind.ExpectedPeriod
-              let cf6 ← core.result.Result.Insts.CoreOpsTry.branch r6
-              match cf6 with
-              | core.ops.control_flow.ControlFlow.Continue val6 =>
-                let r7 ← ntriples.skip bytes val6 false
-                let cf7 ← core.result.Result.Insts.CoreOpsTry.branch r7
-                match cf7 with
-                | core.ops.control_flow.ControlFlow.Continue val7 =>
-                  let r8 ← ntriples.line_end bytes val7
-                  let cf8 ← core.result.Result.Insts.CoreOpsTry.branch r8
-                  match cf8 with
-                  | core.ops.control_flow.ControlFlow.Continue _ =>
-                    ok (core.result.Result.Ok ({ subject, predicate, object },
-                      val7))
-                  | core.ops.control_flow.ControlFlow.Break residual =>
-                    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                      (rdf.Triple × Std.Usize) (core.convert.FromSame
-                      ntriples.ReadError) residual
-                | core.ops.control_flow.ControlFlow.Break residual =>
-                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                    (rdf.Triple × Std.Usize) (core.convert.FromSame
-                    ntriples.ReadError) residual
-              | core.ops.control_flow.ControlFlow.Break residual =>
-                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                  (rdf.Triple × Std.Usize) (core.convert.FromSame
-                  ntriples.ReadError) residual
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                (rdf.Triple × Std.Usize) (core.convert.FromSame
-                ntriples.ReadError) residual
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (rdf.Triple × Std.Usize) (core.convert.FromSame
-              ntriples.ReadError) residual
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (rdf.Triple × Std.Usize) (core.convert.FromSame
-            ntriples.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Triple × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-          residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.Triple × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-        residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.Triple × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_kernel::ntriples::read_from]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 495:0-513:1 -/
-def ntriples.read_from
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
-  (limits : ntriples.Limits) (position : Std.Usize)
-  (triples : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result rdf.RawGraph ntriples.ReadError)
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if position < i
-  then
-    let r ← ntriples.read_triple bytes position scope limits.max_term_bytes
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (triple, next) := val
-      let i1 := alloc.vec.Vec.len triples
-      if i1 >= limits.max_triples
-      then
-        let re ← ntriples.error ntriples.ErrorKind.ResourceLimit position
-        ok (core.result.Result.Err re)
-      else
-        let triples1 ← alloc.vec.Vec.push triples triple
-        let r1 ← ntriples.skip bytes next true
-        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-        match cf1 with
-        | core.ops.control_flow.ControlFlow.Continue val1 =>
-          ntriples.read_from bytes scope limits val1 triples1
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            rdf.RawGraph (core.convert.FromSame ntriples.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        rdf.RawGraph (core.convert.FromSame ntriples.ReadError) residual
-  else ok (core.result.Result.Ok { triples })
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::read_impl]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 514:0-517:1 -/
-def ntriples.read_impl
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
-  (limits : ntriples.Limits) :
-  Result (core.result.Result rdf.RawGraph ntriples.ReadError)
-  := do
-  let r ← ntriples.skip bytes 0#usize true
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    ntriples.read_from bytes scope limits val (alloc.vec.Vec.new rdf.Triple)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      rdf.RawGraph (core.convert.FromSame ntriples.ReadError) residual
-
-/-- [rowl_kernel::ntriples::read_with_limits]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 521:0-526:1
-    Visibility: public -/
-def ntriples.read_with_limits
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
-  (limits : ntriples.Limits) :
-  Result ntriples.ReadResult
-  := do
-  let r ← ntriples.read_impl bytes scope limits
-  match r with
-  | core.result.Result.Ok graph => ok (ntriples.ReadResult.Graph graph)
-  | core.result.Result.Err error => ok (ntriples.ReadResult.Error error)
-
-/-- [rowl_kernel::ntriples::read]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 529:0-538:1
-    Visibility: public -/
-def ntriples.read
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8) :
-  Result ntriples.ReadResult
-  := do
-  let i := alloc.vec.Vec.len bytes
-  let i1 := alloc.vec.Vec.len bytes
-  ntriples.read_with_limits bytes scope
-    { max_term_bytes := i, max_triples := i1 }
 
 /-- [rowl_kernel::ntriples::WriteError]
     Source: 'crates/rowl-kernel/src/ntriples.rs', lines 540:0-546:1
@@ -51428,5776 +61473,6 @@ def rdf.original_dataset
   (selection : rdf.DatasetSelection) : Result rdf.RawDataset := do
   ok selection.dataset
 
-/-- [rowl_kernel::rdf_mapping::Mapped]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 53:0-56:1
-    Visibility: public -/
-structure rdf_mapping.Mapped where
-  ontology : model.RawOntology
-  blanks : alloc.vec.Vec rdf.BlankNode
-
-/-- [rowl_kernel::rdf_mapping::State]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 61:0-68:1
-    Visibility: public -/
-structure rdf_mapping.State where
-  used : alloc.vec.Vec Bool
-  blanks : alloc.vec.Vec rdf.BlankNode
-  subjects : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
-  sources : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
-
-/-- [rowl_kernel::rdf_mapping::Declared]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 71:0-74:1
-    Visibility: public -/
-structure rdf_mapping.Declared where
-  iri : alloc.vec.Vec Std.U8
-  kind : typing.EntityKind
-
-/-- [rowl_kernel::rdf_mapping::Kinds]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 77:0-79:1
-    Visibility: public -/
-structure rdf_mapping.Kinds where
-  buckets : alloc.vec.Vec (alloc.vec.Vec rdf_mapping.Declared)
-
-/-- [rowl_kernel::rdf_mapping::PropertyKind]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 82:0-86:1
-    Visibility: public -/
-@[discriminant isize]
-inductive rdf_mapping.PropertyKind where
-| Object : rdf_mapping.PropertyKind
-| Data : rdf_mapping.PropertyKind
-| Annotation : rdf_mapping.PropertyKind
-
-/-- [rowl_kernel::rdf_mapping::Read]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 89:0-93:1
-    Visibility: public -/
-@[discriminant isize]
-inductive rdf_mapping.Read where
-| Skip : rdf_mapping.State → rdf_mapping.Read
-| Found : model.Axiom → rdf_mapping.State → rdf_mapping.Read
-| Fail : rdf_mapping.Read
-
-/-- [rowl_kernel::rdf_mapping::equal_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 95:0-109:1 -/
-def rdf_mapping.equal_from
-  (left : alloc.vec.Vec Std.U8) (right : Slice Std.U8) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := Slice.len right
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len left
-    if index < i1
-    then
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
-          index
-      let i3 ← Slice.index_usize right index
-      if i2 = i3
-      then let i4 ← index + 1#usize
-           rdf_mapping.equal_from left right i4
-      else ok false
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::same]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 112:0-118:1 -/
-def rdf_mapping.same
-  (left : alloc.vec.Vec Std.U8) («name» : Slice Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len left
-  let i1 := Slice.len «name»
-  if i = i1
-  then rdf_mapping.equal_from left «name» 0#usize
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::equal_vec_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 120:0-134:1 -/
-def rdf_mapping.equal_vec_from
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len right
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len left
-    if index < i1
-    then
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
-          index
-      let i3 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          right index
-      if i2 = i3
-      then let i4 ← index + 1#usize
-           rdf_mapping.equal_vec_from left right i4
-      else ok false
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::same_vec]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 137:0-143:1 -/
-def rdf_mapping.same_vec
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len left
-  let i1 := alloc.vec.Vec.len right
-  if i = i1
-  then rdf_mapping.equal_vec_from left right 0#usize
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::same_blank]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 145:0-151:1 -/
-def rdf_mapping.same_blank
-  (left : rdf.BlankNode) (right : rdf.BlankNode) : Result Bool := do
-  let b ← rdf_mapping.same_vec left.scope right.scope
-  if b
-  then rdf_mapping.same_vec left.label right.label
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::same_literal]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 153:0-165:1 -/
-def rdf_mapping.same_literal
-  (left : rdf.RdfLiteral) (right : rdf.RdfLiteral) : Result Bool := do
-  let b ← rdf_mapping.same_vec left.lexical right.lexical
-  if b
-  then
-    match left.kind with
-    | rdf.LiteralKind.Datatype a =>
-      match right.kind with
-      | rdf.LiteralKind.Datatype b1 =>
-        rdf_mapping.same_vec a.spelling b1.spelling
-      | rdf.LiteralKind.Language _ => ok false
-    | rdf.LiteralKind.Language a =>
-      match right.kind with
-      | rdf.LiteralKind.Datatype _ => ok false
-      | rdf.LiteralKind.Language b1 => rdf_mapping.same_vec a b1
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::same_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 167:0-173:1 -/
-def rdf_mapping.same_subject
-  (left : rdf.Subject) (right : rdf.Subject) : Result Bool := do
-  match left with
-  | rdf.Subject.Iri a =>
-    match right with
-    | rdf.Subject.Iri b => rdf_mapping.same_vec a.spelling b.spelling
-    | rdf.Subject.Blank _ => ok false
-  | rdf.Subject.Blank a =>
-    match right with
-    | rdf.Subject.Iri _ => ok false
-    | rdf.Subject.Blank b => rdf_mapping.same_blank a b
-
-/-- [rowl_kernel::rdf_mapping::same_object]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 175:0-182:1 -/
-def rdf_mapping.same_object
-  (left : rdf.Object) (right : rdf.Object) : Result Bool := do
-  match left with
-  | rdf.Object.Iri a =>
-    match right with
-    | rdf.Object.Iri b => rdf_mapping.same_vec a.spelling b.spelling
-    | rdf.Object.Blank _ => ok false
-    | rdf.Object.Literal _ => ok false
-  | rdf.Object.Blank a =>
-    match right with
-    | rdf.Object.Iri _ => ok false
-    | rdf.Object.Blank b => rdf_mapping.same_blank a b
-    | rdf.Object.Literal _ => ok false
-  | rdf.Object.Literal a =>
-    match right with
-    | rdf.Object.Iri _ => ok false
-    | rdf.Object.Blank _ => ok false
-    | rdf.Object.Literal b => rdf_mapping.same_literal a b
-
-/-- [rowl_kernel::rdf_mapping::same_triple]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 185:0-195:1 -/
-def rdf_mapping.same_triple
-  (left : rdf.Triple) (right : rdf.Triple) : Result Bool := do
-  let b ← rdf_mapping.same_subject left.subject right.subject
-  if b
-  then
-    let b1 ←
-      rdf_mapping.same_vec left.predicate.spelling right.predicate.spelling
-    if b1
-    then rdf_mapping.same_object left.object right.object
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::copy_blank]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 197:0-202:1 -/
-def rdf_mapping.copy_blank (node : rdf.BlankNode) : Result rdf.BlankNode := do
-  let v ← nnf.copy_bytes node.scope
-  let v1 ← nnf.copy_bytes node.label
-  ok { scope := v, label := v1 }
-
-/-- [rowl_kernel::rdf_mapping::iri_of]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 204:0-208:1 -/
-def rdf_mapping.iri_of
-  (spelling : alloc.vec.Vec Std.U8) : Result model.Iri := do
-  let v ← nnf.copy_bytes spelling
-  ok { spelling := v }
-
-/-- [rowl_kernel::rdf_mapping::subject_node]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 211:0-218:1 -/
-def rdf_mapping.subject_node (subject : rdf.Subject) : Result rdf.Object := do
-  match subject with
-  | rdf.Subject.Iri iri =>
-    let v ← nnf.copy_bytes iri.spelling
-    ok (rdf.Object.Iri { spelling := v })
-  | rdf.Subject.Blank node =>
-    let bn ← rdf_mapping.copy_blank node
-    ok (rdf.Object.Blank bn)
-
-/-- [rowl_kernel::rdf_mapping::BUCKET_LIMIT]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 221:0-221:36 -/
-@[global_simps, irreducible]
-def rdf_mapping.BUCKET_LIMIT : Result Std.Usize := 1#usize <<< 20#i32
-
-/-- [rowl_kernel::rdf_mapping::bucket_count]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 224:0-230:1 -/
-def rdf_mapping.bucket_count (count : Std.Usize) : Result Std.Usize := do
-  let i ← rdf_mapping.BUCKET_LIMIT
-  if count < i
-  then count + 1#usize
-  else ok i
-
-/-- [rowl_kernel::rdf_mapping::mix]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 233:0-235:1 -/
-def rdf_mapping.mix (hash : Std.Usize) (byte : Std.U8) : Result Std.Usize := do
-  let i ← hash % 16777216#usize
-  let i1 ← i * 31#usize
-  let i2 ← lift (UScalar.cast .Usize byte)
-  i1 + i2
-
-/-- [rowl_kernel::rdf_mapping::hash_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 238:0-244:1 -/
-def rdf_mapping.hash_from
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (hash : Std.Usize) :
-  Result Std.Usize
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ← index + 1#usize
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let i3 ← rdf_mapping.mix hash i2
-    rdf_mapping.hash_from bytes i1 i3
-  else ok hash
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::hash_blank]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 247:0-249:1 -/
-def rdf_mapping.hash_blank (node : rdf.BlankNode) : Result Std.Usize := do
-  let i ← rdf_mapping.hash_from node.scope 0#usize 7#usize
-  rdf_mapping.hash_from node.label 0#usize i
-
-/-- [rowl_kernel::rdf_mapping::hash_iri]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 252:0-254:1 -/
-def rdf_mapping.hash_iri
-  (spelling : alloc.vec.Vec Std.U8) : Result Std.Usize := do
-  rdf_mapping.hash_from spelling 0#usize 7#usize
-
-/-- [rowl_kernel::rdf_mapping::hash_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 257:0-262:1 -/
-def rdf_mapping.hash_subject (subject : rdf.Subject) : Result Std.Usize := do
-  match subject with
-  | rdf.Subject.Iri iri => rdf_mapping.hash_iri iri.spelling
-  | rdf.Subject.Blank node => rdf_mapping.hash_blank node
-
-/-- [rowl_kernel::rdf_mapping::hash_object]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 266:0-272:1 -/
-def rdf_mapping.hash_object (object : rdf.Object) : Result Std.Usize := do
-  match object with
-  | rdf.Object.Iri iri => rdf_mapping.hash_iri iri.spelling
-  | rdf.Object.Blank node => rdf_mapping.hash_blank node
-  | rdf.Object.Literal literal => rdf_mapping.hash_iri literal.lexical
-
-/-- [rowl_kernel::rdf_mapping::bucket_of]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 275:0-281:1 -/
-def rdf_mapping.bucket_of
-  (hash : Std.Usize) (count : Std.Usize) : Result Std.Usize := do
-  if 0#usize < count
-  then hash % count
-  else ok 0#usize
-
-/-- [rowl_kernel::rdf_mapping::empty_buckets]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 284:0-291:1 -/
-def rdf_mapping.empty_buckets
-  {T : Type} (count : Std.Usize) (out : alloc.vec.Vec (alloc.vec.Vec T)) :
-  Result (alloc.vec.Vec (alloc.vec.Vec T))
-  := do
-  let i := alloc.vec.Vec.len out
-  if i < count
-  then
-    let out1 ← alloc.vec.Vec.push out (alloc.vec.Vec.new T)
-    rdf_mapping.empty_buckets count out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::subjects_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 295:0-316:1 -/
-def rdf_mapping.subjects_from
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
-  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    match t.subject with
-    | rdf.Subject.Iri _ =>
-      let i1 ← index + 1#usize
-      rdf_mapping.subjects_from triples i1 buckets
-    | rdf.Subject.Blank node =>
-      let i1 ← rdf_mapping.hash_blank node
-      let i2 := alloc.vec.Vec.len buckets
-      let bucket ← rdf_mapping.bucket_of i1 i2
-      let i3 := alloc.vec.Vec.len buckets
-      let buckets1 ←
-        if bucket < i3
-        then
-          do
-          let v ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              (alloc.vec.Vec Std.Usize)) buckets bucket
-          let i4 := alloc.vec.Vec.len v
-          if i4 < core.num.Usize.MAX
-          then
-            let (v1, index_mut_back) ←
-              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-                (alloc.vec.Vec Std.Usize)) buckets bucket
-            let v2 ← alloc.vec.Vec.push v1 index
-            ok (index_mut_back v2)
-          else ok buckets
-        else ok buckets
-      let i4 ← index + 1#usize
-      rdf_mapping.subjects_from triples i4 buckets1
-  else ok buckets
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::is_source]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 319:0-327:1 -/
-def rdf_mapping.is_source (triple : rdf.Triple) : Result Bool := do
-  match triple.subject with
-  | rdf.Subject.Iri _ => ok false
-  | rdf.Subject.Blank _ =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 45#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 97#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8,
-          116#u8, 101#u8, 100#u8, 83#u8, 111#u8, 117#u8, 114#u8, 99#u8, 101#u8
-          ]))
-    rdf_mapping.same triple.predicate.spelling s
-
-/-- [rowl_kernel::rdf_mapping::sources_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 331:0-349:1 -/
-def rdf_mapping.sources_from
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
-  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let b ← rdf_mapping.is_source t
-    let buckets1 ←
-      if b
-      then
-        do
-        let i1 ← rdf_mapping.hash_object t.object
-        let i2 := alloc.vec.Vec.len buckets
-        let bucket ← rdf_mapping.bucket_of i1 i2
-        let i3 := alloc.vec.Vec.len buckets
-        if bucket < i3
-        then
-          let v ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              (alloc.vec.Vec Std.Usize)) buckets bucket
-          let i4 := alloc.vec.Vec.len v
-          if i4 < core.num.Usize.MAX
-          then
-            let (v1, index_mut_back) ←
-              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-                (alloc.vec.Vec Std.Usize)) buckets bucket
-            let v2 ← alloc.vec.Vec.push v1 index
-            ok (index_mut_back v2)
-          else ok buckets
-        else ok buckets
-      else ok buckets
-    let i1 ← index + 1#usize
-    rdf_mapping.sources_from triples i1 buckets1
-  else ok buckets
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::is_used]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 351:0-357:1 -/
-def rdf_mapping.is_used
-  (used : alloc.vec.Vec Bool) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len used
-  if index < i
-  then
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) used index
-  else ok true
-
-/-- [rowl_kernel::rdf_mapping::take]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 360:0-365:1 -/
-def rdf_mapping.take
-  (state : rdf_mapping.State) (index : Std.Usize) :
-  Result rdf_mapping.State
-  := do
-  let i := alloc.vec.Vec.len state.used
-  if index < i
-  then
-    let (_, index_mut_back) ←
-      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice Bool)
-        state.used index
-    let v := index_mut_back true
-    ok { state with used := v }
-  else ok state
-
-/-- [rowl_kernel::rdf_mapping::record]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 368:0-371:1 -/
-def rdf_mapping.record
-  (state : rdf_mapping.State) (node : rdf.BlankNode) :
-  Result rdf_mapping.State
-  := do
-  let bn ← rdf_mapping.copy_blank node
-  let v ← alloc.vec.Vec.push state.blanks bn
-  ok { state with blanks := v }
-
-/-- [rowl_kernel::rdf_mapping::about]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 374:0-379:1 -/
-def rdf_mapping.about
-  (triple : rdf.Triple) (node : rdf.BlankNode) : Result Bool := do
-  match triple.subject with
-  | rdf.Subject.Iri _ => ok false
-  | rdf.Subject.Blank subject => rdf_mapping.same_blank subject node
-
-/-- [rowl_kernel::rdf_mapping::fits]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 383:0-401:1 -/
-def rdf_mapping.fits
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (index : Std.Usize) (node : rdf.BlankNode) («name» : Slice Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used used index
-    if b
-    then ok false
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let b1 ← rdf_mapping.about t node
-      if b1
-      then rdf_mapping.same t.predicate.spelling «name»
-      else ok false
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::find_in]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 405:0-422:1 -/
-def rdf_mapping.find_in
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode)
-  («name» : Slice Std.U8) (k : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len bucket
-  if k < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        bucket k
-    let b ← rdf_mapping.fits triples used i1 node «name»
-    if b
-    then ok (some i1)
-    else
-      let i2 ← k + 1#usize
-      rdf_mapping.find_in triples used bucket node «name» i2
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::find]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 426:0-433:1 -/
-def rdf_mapping.find
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (node : rdf.BlankNode) («name» : Slice Std.U8) :
-  Result (Option Std.Usize)
-  := do
-  let i ← rdf_mapping.hash_blank node
-  let i1 := alloc.vec.Vec.len state.subjects
-  let bucket ← rdf_mapping.bucket_of i i1
-  let i2 := alloc.vec.Vec.len state.subjects
-  if bucket < i2
-  then
-    let v ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
-        Std.Usize)) state.subjects bucket
-    rdf_mapping.find_in triples state.used v node «name» 0#usize
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::object_is]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 436:0-441:1 -/
-def rdf_mapping.object_is
-  (object : rdf.Object) («name» : Slice Std.U8) : Result Bool := do
-  match object with
-  | rdf.Object.Iri iri => rdf_mapping.same iri.spelling «name»
-  | rdf.Object.Blank _ => ok false
-  | rdf.Object.Literal _ => ok false
-
-/-- [rowl_kernel::rdf_mapping::fits_type]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 444:0-469:1 -/
-def rdf_mapping.fits_type
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (index : Std.Usize) (node : rdf.BlankNode) («name» : Slice Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used used index
-    if b
-    then ok false
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let b1 ← rdf_mapping.about t node
-      if b1
-      then
-        let s ←
-          lift (Array.to_slice
-            (Array.make 47#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
-              47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
-              115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
-              115#u8, 35#u8, 116#u8, 121#u8, 112#u8, 101#u8
-              ]))
-        let b2 ← rdf_mapping.same t.predicate.spelling s
-        if b2
-        then rdf_mapping.object_is t.object «name»
-        else ok false
-      else ok false
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::find_type_in]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 473:0-490:1 -/
-def rdf_mapping.find_type_in
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode)
-  («name» : Slice Std.U8) (k : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len bucket
-  if k < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        bucket k
-    let b ← rdf_mapping.fits_type triples used i1 node «name»
-    if b
-    then ok (some i1)
-    else
-      let i2 ← k + 1#usize
-      rdf_mapping.find_type_in triples used bucket node «name» i2
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::find_type]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 494:0-501:1 -/
-def rdf_mapping.find_type
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (node : rdf.BlankNode) («name» : Slice Std.U8) :
-  Result (Option Std.Usize)
-  := do
-  let i ← rdf_mapping.hash_blank node
-  let i1 := alloc.vec.Vec.len state.subjects
-  let bucket ← rdf_mapping.bucket_of i i1
-  let i2 := alloc.vec.Vec.len state.subjects
-  if bucket < i2
-  then
-    let v ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
-        Std.Usize)) state.subjects bucket
-    rdf_mapping.find_type_in triples state.used v node «name» 0#usize
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::fits_any]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 504:0-514:1 -/
-def rdf_mapping.fits_any
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (index : Std.Usize) (node : rdf.BlankNode) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used used index
-    if b
-    then ok false
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      rdf_mapping.about t node
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::find_any_in]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 517:0-533:1 -/
-def rdf_mapping.find_any_in
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode) (k : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len bucket
-  if k < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        bucket k
-    let b ← rdf_mapping.fits_any triples used i1 node
-    if b
-    then ok (some i1)
-    else
-      let i2 ← k + 1#usize
-      rdf_mapping.find_any_in triples used bucket node i2
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::find_any]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 536:0-543:1 -/
-def rdf_mapping.find_any
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (node : rdf.BlankNode) :
-  Result (Option Std.Usize)
-  := do
-  let i ← rdf_mapping.hash_blank node
-  let i1 := alloc.vec.Vec.len state.subjects
-  let bucket ← rdf_mapping.bucket_of i i1
-  let i2 := alloc.vec.Vec.len state.subjects
-  if bucket < i2
-  then
-    let v ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
-        Std.Usize)) state.subjects bucket
-    rdf_mapping.find_any_in triples state.used v node 0#usize
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::same_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 572:0-582:1 -/
-def rdf_mapping.same_kind
-  (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
-  match left with
-  | typing.EntityKind.Class =>
-    match right with
-    | typing.EntityKind.Class => ok true
-    | typing.EntityKind.Datatype => ok false
-    | typing.EntityKind.ObjectProperty => ok false
-    | typing.EntityKind.DataProperty => ok false
-    | typing.EntityKind.AnnotationProperty => ok false
-    | typing.EntityKind.NamedIndividual => ok false
-  | typing.EntityKind.Datatype =>
-    match right with
-    | typing.EntityKind.Class => ok false
-    | typing.EntityKind.Datatype => ok true
-    | typing.EntityKind.ObjectProperty => ok false
-    | typing.EntityKind.DataProperty => ok false
-    | typing.EntityKind.AnnotationProperty => ok false
-    | typing.EntityKind.NamedIndividual => ok false
-  | typing.EntityKind.ObjectProperty =>
-    match right with
-    | typing.EntityKind.Class => ok false
-    | typing.EntityKind.Datatype => ok false
-    | typing.EntityKind.ObjectProperty => ok true
-    | typing.EntityKind.DataProperty => ok false
-    | typing.EntityKind.AnnotationProperty => ok false
-    | typing.EntityKind.NamedIndividual => ok false
-  | typing.EntityKind.DataProperty =>
-    match right with
-    | typing.EntityKind.Class => ok false
-    | typing.EntityKind.Datatype => ok false
-    | typing.EntityKind.ObjectProperty => ok false
-    | typing.EntityKind.DataProperty => ok true
-    | typing.EntityKind.AnnotationProperty => ok false
-    | typing.EntityKind.NamedIndividual => ok false
-  | typing.EntityKind.AnnotationProperty =>
-    match right with
-    | typing.EntityKind.Class => ok false
-    | typing.EntityKind.Datatype => ok false
-    | typing.EntityKind.ObjectProperty => ok false
-    | typing.EntityKind.DataProperty => ok false
-    | typing.EntityKind.AnnotationProperty => ok true
-    | typing.EntityKind.NamedIndividual => ok false
-  | typing.EntityKind.NamedIndividual =>
-    match right with
-    | typing.EntityKind.Class => ok false
-    | typing.EntityKind.Datatype => ok false
-    | typing.EntityKind.ObjectProperty => ok false
-    | typing.EntityKind.DataProperty => ok false
-    | typing.EntityKind.AnnotationProperty => ok false
-    | typing.EntityKind.NamedIndividual => ok true
-
-/-- [rowl_kernel::rdf_mapping::declared_in]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 546:0-560:1 -/
-def rdf_mapping.declared_in
-  (bucket : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8)
-  (kind : typing.EntityKind) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len bucket
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        rdf_mapping.Declared) bucket index
-    let b ← rdf_mapping.same_vec d.iri iri
-    if b
-    then
-      let b1 ← rdf_mapping.same_kind d.kind kind
-      if b1
-      then ok true
-      else
-        let i1 ← index + 1#usize
-        rdf_mapping.declared_in bucket iri kind i1
-    else let i1 ← index + 1#usize
-         rdf_mapping.declared_in bucket iri kind i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::declared]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 563:0-570:1 -/
-def rdf_mapping.declared
-  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
-  (kind : typing.EntityKind) :
-  Result Bool
-  := do
-  let i ← rdf_mapping.hash_iri iri
-  let i1 := alloc.vec.Vec.len kinds.buckets
-  let bucket ← rdf_mapping.bucket_of i i1
-  let i2 := alloc.vec.Vec.len kinds.buckets
-  if bucket < i2
-  then
-    let v ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
-        rdf_mapping.Declared)) kinds.buckets bucket
-    rdf_mapping.declared_in v iri kind 0#usize
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::has_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 585:0-594:1 -/
-def rdf_mapping.has_kind
-  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
-  (kind : typing.EntityKind) :
-  Result Bool
-  := do
-  let b ← rdf_mapping.declared kinds iri kind
-  if b
-  then ok true
-  else
-    let o ← builtins.builtin_kind iri
-    match o with
-    | none => ok false
-    | some builtin => rdf_mapping.same_kind builtin kind
-
-/-- [rowl_kernel::rdf_mapping::property_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 598:0-621:1 -/
-def rdf_mapping.property_kind
-  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8) :
-  Result (Option rdf_mapping.PropertyKind)
-  := do
-  let object ←
-    rdf_mapping.has_kind kinds iri typing.EntityKind.ObjectProperty
-  let data ← rdf_mapping.has_kind kinds iri typing.EntityKind.DataProperty
-  let annotation ←
-    rdf_mapping.has_kind kinds iri typing.EntityKind.AnnotationProperty
-  if object
-  then
-    if data
-    then ok none
-    else
-      if annotation
-      then ok none
-      else ok (some rdf_mapping.PropertyKind.Object)
-  else
-    if data
-    then
-      if annotation
-      then ok none
-      else ok (some rdf_mapping.PropertyKind.Data)
-    else
-      if annotation
-      then ok (some rdf_mapping.PropertyKind.Annotation)
-      else ok none
-
-/-- [rowl_kernel::rdf_mapping::node_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 625:0-631:1 -/
-def rdf_mapping.node_kind
-  (kinds : rdf_mapping.Kinds) (node : rdf.Object) :
-  Result (Option rdf_mapping.PropertyKind)
-  := do
-  match node with
-  | rdf.Object.Iri iri => rdf_mapping.property_kind kinds iri.spelling
-  | rdf.Object.Blank _ => ok (some rdf_mapping.PropertyKind.Object)
-  | rdf.Object.Literal _ => ok none
-
-/-- [rowl_kernel::rdf_mapping::CARDINALITY_LIMIT]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 634:0-634:40 -/
-@[global_simps, irreducible]
-def rdf_mapping.CARDINALITY_LIMIT : Std.Usize := 10000#usize
-
-/-- [rowl_kernel::rdf_mapping::spelled]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 637:0-646:1 -/
-def rdf_mapping.spelled
-  («name» : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := Slice.len «name»
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let i2 ← Slice.index_usize «name» index
-        alloc.vec.Vec.push out i2
-      else ok out
-    let i2 ← index + 1#usize
-    rdf_mapping.spelled «name» i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::has_at]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 648:0-658:1 -/
-def rdf_mapping.has_at
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    if i1 = 64#u8
-    then ok true
-    else let i2 ← index + 1#usize
-         rdf_mapping.has_at bytes i2
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::append_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 660:0-669:1 -/
-def rdf_mapping.append_from
-  (out : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
-  (index : Std.Usize) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let i2 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-            bytes index
-        alloc.vec.Vec.push out i2
-      else ok out
-    let i2 ← index + 1#usize
-    rdf_mapping.append_from out1 bytes i2
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::literal_of]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 674:0-716:1 -/
-def rdf_mapping.literal_of
-  (literal : rdf.RdfLiteral) : Result (Option model.Literal) := do
-  match literal.kind with
-  | rdf.LiteralKind.Datatype datatype =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 55#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 80#u8, 108#u8, 97#u8,
-          105#u8, 110#u8, 76#u8, 105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
-          ]))
-    let b ← rdf_mapping.same datatype.spelling s
-    if b
-    then ok none
-    else
-      let v ← nnf.copy_bytes literal.lexical
-      let i ← rdf_mapping.iri_of datatype.spelling
-      ok (some { lexical := v, datatype := { iri := i } })
-  | rdf.LiteralKind.Language tag =>
-    let i := alloc.vec.Vec.len tag
-    if i = 0#usize
-    then ok none
-    else
-      let b ← rdf_mapping.has_at tag 0#usize
-      if b
-      then ok none
-      else
-        let i1 := alloc.vec.Vec.len literal.lexical
-        let i2 := alloc.vec.Vec.len tag
-        let i3 ← core.num.Usize.MAX - i2
-        if i1 < i3
-        then
-          let lexical ← nnf.copy_bytes literal.lexical
-          let lexical1 ← alloc.vec.Vec.push lexical 64#u8
-          let v ← rdf_mapping.append_from lexical1 tag 0#usize
-          let s ←
-            lift (Array.to_slice
-              (Array.make 55#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
-                47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
-                115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
-                115#u8, 35#u8, 80#u8, 108#u8, 97#u8, 105#u8, 110#u8, 76#u8,
-                105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
-                ]))
-          let v1 ← rdf_mapping.spelled s 0#usize (alloc.vec.Vec.new Std.U8)
-          ok (some { lexical := v, datatype := { iri := { spelling := v1 } } })
-        else ok none
-
-/-- [rowl_kernel::rdf_mapping::node_literal]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 719:0-724:1 -/
-def rdf_mapping.node_literal
-  (node : rdf.Object) : Result (Option model.Literal) := do
-  match node with
-  | rdf.Object.Iri _ => ok none
-  | rdf.Object.Blank _ => ok none
-  | rdf.Object.Literal literal => rdf_mapping.literal_of literal
-
-/-- [rowl_kernel::rdf_mapping::natural_up]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 726:0-732:1 -/
-def rdf_mapping.natural_up
-  (count : Std.Usize) (out : probes.Natural) : Result probes.Natural := do
-  if count = 0#usize
-  then ok out
-  else
-    let i ← count - 1#usize
-    rdf_mapping.natural_up i (probes.Natural.Succ out)
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::node_natural]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 736:0-766:1 -/
-def rdf_mapping.node_natural
-  (node : rdf.Object) : Result (Option probes.Natural) := do
-  match node with
-  | rdf.Object.Iri _ => ok none
-  | rdf.Object.Blank _ => ok none
-  | rdf.Object.Literal literal =>
-    match literal.kind with
-    | rdf.LiteralKind.Datatype datatype =>
-      let s ←
-        lift (Array.to_slice
-          (Array.make 51#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 110#u8,
-            111#u8, 110#u8, 78#u8, 101#u8, 103#u8, 97#u8, 116#u8, 105#u8,
-            118#u8, 101#u8, 73#u8, 110#u8, 116#u8, 101#u8, 103#u8, 101#u8,
-            114#u8
-            ]))
-      let b ← rdf_mapping.same datatype.spelling s
-      if b
-      then
-        let i := alloc.vec.Vec.len literal.lexical
-        if i > 1#usize
-        then
-          let i1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-              literal.lexical 0#usize
-          if i1 = 48#u8
-          then ok none
-          else
-            let i2 := alloc.vec.Vec.len literal.lexical
-            let o ←
-              decimal.read_bounded literal.lexical 0#usize i2
-                rdf_mapping.CARDINALITY_LIMIT
-            match o with
-            | none => ok none
-            | some value =>
-              let n ← rdf_mapping.natural_up value probes.Natural.Zero
-              ok (some n)
-        else
-          let i1 := alloc.vec.Vec.len literal.lexical
-          let o ←
-            decimal.read_bounded literal.lexical 0#usize i1
-              rdf_mapping.CARDINALITY_LIMIT
-          match o with
-          | none => ok none
-          | some value =>
-            let n ← rdf_mapping.natural_up value probes.Natural.Zero
-            ok (some n)
-      else ok none
-    | rdf.LiteralKind.Language _ => ok none
-
-/-- [rowl_kernel::rdf_mapping::node_true]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 769:0-786:1 -/
-def rdf_mapping.node_true (node : rdf.Object) : Result Bool := do
-  match node with
-  | rdf.Object.Iri _ => ok false
-  | rdf.Object.Blank _ => ok false
-  | rdf.Object.Literal literal =>
-    match literal.kind with
-    | rdf.LiteralKind.Datatype datatype =>
-      let s ←
-        lift (Array.to_slice
-          (Array.make 40#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8,
-            111#u8, 111#u8, 108#u8, 101#u8, 97#u8, 110#u8
-            ]))
-      let b ← rdf_mapping.same datatype.spelling s
-      if b
-      then
-        let s1 ←
-          lift (Array.to_slice
-            (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
-        rdf_mapping.same literal.lexical s1
-      else ok false
-    | rdf.LiteralKind.Language _ => ok false
-
-/-- [rowl_kernel::rdf_mapping::node_individual]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 789:0-800:1 -/
-def rdf_mapping.node_individual
-  (node : rdf.Object) : Result (Option model.Individual) := do
-  match node with
-  | rdf.Object.Iri iri =>
-    let i ← rdf_mapping.iri_of iri.spelling
-    ok (some (model.Individual.Named { iri := i }))
-  | rdf.Object.Blank node1 =>
-    let v ← nnf.copy_bytes node1.scope
-    let v1 ← nnf.copy_bytes node1.label
-    ok (some (model.Individual.Anonymous { scope := v, label := v1 }))
-  | rdf.Object.Literal _ => ok none
-
-/-- [rowl_kernel::rdf_mapping::node_iri]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 803:0-808:1 -/
-def rdf_mapping.node_iri (node : rdf.Object) : Result (Option model.Iri) := do
-  match node with
-  | rdf.Object.Iri iri => let i ← rdf_mapping.iri_of iri.spelling
-                          ok (some i)
-  | rdf.Object.Blank _ => ok none
-  | rdf.Object.Literal _ => ok none
-
-/-- [rowl_kernel::rdf_mapping::property_expression]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 812:0-847:1 -/
-def rdf_mapping.property_expression
-  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
-  (state : rdf_mapping.State) :
-  Result (Option (model.ObjectPropertyExpression × rdf_mapping.State))
-  := do
-  match node with
-  | rdf.Object.Iri iri =>
-    let i ← rdf_mapping.iri_of iri.spelling
-    ok (some (model.ObjectPropertyExpression.Property { iri := i }, state))
-  | rdf.Object.Blank blank =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 39#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 105#u8, 110#u8, 118#u8, 101#u8, 114#u8,
-          115#u8, 101#u8, 79#u8, 102#u8
-          ]))
-    let o ← rdf_mapping.find triples state blank s
-    match o with
-    | none => ok none
-    | some index =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      match t.object with
-      | rdf.Object.Iri iri =>
-        let state1 ← rdf_mapping.take state index
-        let state2 ← rdf_mapping.record state1 blank
-        let i ← rdf_mapping.iri_of iri.spelling
-        ok (some (model.ObjectPropertyExpression.Inverse { iri := i }, state2))
-      | rdf.Object.Blank _ => ok none
-      | rdf.Object.Literal _ => ok none
-  | rdf.Object.Literal _ => ok none
-
-/-- [rowl_kernel::rdf_mapping::cell]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 851:0-879:1 -/
-def rdf_mapping.cell
-  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
-  (state : rdf_mapping.State) :
-  Result (Option (Std.Usize × Std.Usize × rdf_mapping.State))
-  := do
-  match node with
-  | rdf.Object.Iri _ => ok none
-  | rdf.Object.Blank blank =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 48#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
-          115#u8, 116#u8
-          ]))
-    let o ← rdf_mapping.find triples state blank s
-    match o with
-    | none => ok none
-    | some first =>
-      let state1 ← rdf_mapping.take state first
-      let s1 ←
-        lift (Array.to_slice
-          (Array.make 47#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
-            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
-            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
-            35#u8, 114#u8, 101#u8, 115#u8, 116#u8
-            ]))
-      let o1 ← rdf_mapping.find triples state1 blank s1
-      match o1 with
-      | none => ok none
-      | some rest =>
-        let state2 ← rdf_mapping.take state1 rest
-        let state3 ← rdf_mapping.record state2 blank
-        ok (some (first, rest, state3))
-  | rdf.Object.Literal _ => ok none
-
-/-- [rowl_kernel::rdf_mapping::is_nil]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 882:0-884:1 -/
-def rdf_mapping.is_nil (node : rdf.Object) : Result Bool := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 46#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 110#u8, 105#u8, 108#u8
-        ]))
-  rdf_mapping.object_is node s
-
-/-- [rowl_kernel::rdf_mapping::cells]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 888:0-912:1 -/
-def rdf_mapping.cells
-  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
-  (state : rdf_mapping.State) (out : alloc.vec.Vec Std.Usize)
-  (fuel : Std.Usize) :
-  Result (Option ((alloc.vec.Vec Std.Usize) × rdf_mapping.State))
-  := do
-  let b ← rdf_mapping.is_nil node
-  if b
-  then ok (some (out, state))
-  else
-    if fuel > 0#usize
-    then
-      let o ← rdf_mapping.cell triples node state
-      match o with
-      | none => ok none
-      | some t =>
-        let (first, rest, state1) := t
-        let i := alloc.vec.Vec.len out
-        if i < core.num.Usize.MAX
-        then
-          let out1 ← alloc.vec.Vec.push out first
-          let t1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              rdf.Triple) triples rest
-          let i1 ← fuel - 1#usize
-          rdf_mapping.cells triples t1.object state1 out1 i1
-        else ok none
-    else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 915:0-921:1 -/
-def rdf_mapping.element
-  (triples : alloc.vec.Vec rdf.Triple) (first : Std.Usize) :
-  Result (Option rdf.Object)
-  := do
-  let i := alloc.vec.Vec.len triples
-  if first < i
-  then
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples first
-    ok (some t.object)
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::facet_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2088:0-2118:1 -/
-def rdf_mapping.facet_element
-  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (state : rdf_mapping.State) :
-  Result (Option (model.FacetRestriction × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some o1 =>
-      match o1 with
-      | rdf.Object.Iri _ => ok none
-      | rdf.Object.Blank blank =>
-        let o2 ← rdf_mapping.find_any triples state blank
-        match o2 with
-        | none => ok none
-        | some found =>
-          let t ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              rdf.Triple) triples found
-          let o3 ← rdf_mapping.node_literal t.object
-          match o3 with
-          | none => ok none
-          | some value =>
-            let state1 ← rdf_mapping.take state found
-            let state2 ← rdf_mapping.record state1 blank
-            let i2 ← rdf_mapping.iri_of t.predicate.spelling
-            ok (some ({ facet := i2, value }, state2))
-      | rdf.Object.Literal _ => ok none
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::facet_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2121:0-2143:1 -/
-def rdf_mapping.facet_members
-  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (state : rdf_mapping.State)
-  (out : alloc.vec.Vec model.FacetRestriction) :
-  Result (Option ((alloc.vec.Vec model.FacetRestriction) × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let o ← rdf_mapping.facet_element triples firsts index state
-    match o with
-    | none => ok none
-    | some p =>
-      let (member, state1) := p
-      let i1 := alloc.vec.Vec.len out
-      if i1 < core.num.Usize.MAX
-      then
-        let out1 ← alloc.vec.Vec.push out member
-        let i2 ← index + 1#usize
-        rdf_mapping.facet_members triples firsts i2 state1 out1
-      else ok none
-  else ok (some (out, state))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::literal_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1104:0-1128:1 -/
-def rdf_mapping.literal_members
-  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (out : alloc.vec.Vec model.Literal) :
-  Result (Option (alloc.vec.Vec model.Literal))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.node_literal node
-      match o1 with
-      | none => ok none
-      | some member =>
-        let i2 := alloc.vec.Vec.len out
-        if i2 < core.num.Usize.MAX
-        then
-          let out1 ← alloc.vec.Vec.push out member
-          let i3 ← index + 1#usize
-          rdf_mapping.literal_members triples firsts i3 out1
-        else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::literal_list1]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1131:0-1156:1 -/
-def rdf_mapping.literal_list1
-  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option ((model.NonEmpty model.Literal) × rdf_mapping.State))
-  := do
-  let o ←
-    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (firsts, state1) := p
-    let i := alloc.vec.Vec.len firsts
-    if i >= 1#usize
-    then
-      let i1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          firsts 0#usize
-      let o1 ← rdf_mapping.element triples i1
-      match o1 with
-      | none => ok none
-      | some one =>
-        let o2 ← rdf_mapping.node_literal one
-        match o2 with
-        | none => ok none
-        | some first =>
-          let o3 ←
-            rdf_mapping.literal_members triples firsts 1#usize
-              (alloc.vec.Vec.new model.Literal)
-          match o3 with
-          | none => ok none
-          | some rest => ok (some ({ first, rest }, state1))
-    else ok none
-
-mutual
-
-/-- [rowl_kernel::rdf_mapping::data_range]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1968:0-2003:1 -/
-def rdf_mapping.data_range
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.DataRange × rdf_mapping.State))
-  := do
-  match node with
-  | rdf.Object.Iri iri =>
-    let i ← rdf_mapping.iri_of iri.spelling
-    ok (some (model.DataRange.Datatype { iri := i }, state))
-  | rdf.Object.Blank blank =>
-    if fuel > 0#usize
-    then
-      let s ←
-        lift (Array.to_slice
-          (Array.make 45#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
-            47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8,
-            101#u8, 109#u8, 97#u8, 35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8,
-            121#u8, 112#u8, 101#u8
-            ]))
-      let o ← rdf_mapping.find_type triples state blank s
-      match o with
-      | none => ok none
-      | some index =>
-        let state1 ← rdf_mapping.take state index
-        let state2 ← rdf_mapping.record state1 blank
-        let i ← fuel - 1#usize
-        rdf_mapping.range_construct triples kinds blank state2 i
-    else ok none
-  | rdf.Object.Literal _ => ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::range_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2006:0-2033:1 -/
-def rdf_mapping.range_members
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (state : rdf_mapping.State) (out : alloc.vec.Vec model.DataRange)
-  (fuel : Std.Usize) :
-  Result (Option ((alloc.vec.Vec model.DataRange) × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.data_range triples kinds node state fuel
-      match o1 with
-      | none => ok none
-      | some p =>
-        let (member, state1) := p
-        let i2 := alloc.vec.Vec.len out
-        if i2 < core.num.Usize.MAX
-        then
-          let out1 ← alloc.vec.Vec.push out member
-          let i3 ← index + 1#usize
-          rdf_mapping.range_members triples kinds firsts i3 state1 out1 fuel
-        else ok none
-  else ok (some (out, state))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::range_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2036:0-2052:1 -/
-def rdf_mapping.range_element
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.DataRange × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node => rdf_mapping.data_range triples kinds node state fuel
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::range_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2055:0-2084:1 -/
-def rdf_mapping.range_list2
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option ((model.AtLeastTwo model.DataRange) × rdf_mapping.State))
-  := do
-  let o ←
-    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (firsts, state1) := p
-    let o1 ←
-      rdf_mapping.range_element triples kinds firsts 0#usize state1 fuel
-    match o1 with
-    | none => ok none
-    | some p1 =>
-      let (first, state2) := p1
-      let o2 ←
-        rdf_mapping.range_element triples kinds firsts 1#usize state2 fuel
-      match o2 with
-      | none => ok none
-      | some p2 =>
-        let (second, state3) := p2
-        let o3 ←
-          rdf_mapping.range_members triples kinds firsts 2#usize state3
-            (alloc.vec.Vec.new model.DataRange) fuel
-        match o3 with
-        | none => ok none
-        | some p3 =>
-          let (rest, state4) := p3
-          ok (some ({ first, second, rest }, state4))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::range_construct]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2146:0-2254:1 -/
-def rdf_mapping.range_construct
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.DataRange × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 44#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
-        99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
-          102#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 50#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 97#u8, 116#u8, 97#u8,
-            116#u8, 121#u8, 112#u8, 101#u8, 67#u8, 111#u8, 109#u8, 112#u8,
-            108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8, 102#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none =>
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 35#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
-              79#u8, 102#u8
-              ]))
-        let o3 ← rdf_mapping.find triples state blank s3
-        match o3 with
-        | none =>
-          let s4 ←
-            lift (Array.to_slice
-              (Array.make 40#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 68#u8,
-                97#u8, 116#u8, 97#u8, 116#u8, 121#u8, 112#u8, 101#u8
-                ]))
-          let o4 ← rdf_mapping.find triples state blank s4
-          match o4 with
-          | none => ok none
-          | some index =>
-            let t ←
-              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                rdf.Triple) triples index
-            let o5 ← rdf_mapping.node_iri t.object
-            match o5 with
-            | none => ok none
-            | some base =>
-              let state1 ← rdf_mapping.take state index
-              let s5 ←
-                lift (Array.to_slice
-                  (Array.make 46#usize [
-                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
-                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                    119#u8, 105#u8, 116#u8, 104#u8, 82#u8, 101#u8, 115#u8,
-                    116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8,
-                    110#u8, 115#u8
-                    ]))
-              let o6 ← rdf_mapping.find triples state1 blank s5
-              match o6 with
-              | none => ok none
-              | some list =>
-                let state2 ← rdf_mapping.take state1 list
-                let t1 ←
-                  alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                    rdf.Triple) triples list
-                let o7 ←
-                  rdf_mapping.cells triples t1.object state2 (alloc.vec.Vec.new
-                    Std.Usize) fuel
-                match o7 with
-                | none => ok none
-                | some p =>
-                  let (firsts, state3) := p
-                  let o8 ←
-                    rdf_mapping.facet_element triples firsts 0#usize state3
-                  match o8 with
-                  | none => ok none
-                  | some p1 =>
-                    let (first, state4) := p1
-                    let o9 ←
-                      rdf_mapping.facet_members triples firsts 1#usize state4
-                        (alloc.vec.Vec.new model.FacetRestriction)
-                    match o9 with
-                    | none => ok none
-                    | some p2 =>
-                      let (rest, state5) := p2
-                      ok (some (model.DataRange.Restriction { iri := base }
-                        { first, rest }, state5))
-        | some index =>
-          let state1 ← rdf_mapping.take state index
-          let t ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              rdf.Triple) triples index
-          let o4 ← rdf_mapping.literal_list1 triples t.object state1 fuel
-          match o4 with
-          | none => ok none
-          | some p =>
-            let (members, state2) := p
-            ok (some (model.DataRange.OneOf members, state2))
-      | some index =>
-        let state1 ← rdf_mapping.take state index
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ← rdf_mapping.data_range triples kinds t.object state1 fuel
-        match o3 with
-        | none => ok none
-        | some p =>
-          let (inner, state2) := p
-          ok (some (model.DataRange.Complement inner, state2))
-    | some index =>
-      let state1 ← rdf_mapping.take state index
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ← rdf_mapping.range_list2 triples kinds t.object state1 fuel
-      match o2 with
-      | none => ok none
-      | some p =>
-        let (members, state2) := p
-        ok (some (model.DataRange.Union members, state2))
-  | some index =>
-    let state1 ← rdf_mapping.take state index
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.range_list2 triples kinds t.object state1 fuel
-    match o1 with
-    | none => ok none
-    | some p =>
-      let (members, state2) := p
-      ok (some (model.DataRange.Intersection members, state2))
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::rdf_mapping::on_data_range]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1827:0-1846:1 -/
-def rdf_mapping.on_data_range
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.DataRange × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 41#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 111#u8, 110#u8, 68#u8, 97#u8, 116#u8, 97#u8, 82#u8,
-        97#u8, 110#u8, 103#u8, 101#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none => ok none
-  | some index =>
-    let state1 ← rdf_mapping.take state index
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    rdf_mapping.data_range triples kinds t.object state1 fuel
-
-/-- [rowl_kernel::rdf_mapping::data_qualified]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1903:0-1964:1 -/
-def rdf_mapping.data_qualified
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (property : model.DataProperty)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 53#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 81#u8, 117#u8, 97#u8, 108#u8,
-        105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
-        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 53#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 81#u8, 117#u8, 97#u8,
-          108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
-          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 50#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 113#u8, 117#u8, 97#u8,
-            108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8,
-            114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
-            121#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none => ok none
-      | some index =>
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ← rdf_mapping.node_natural t.object
-        match o3 with
-        | none => ok none
-        | some n =>
-          let s3 ← rdf_mapping.take state index
-          let o4 ← rdf_mapping.on_data_range triples kinds blank s3 fuel
-          match o4 with
-          | none => ok none
-          | some p =>
-            let (range, state1) := p
-            ok (some (model.ClassExpression.DataExactCardinality n property
-              (some range), state1))
-    | some index =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ← rdf_mapping.node_natural t.object
-      match o2 with
-      | none => ok none
-      | some n =>
-        let s2 ← rdf_mapping.take state index
-        let o3 ← rdf_mapping.on_data_range triples kinds blank s2 fuel
-        match o3 with
-        | none => ok none
-        | some p =>
-          let (range, state1) := p
-          ok (some (model.ClassExpression.DataMaxCardinality n property (some
-            range), state1))
-  | some index =>
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.node_natural t.object
-    match o1 with
-    | none => ok none
-    | some n =>
-      let s1 ← rdf_mapping.take state index
-      let o2 ← rdf_mapping.on_data_range triples kinds blank s1 fuel
-      match o2 with
-      | none => ok none
-      | some p =>
-        let (range, state1) := p
-        ok (some (model.ClassExpression.DataMinCardinality n property (some
-          range), state1))
-
-/-- [rowl_kernel::rdf_mapping::data_cardinality]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1849:0-1900:1 -/
-def rdf_mapping.data_cardinality
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (property : model.DataProperty)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 44#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
-        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 44#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
-          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 41#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
-            105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none =>
-        rdf_mapping.data_qualified triples kinds blank property state fuel
-      | some index =>
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ← rdf_mapping.node_natural t.object
-        match o3 with
-        | none => ok none
-        | some n =>
-          let s3 ← rdf_mapping.take state index
-          ok (some (model.ClassExpression.DataExactCardinality n property none,
-            s3))
-    | some index =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ← rdf_mapping.node_natural t.object
-      match o2 with
-      | none => ok none
-      | some n =>
-        let s2 ← rdf_mapping.take state index
-        ok (some (model.ClassExpression.DataMaxCardinality n property none,
-          s2))
-  | some index =>
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.node_natural t.object
-    match o1 with
-    | none => ok none
-    | some n =>
-      let s1 ← rdf_mapping.take state index
-      ok (some (model.ClassExpression.DataMinCardinality n property none, s1))
-
-/-- [rowl_kernel::rdf_mapping::data_restriction]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1769:0-1824:1 -/
-def rdf_mapping.data_restriction
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (property : model.DataProperty)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 44#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
-        117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 43#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
-          117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 38#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
-            97#u8, 108#u8, 117#u8, 101#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none =>
-        rdf_mapping.data_cardinality triples kinds blank property state fuel
-      | some index =>
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ← rdf_mapping.node_literal t.object
-        match o3 with
-        | none => ok none
-        | some value =>
-          let s3 ← rdf_mapping.take state index
-          ok (some (model.ClassExpression.DataHasValue property value, s3))
-    | some index =>
-      let state1 ← rdf_mapping.take state index
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ← rdf_mapping.data_range triples kinds t.object state1 fuel
-      match o2 with
-      | none => ok none
-      | some p =>
-        let (range, state2) := p
-        ok (some (model.ClassExpression.DataAllValuesFrom property range,
-          state2))
-  | some index =>
-    let state1 ← rdf_mapping.take state index
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.data_range triples kinds t.object state1 fuel
-    match o1 with
-    | none => ok none
-    | some p =>
-      let (range, state2) := p
-      ok (some (model.ClassExpression.DataSomeValuesFrom property range,
-        state2))
-
-/-- [rowl_kernel::rdf_mapping::individual_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1006:0-1030:1 -/
-def rdf_mapping.individual_members
-  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (out : alloc.vec.Vec model.Individual) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.node_individual node
-      match o1 with
-      | none => ok none
-      | some member =>
-        let i2 := alloc.vec.Vec.len out
-        if i2 < core.num.Usize.MAX
-        then
-          let out1 ← alloc.vec.Vec.push out member
-          let i3 ← index + 1#usize
-          rdf_mapping.individual_members triples firsts i3 out1
-        else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::individual_list1]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1033:0-1058:1 -/
-def rdf_mapping.individual_list1
-  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option ((model.NonEmpty model.Individual) × rdf_mapping.State))
-  := do
-  let o ←
-    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (firsts, state1) := p
-    let i := alloc.vec.Vec.len firsts
-    if i >= 1#usize
-    then
-      let i1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          firsts 0#usize
-      let o1 ← rdf_mapping.element triples i1
-      match o1 with
-      | none => ok none
-      | some one =>
-        let o2 ← rdf_mapping.node_individual one
-        match o2 with
-        | none => ok none
-        | some first =>
-          let o3 ←
-            rdf_mapping.individual_members triples firsts 1#usize
-              (alloc.vec.Vec.new model.Individual)
-          match o3 with
-          | none => ok none
-          | some rest => ok (some ({ first, rest }, state1))
-    else ok none
-
-mutual
-
-/-- [rowl_kernel::rdf_mapping::class_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 924:0-951:1 -/
-def rdf_mapping.class_members
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (state : rdf_mapping.State) (out : alloc.vec.Vec model.ClassExpression)
-  (fuel : Std.Usize) :
-  Result (Option ((alloc.vec.Vec model.ClassExpression) × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.class_expression triples kinds node state fuel
-      match o1 with
-      | none => ok none
-      | some p =>
-        let (member, state1) := p
-        let i2 := alloc.vec.Vec.len out
-        if i2 < core.num.Usize.MAX
-        then
-          let out1 ← alloc.vec.Vec.push out member
-          let i3 ← index + 1#usize
-          rdf_mapping.class_members triples kinds firsts i3 state1 out1 fuel
-        else ok none
-  else ok (some (out, state))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::class_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 954:0-1003:1 -/
-def rdf_mapping.class_list2
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option ((model.AtLeastTwo model.ClassExpression) ×
-    rdf_mapping.State))
-  := do
-  let o ←
-    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (firsts, state1) := p
-    let i := alloc.vec.Vec.len firsts
-    if i >= 2#usize
-    then
-      let i1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          firsts 0#usize
-      let o1 ← rdf_mapping.element triples i1
-      match o1 with
-      | none => ok none
-      | some one =>
-        let o2 ← rdf_mapping.class_expression triples kinds one state1 fuel
-        match o2 with
-        | none => ok none
-        | some p1 =>
-          let (first, state2) := p1
-          let i2 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              Std.Usize) firsts 1#usize
-          let o3 ← rdf_mapping.element triples i2
-          match o3 with
-          | none => ok none
-          | some two =>
-            let o4 ←
-              rdf_mapping.class_expression triples kinds two state2 fuel
-            match o4 with
-            | none => ok none
-            | some p2 =>
-              let (second, state3) := p2
-              let o5 ←
-                rdf_mapping.class_members triples kinds firsts 2#usize state3
-                  (alloc.vec.Vec.new model.ClassExpression) fuel
-              match o5 with
-              | none => ok none
-              | some p3 =>
-                let (rest, state4) := p3
-                ok (some ({ first, second, rest }, state4))
-    else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::class_expression]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1388:0-1435:1 -/
-def rdf_mapping.class_expression
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  match node with
-  | rdf.Object.Iri iri =>
-    let i ← rdf_mapping.iri_of iri.spelling
-    ok (some (model.ClassExpression.Class { iri := i }, state))
-  | rdf.Object.Blank blank =>
-    if fuel > 0#usize
-    then
-      let s ←
-        lift (Array.to_slice
-          (Array.make 41#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 82#u8, 101#u8, 115#u8,
-            116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8, 110#u8
-            ]))
-      let o ← rdf_mapping.find_type triples state blank s
-      match o with
-      | none =>
-        let s1 ←
-          lift (Array.to_slice
-            (Array.make 35#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 67#u8, 108#u8, 97#u8,
-              115#u8, 115#u8
-              ]))
-        let o1 ← rdf_mapping.find_type triples state blank s1
-        match o1 with
-        | none => ok none
-        | some index =>
-          let state1 ← rdf_mapping.take state index
-          let state2 ← rdf_mapping.record state1 blank
-          let i ← fuel - 1#usize
-          rdf_mapping.class_construct triples kinds blank state2 i
-      | some index =>
-        let state1 ← rdf_mapping.take state index
-        let state2 ← rdf_mapping.record state1 blank
-        let i ← fuel - 1#usize
-        rdf_mapping.restriction triples kinds blank state2 i
-    else ok none
-  | rdf.Object.Literal _ => ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::class_construct]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1438:0-1511:1 -/
-def rdf_mapping.class_construct
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 44#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
-        99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
-          102#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 42#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 111#u8, 109#u8,
-            112#u8, 108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8,
-            102#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none =>
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 35#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
-              79#u8, 102#u8
-              ]))
-        let o3 ← rdf_mapping.find triples state blank s3
-        match o3 with
-        | none => ok none
-        | some index =>
-          let state1 ← rdf_mapping.take state index
-          let t ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              rdf.Triple) triples index
-          let o4 ← rdf_mapping.individual_list1 triples t.object state1 fuel
-          match o4 with
-          | none => ok none
-          | some p =>
-            let (members, state2) := p
-            ok (some (model.ClassExpression.ObjectOneOf members, state2))
-      | some index =>
-        let state1 ← rdf_mapping.take state index
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ←
-          rdf_mapping.class_expression triples kinds t.object state1 fuel
-        match o3 with
-        | none => ok none
-        | some p =>
-          let (inner, state2) := p
-          ok (some (model.ClassExpression.ObjectComplementOf inner, state2))
-    | some index =>
-      let state1 ← rdf_mapping.take state index
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
-      match o2 with
-      | none => ok none
-      | some p =>
-        let (members, state2) := p
-        ok (some (model.ClassExpression.ObjectUnionOf members, state2))
-  | some index =>
-    let state1 ← rdf_mapping.take state index
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
-    match o1 with
-    | none => ok none
-    | some p =>
-      let (members, state2) := p
-      ok (some (model.ClassExpression.ObjectIntersectionOf members, state2))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::restriction]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1514:0-1548:1 -/
-def rdf_mapping.restriction
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 40#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 111#u8, 110#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8,
-        114#u8, 116#u8, 121#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none => ok none
-  | some index =>
-    let state1 ← rdf_mapping.take state index
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.node_kind kinds t.object
-    match o1 with
-    | none => ok none
-    | some pk =>
-      match pk with
-      | rdf_mapping.PropertyKind.Object =>
-        let o2 ← rdf_mapping.property_expression triples t.object state1
-        match o2 with
-        | none => ok none
-        | some p =>
-          let (role, state2) := p
-          rdf_mapping.object_restriction triples kinds blank role state2 fuel
-      | rdf_mapping.PropertyKind.Data =>
-        let o2 ← rdf_mapping.node_iri t.object
-        match o2 with
-        | none => ok none
-        | some iri =>
-          rdf_mapping.data_restriction triples kinds blank { iri } state1 fuel
-      | rdf_mapping.PropertyKind.Annotation => ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::object_restriction]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1551:0-1623:1 -/
-def rdf_mapping.object_restriction
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 44#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
-        117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 43#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
-          117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 38#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
-            97#u8, 108#u8, 117#u8, 101#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none =>
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 37#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8,
-              83#u8, 101#u8, 108#u8, 102#u8
-              ]))
-        let o3 ← rdf_mapping.find triples state blank s3
-        match o3 with
-        | none =>
-          rdf_mapping.object_cardinality triples kinds blank role state fuel
-        | some index =>
-          let state1 ← rdf_mapping.take state index
-          let t ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              rdf.Triple) triples index
-          let b ← rdf_mapping.node_true t.object
-          if b
-          then ok (some (model.ClassExpression.ObjectHasSelf role, state1))
-          else ok none
-      | some index =>
-        let state1 ← rdf_mapping.take state index
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ← rdf_mapping.node_individual t.object
-        match o3 with
-        | none => ok none
-        | some value =>
-          ok (some (model.ClassExpression.ObjectHasValue role value, state1))
-    | some index =>
-      let state1 ← rdf_mapping.take state index
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ←
-        rdf_mapping.class_expression triples kinds t.object state1 fuel
-      match o2 with
-      | none => ok none
-      | some p =>
-        let (filler, state2) := p
-        ok (some (model.ClassExpression.ObjectAllValuesFrom role filler,
-          state2))
-  | some index =>
-    let state1 ← rdf_mapping.take state index
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.class_expression triples kinds t.object state1 fuel
-    match o1 with
-    | none => ok none
-    | some p =>
-      let (filler, state2) := p
-      ok (some (model.ClassExpression.ObjectSomeValuesFrom role filler,
-        state2))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::object_cardinality]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1626:0-1677:1 -/
-def rdf_mapping.object_cardinality
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 44#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
-        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 44#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
-          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 41#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
-            105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none =>
-        rdf_mapping.object_qualified triples kinds blank role state fuel
-      | some index =>
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ← rdf_mapping.node_natural t.object
-        match o3 with
-        | none => ok none
-        | some n =>
-          let s3 ← rdf_mapping.take state index
-          ok (some (model.ClassExpression.ObjectExactCardinality n role none,
-            s3))
-    | some index =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ← rdf_mapping.node_natural t.object
-      match o2 with
-      | none => ok none
-      | some n =>
-        let s2 ← rdf_mapping.take state index
-        ok (some (model.ClassExpression.ObjectMaxCardinality n role none, s2))
-  | some index =>
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.node_natural t.object
-    match o1 with
-    | none => ok none
-    | some n =>
-      let s1 ← rdf_mapping.take state index
-      ok (some (model.ClassExpression.ObjectMinCardinality n role none, s1))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::on_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1680:0-1699:1 -/
-def rdf_mapping.on_class
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 37#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 111#u8, 110#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none => ok none
-  | some index =>
-    let state1 ← rdf_mapping.take state index
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    rdf_mapping.class_expression triples kinds t.object state1 fuel
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::object_qualified]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1702:0-1766:1 -/
-def rdf_mapping.object_qualified
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × rdf_mapping.State))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 53#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 81#u8, 117#u8, 97#u8, 108#u8,
-        105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
-        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-        ]))
-  let o ← rdf_mapping.find triples state blank s
-  match o with
-  | none =>
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 53#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 81#u8, 117#u8, 97#u8,
-          108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
-          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state blank s1
-    match o1 with
-    | none =>
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 50#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 113#u8, 117#u8, 97#u8,
-            108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8,
-            114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
-            121#u8
-            ]))
-      let o2 ← rdf_mapping.find triples state blank s2
-      match o2 with
-      | none => ok none
-      | some index =>
-        let t ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples index
-        let o3 ← rdf_mapping.node_natural t.object
-        match o3 with
-        | none => ok none
-        | some n =>
-          let s3 ← rdf_mapping.take state index
-          let o4 ← rdf_mapping.on_class triples kinds blank s3 fuel
-          match o4 with
-          | none => ok none
-          | some p =>
-            let (filler, state1) := p
-            ok (some (model.ClassExpression.ObjectExactCardinality n role (some
-              filler), state1))
-    | some index =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o2 ← rdf_mapping.node_natural t.object
-      match o2 with
-      | none => ok none
-      | some n =>
-        let s2 ← rdf_mapping.take state index
-        let o3 ← rdf_mapping.on_class triples kinds blank s2 fuel
-        match o3 with
-        | none => ok none
-        | some p =>
-          let (filler, state1) := p
-          ok (some (model.ClassExpression.ObjectMaxCardinality n role (some
-            filler), state1))
-  | some index =>
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o1 ← rdf_mapping.node_natural t.object
-    match o1 with
-    | none => ok none
-    | some n =>
-      let s1 ← rdf_mapping.take state index
-      let o2 ← rdf_mapping.on_class triples kinds blank s1 fuel
-      match o2 with
-      | none => ok none
-      | some p =>
-        let (filler, state1) := p
-        ok (some (model.ClassExpression.ObjectMinCardinality n role (some
-          filler), state1))
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::rdf_mapping::individual_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1061:0-1101:1 -/
-def rdf_mapping.individual_list2
-  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option ((model.AtLeastTwo model.Individual) × rdf_mapping.State))
-  := do
-  let o ←
-    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (firsts, state1) := p
-    let i := alloc.vec.Vec.len firsts
-    if i >= 2#usize
-    then
-      let i1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          firsts 0#usize
-      let o1 ← rdf_mapping.element triples i1
-      match o1 with
-      | none => ok none
-      | some one =>
-        let o2 ← rdf_mapping.node_individual one
-        match o2 with
-        | none => ok none
-        | some first =>
-          let i2 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              Std.Usize) firsts 1#usize
-          let o3 ← rdf_mapping.element triples i2
-          match o3 with
-          | none => ok none
-          | some two =>
-            let o4 ← rdf_mapping.node_individual two
-            match o4 with
-            | none => ok none
-            | some second =>
-              let o5 ←
-                rdf_mapping.individual_members triples firsts 2#usize
-                  (alloc.vec.Vec.new model.Individual)
-              match o5 with
-              | none => ok none
-              | some rest => ok (some ({ first, second, rest }, state1))
-    else ok none
-
-/-- [rowl_kernel::rdf_mapping::property_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1159:0-1188:1 -/
-def rdf_mapping.property_members
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (state : rdf_mapping.State)
-  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (Option ((alloc.vec.Vec model.ObjectPropertyExpression) ×
-    rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.node_kind kinds node
-      match o1 with
-      | none => ok none
-      | some pk =>
-        match pk with
-        | rdf_mapping.PropertyKind.Object =>
-          let o2 ← rdf_mapping.property_expression triples node state
-          match o2 with
-          | none => ok none
-          | some p =>
-            let (member, state1) := p
-            let i2 := alloc.vec.Vec.len out
-            if i2 < core.num.Usize.MAX
-            then
-              let out1 ← alloc.vec.Vec.push out member
-              let i3 ← index + 1#usize
-              rdf_mapping.property_members triples kinds firsts i3 state1 out1
-            else ok none
-        | rdf_mapping.PropertyKind.Data => ok none
-        | rdf_mapping.PropertyKind.Annotation => ok none
-  else ok (some (out, state))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::property_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1191:0-1209:1 -/
-def rdf_mapping.property_element
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result (Option (model.ObjectPropertyExpression × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.node_kind kinds node
-      match o1 with
-      | none => ok none
-      | some pk =>
-        match pk with
-        | rdf_mapping.PropertyKind.Object =>
-          rdf_mapping.property_expression triples node state
-        | rdf_mapping.PropertyKind.Data => ok none
-        | rdf_mapping.PropertyKind.Annotation => ok none
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::property_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1212:0-1241:1 -/
-def rdf_mapping.property_list2
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option ((model.AtLeastTwo model.ObjectPropertyExpression) ×
-    rdf_mapping.State))
-  := do
-  let o ←
-    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (firsts, state1) := p
-    let o1 ← rdf_mapping.property_element triples kinds firsts 0#usize state1
-    match o1 with
-    | none => ok none
-    | some p1 =>
-      let (first, state2) := p1
-      let o2 ←
-        rdf_mapping.property_element triples kinds firsts 1#usize state2
-      match o2 with
-      | none => ok none
-      | some p2 =>
-        let (second, state3) := p2
-        let o3 ←
-          rdf_mapping.property_members triples kinds firsts 2#usize state3
-            (alloc.vec.Vec.new model.ObjectPropertyExpression)
-        match o3 with
-        | none => ok none
-        | some p3 =>
-          let (rest, state4) := p3
-          ok (some ({ first, second, rest }, state4))
-
-/-- [rowl_kernel::rdf_mapping::data_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1244:0-1272:1 -/
-def rdf_mapping.data_members
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec model.DataProperty) :
-  Result (Option (alloc.vec.Vec model.DataProperty))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.node_kind kinds node
-      match o1 with
-      | none => ok none
-      | some pk =>
-        match pk with
-        | rdf_mapping.PropertyKind.Object => ok none
-        | rdf_mapping.PropertyKind.Data =>
-          let o2 ← rdf_mapping.node_iri node
-          match o2 with
-          | none => ok none
-          | some iri =>
-            let i2 := alloc.vec.Vec.len out
-            if i2 < core.num.Usize.MAX
-            then
-              let out1 ←
-                alloc.vec.Vec.push out ({ iri } : model.DataProperty)
-              let i3 ← index + 1#usize
-              rdf_mapping.data_members triples kinds firsts i3 out1
-            else ok none
-        | rdf_mapping.PropertyKind.Annotation => ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::data_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1275:0-1295:1 -/
-def rdf_mapping.data_element
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
-  Result (Option model.DataProperty)
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.node_kind kinds node
-      match o1 with
-      | none => ok none
-      | some pk =>
-        match pk with
-        | rdf_mapping.PropertyKind.Object => ok none
-        | rdf_mapping.PropertyKind.Data =>
-          let o2 ← rdf_mapping.node_iri node
-          match o2 with
-          | none => ok none
-          | some iri => ok (some { iri })
-        | rdf_mapping.PropertyKind.Annotation => ok none
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::data_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1298:0-1325:1 -/
-def rdf_mapping.data_list2
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option ((model.AtLeastTwo model.DataProperty) × rdf_mapping.State))
-  := do
-  let o ←
-    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (firsts, state1) := p
-    let o1 ← rdf_mapping.data_element triples kinds firsts 0#usize
-    match o1 with
-    | none => ok none
-    | some first =>
-      let o2 ← rdf_mapping.data_element triples kinds firsts 1#usize
-      match o2 with
-      | none => ok none
-      | some second =>
-        let o3 ←
-          rdf_mapping.data_members triples kinds firsts 2#usize
-            (alloc.vec.Vec.new model.DataProperty)
-        match o3 with
-        | none => ok none
-        | some rest => ok (some ({ first, second, rest }, state1))
-
-/-- [rowl_kernel::rdf_mapping::key_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1329:0-1384:1 -/
-def rdf_mapping.key_members
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (state : rdf_mapping.State)
-  (objects : alloc.vec.Vec model.ObjectPropertyExpression)
-  (datas : alloc.vec.Vec model.DataProperty) :
-  Result (Option ((alloc.vec.Vec model.ObjectPropertyExpression) ×
-    (alloc.vec.Vec model.DataProperty) × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len firsts
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        firsts index
-    let o ← rdf_mapping.element triples i1
-    match o with
-    | none => ok none
-    | some node =>
-      let o1 ← rdf_mapping.node_kind kinds node
-      match o1 with
-      | none => ok none
-      | some pk =>
-        match pk with
-        | rdf_mapping.PropertyKind.Object =>
-          let i2 := alloc.vec.Vec.len datas
-          if i2 = 0#usize
-          then
-            let o2 ← rdf_mapping.property_expression triples node state
-            match o2 with
-            | none => ok none
-            | some p =>
-              let (member, state1) := p
-              let i3 := alloc.vec.Vec.len objects
-              if i3 < core.num.Usize.MAX
-              then
-                let objects1 ← alloc.vec.Vec.push objects member
-                let i4 ← index + 1#usize
-                rdf_mapping.key_members triples kinds firsts i4 state1 objects1
-                  datas
-              else ok none
-          else ok none
-        | rdf_mapping.PropertyKind.Data =>
-          let o2 ← rdf_mapping.node_iri node
-          match o2 with
-          | none => ok none
-          | some iri =>
-            let i2 := alloc.vec.Vec.len datas
-            if i2 < core.num.Usize.MAX
-            then
-              let datas1 ←
-                alloc.vec.Vec.push datas ({ iri } : model.DataProperty)
-              let i3 ← index + 1#usize
-              rdf_mapping.key_members triples kinds firsts i3 state objects
-                datas1
-            else ok none
-        | rdf_mapping.PropertyKind.Annotation => ok none
-  else ok (some (objects, datas, state))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::class_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2257:0-2275:1 -/
-def rdf_mapping.class_pair
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result (Option (model.ClassExpression × model.ClassExpression ×
-    rdf_mapping.State))
-  := do
-  let state1 ← rdf_mapping.take state index
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let subject ← rdf_mapping.subject_node t.subject
-  let o ← rdf_mapping.class_expression triples kinds subject state1 fuel
-  match o with
-  | none => ok none
-  | some p =>
-    let (left, state2) := p
-    let o1 ← rdf_mapping.class_expression triples kinds t.object state2 fuel
-    match o1 with
-    | none => ok none
-    | some p1 => let (right, state3) := p1
-                 ok (some (left, right, state3))
-
-/-- [rowl_kernel::rdf_mapping::two]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2277:0-2283:1 -/
-def rdf_mapping.two
-  {T : Type} (first : T) (second : T) : Result (model.AtLeastTwo T) := do
-  ok { first, second, rest := (alloc.vec.Vec.new T) }
-
-/-- [rowl_kernel::rdf_mapping::sub_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2285:0-2296:1 -/
-def rdf_mapping.sub_class
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.class_pair triples kinds index state fuel
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some t =>
-    let (sub, sup, state1) := t
-    ok (rdf_mapping.Read.Found (model.Axiom.SubClassOf sub sup) state1)
-
-/-- [rowl_kernel::rdf_mapping::datatype_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2299:0-2304:1 -/
-def rdf_mapping.datatype_subject
-  (kinds : rdf_mapping.Kinds) (subject : rdf.Subject) : Result Bool := do
-  match subject with
-  | rdf.Subject.Iri iri =>
-    rdf_mapping.has_kind kinds iri.spelling typing.EntityKind.Datatype
-  | rdf.Subject.Blank _ => ok false
-
-/-- [rowl_kernel::rdf_mapping::equivalent_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2306:0-2340:1 -/
-def rdf_mapping.equivalent_class
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let b ← rdf_mapping.datatype_subject kinds t.subject
-  if b
-  then
-    let state1 ← rdf_mapping.take state index
-    match t.subject with
-    | rdf.Subject.Iri iri =>
-      let o ← rdf_mapping.data_range triples kinds t.object state1 fuel
-      match o with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (range, state2) := p
-        let i ← rdf_mapping.iri_of iri.spelling
-        ok (rdf_mapping.Read.Found (model.Axiom.DatatypeDefinition { iri := i }
-          range) state2)
-    | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
-  else
-    let o ← rdf_mapping.class_pair triples kinds index state fuel
-    match o with
-    | none => ok rdf_mapping.Read.Fail
-    | some t1 =>
-      let (left, right, state1) := t1
-      let alt ← rdf_mapping.two left right
-      ok (rdf_mapping.Read.Found (model.Axiom.EquivalentClasses alt) state1)
-
-/-- [rowl_kernel::rdf_mapping::disjoint_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2342:0-2353:1 -/
-def rdf_mapping.disjoint_class
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.class_pair triples kinds index state fuel
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some t =>
-    let (left, right, state1) := t
-    let alt ← rdf_mapping.two left right
-    ok (rdf_mapping.Read.Found (model.Axiom.DisjointClasses alt) state1)
-
-/-- [rowl_kernel::rdf_mapping::disjoint_union]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2355:0-2380:1 -/
-def rdf_mapping.disjoint_union
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  match t.subject with
-  | rdf.Subject.Iri iri =>
-    let state1 ← rdf_mapping.take state index
-    let o ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
-    match o with
-    | none => ok rdf_mapping.Read.Fail
-    | some p =>
-      let (members, state2) := p
-      let i ← rdf_mapping.iri_of iri.spelling
-      ok (rdf_mapping.Read.Found (model.Axiom.DisjointUnion { iri := i }
-        members) state2)
-  | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::property_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2383:0-2396:1 -/
-def rdf_mapping.property_pair
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result (Option (model.ObjectPropertyExpression ×
-    model.ObjectPropertyExpression × rdf_mapping.State))
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let subject ← rdf_mapping.subject_node t.subject
-  let o ← rdf_mapping.property_expression triples subject state
-  match o with
-  | none => ok none
-  | some p =>
-    let (left, state1) := p
-    let o1 ← rdf_mapping.property_expression triples t.object state1
-    match o1 with
-    | none => ok none
-    | some p1 => let (right, state2) := p1
-                 ok (some (left, right, state2))
-
-/-- [rowl_kernel::rdf_mapping::data_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2399:0-2408:1 -/
-def rdf_mapping.data_pair
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
-  Result (Option (model.DataProperty × model.DataProperty))
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let subject ← rdf_mapping.subject_node t.subject
-  let o ← rdf_mapping.node_iri subject
-  match o with
-  | none => ok none
-  | some left =>
-    let o1 ← rdf_mapping.node_iri t.object
-    match o1 with
-    | none => ok none
-    | some right => ok (some ({ iri := left }, { iri := right }))
-
-/-- [rowl_kernel::rdf_mapping::subject_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2411:0-2413:1 -/
-def rdf_mapping.subject_kind
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) :
-  Result (Option rdf_mapping.PropertyKind)
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let o ← rdf_mapping.subject_node t.subject
-  rdf_mapping.node_kind kinds o
-
-/-- [rowl_kernel::rdf_mapping::sub_property]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2415:0-2441:1 -/
-def rdf_mapping.sub_property
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let o ← rdf_mapping.subject_kind triples kinds index
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some pk =>
-    match pk with
-    | rdf_mapping.PropertyKind.Object =>
-      let o1 ← rdf_mapping.property_pair triples index state1
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some t =>
-        let (sub, sup, state2) := t
-        ok (rdf_mapping.Read.Found (model.Axiom.SubObjectPropertyOf
-          (model.SubObjectPropertyExpression.Single sub) sup) state2)
-    | rdf_mapping.PropertyKind.Data =>
-      let o1 ← rdf_mapping.data_pair triples index
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (sub, sup) := p
-        ok (rdf_mapping.Read.Found (model.Axiom.SubDataPropertyOf sub sup)
-          state1)
-    | rdf_mapping.PropertyKind.Annotation =>
-      let o1 ← rdf_mapping.data_pair triples index
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (sub, sup) := p
-        ok (rdf_mapping.Read.Found (model.Axiom.SubAnnotationPropertyOf
-          { iri := sub.iri } { iri := sup.iri }) state1)
-
-/-- [rowl_kernel::rdf_mapping::property_chain]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2443:0-2464:1 -/
-def rdf_mapping.property_chain
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let subject ← rdf_mapping.subject_node t.subject
-  let o ← rdf_mapping.property_expression triples subject state1
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let (sup, state2) := p
-    let o1 ← rdf_mapping.property_list2 triples kinds t.object state2 fuel
-    match o1 with
-    | none => ok rdf_mapping.Read.Fail
-    | some p1 =>
-      let (chain, state3) := p1
-      ok (rdf_mapping.Read.Found (model.Axiom.SubObjectPropertyOf
-        (model.SubObjectPropertyExpression.Chain chain) sup) state3)
-
-/-- [rowl_kernel::rdf_mapping::equivalent_property]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2466:0-2483:1 -/
-def rdf_mapping.equivalent_property
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let o ← rdf_mapping.subject_kind triples kinds index
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some pk =>
-    match pk with
-    | rdf_mapping.PropertyKind.Object =>
-      let o1 ← rdf_mapping.property_pair triples index state1
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some t =>
-        let (left, right, state2) := t
-        let alt ← rdf_mapping.two left right
-        ok (rdf_mapping.Read.Found (model.Axiom.EquivalentObjectProperties alt)
-          state2)
-    | rdf_mapping.PropertyKind.Data =>
-      let o1 ← rdf_mapping.data_pair triples index
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (left, right) := p
-        let alt ← rdf_mapping.two left right
-        ok (rdf_mapping.Read.Found (model.Axiom.EquivalentDataProperties alt)
-          state1)
-    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::disjoint_property]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2485:0-2502:1 -/
-def rdf_mapping.disjoint_property
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let o ← rdf_mapping.subject_kind triples kinds index
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some pk =>
-    match pk with
-    | rdf_mapping.PropertyKind.Object =>
-      let o1 ← rdf_mapping.property_pair triples index state1
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some t =>
-        let (left, right, state2) := t
-        let alt ← rdf_mapping.two left right
-        ok (rdf_mapping.Read.Found (model.Axiom.DisjointObjectProperties alt)
-          state2)
-    | rdf_mapping.PropertyKind.Data =>
-      let o1 ← rdf_mapping.data_pair triples index
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (left, right) := p
-        let alt ← rdf_mapping.two left right
-        ok (rdf_mapping.Read.Found (model.Axiom.DisjointDataProperties alt)
-          state1)
-    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::inverse_properties]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2504:0-2517:1 -/
-def rdf_mapping.inverse_properties
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  match t.subject with
-  | rdf.Subject.Iri _ =>
-    let state1 ← rdf_mapping.take state index
-    let o ← rdf_mapping.property_pair triples index state1
-    match o with
-    | none => ok rdf_mapping.Read.Fail
-    | some t1 =>
-      let (left, right, state2) := t1
-      ok (rdf_mapping.Read.Found (model.Axiom.InverseObjectProperties left
-        right) state2)
-  | rdf.Subject.Blank _ => ok (rdf_mapping.Read.Skip state)
-
-/-- [rowl_kernel::rdf_mapping::domain_range]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2520:0-2589:1 -/
-def rdf_mapping.domain_range
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (range : Bool)
-  (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let subject ← rdf_mapping.subject_node t.subject
-  let o ← rdf_mapping.node_kind kinds subject
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some pk =>
-    match pk with
-    | rdf_mapping.PropertyKind.Object =>
-      let o1 ← rdf_mapping.property_expression triples subject state1
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (role, state2) := p
-        let o2 ←
-          rdf_mapping.class_expression triples kinds t.object state2 fuel
-        match o2 with
-        | none => ok rdf_mapping.Read.Fail
-        | some p1 =>
-          let (filler, state3) := p1
-          if range
-          then
-            ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyRange role
-              filler) state3)
-          else
-            ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyDomain role
-              filler) state3)
-    | rdf_mapping.PropertyKind.Data =>
-      let o1 ← rdf_mapping.node_iri subject
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some iri =>
-        if range
-        then
-          let o2 ← rdf_mapping.data_range triples kinds t.object state1 fuel
-          match o2 with
-          | none => ok rdf_mapping.Read.Fail
-          | some p =>
-            let (filler, state2) := p
-            ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyRange 
-              { iri } filler) state2)
-        else
-          let o2 ←
-            rdf_mapping.class_expression triples kinds t.object state1 fuel
-          match o2 with
-          | none => ok rdf_mapping.Read.Fail
-          | some p =>
-            let (filler, state2) := p
-            ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyDomain 
-              { iri } filler) state2)
-    | rdf_mapping.PropertyKind.Annotation =>
-      let o1 ← rdf_mapping.node_iri subject
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some iri =>
-        let o2 ← rdf_mapping.node_iri t.object
-        match o2 with
-        | none => ok rdf_mapping.Read.Fail
-        | some target =>
-          if range
-          then
-            ok (rdf_mapping.Read.Found (model.Axiom.AnnotationPropertyRange
-              { iri } target) state1)
-          else
-            ok (rdf_mapping.Read.Found (model.Axiom.AnnotationPropertyDomain
-              { iri } target) state1)
-
-/-- [rowl_kernel::rdf_mapping::individual_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2592:0-2600:1 -/
-def rdf_mapping.individual_pair
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
-  Result (Option (model.Individual × model.Individual))
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let o ← rdf_mapping.subject_node t.subject
-  let o1 ← rdf_mapping.node_individual o
-  match o1 with
-  | none => ok none
-  | some left =>
-    let o2 ← rdf_mapping.node_individual t.object
-    match o2 with
-    | none => ok none
-    | some right => ok (some (left, right))
-
-/-- [rowl_kernel::rdf_mapping::same_individual]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2602:0-2609:1 -/
-def rdf_mapping.same_individual
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.individual_pair triples index
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let (left, right) := p
-    let alt ← rdf_mapping.two left right
-    let s ← rdf_mapping.take state index
-    ok (rdf_mapping.Read.Found (model.Axiom.SameIndividual alt) s)
-
-/-- [rowl_kernel::rdf_mapping::different_individuals]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2611:0-2619:1 -/
-def rdf_mapping.different_individuals
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.individual_pair triples index
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let (left, right) := p
-    let alt ← rdf_mapping.two left right
-    let s ← rdf_mapping.take state index
-    ok (rdf_mapping.Read.Found (model.Axiom.DifferentIndividuals alt) s)
-
-/-- [rowl_kernel::rdf_mapping::has_key]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2621:0-2640:1 -/
-def rdf_mapping.has_key
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let subject ← rdf_mapping.subject_node t.subject
-  let o ← rdf_mapping.class_expression triples kinds subject state1 fuel
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let («class», state2) := p
-    let o1 ←
-      rdf_mapping.cells triples t.object state2 (alloc.vec.Vec.new Std.Usize)
-        fuel
-    match o1 with
-    | none => ok rdf_mapping.Read.Fail
-    | some p1 =>
-      let (firsts, state3) := p1
-      let o2 ←
-        rdf_mapping.key_members triples kinds firsts 0#usize state3
-          (alloc.vec.Vec.new model.ObjectPropertyExpression) (alloc.vec.Vec.new
-          model.DataProperty)
-      match o2 with
-      | none => ok rdf_mapping.Read.Fail
-      | some t1 =>
-        let (objects, datas, state4) := t1
-        ok (rdf_mapping.Read.Found (model.Axiom.HasKey «class» objects datas)
-          state4)
-
-/-- [rowl_kernel::rdf_mapping::characteristic]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2645:0-2689:1 -/
-def rdf_mapping.characteristic
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (kind : Std.U8) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let subject ← rdf_mapping.subject_node t.subject
-  let o ← rdf_mapping.node_kind kinds subject
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some pk =>
-    match pk with
-    | rdf_mapping.PropertyKind.Object =>
-      let o1 ← rdf_mapping.property_expression triples subject state1
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (role, state2) := p
-        if kind = 0#u8
-        then
-          ok (rdf_mapping.Read.Found (model.Axiom.FunctionalObjectProperty
-            role) state2)
-        else
-          if kind = 1#u8
-          then
-            ok (rdf_mapping.Read.Found
-              (model.Axiom.InverseFunctionalObjectProperty role) state2)
-          else
-            if kind = 2#u8
-            then
-              ok (rdf_mapping.Read.Found (model.Axiom.ReflexiveObjectProperty
-                role) state2)
-            else
-              if kind = 3#u8
-              then
-                ok (rdf_mapping.Read.Found
-                  (model.Axiom.IrreflexiveObjectProperty role) state2)
-              else
-                if kind = 4#u8
-                then
-                  ok (rdf_mapping.Read.Found
-                    (model.Axiom.SymmetricObjectProperty role) state2)
-                else
-                  if kind = 5#u8
-                  then
-                    ok (rdf_mapping.Read.Found
-                      (model.Axiom.AsymmetricObjectProperty role) state2)
-                  else
-                    ok (rdf_mapping.Read.Found
-                      (model.Axiom.TransitiveObjectProperty role) state2)
-    | rdf_mapping.PropertyKind.Data =>
-      if kind = 0#u8
-      then
-        let o1 ← rdf_mapping.node_iri subject
-        match o1 with
-        | none => ok rdf_mapping.Read.Fail
-        | some iri =>
-          ok (rdf_mapping.Read.Found (model.Axiom.FunctionalDataProperty
-            { iri }) state1)
-      else ok rdf_mapping.Read.Fail
-    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::axiom_node]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2692:0-2701:1 -/
-def rdf_mapping.axiom_node
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result (Option (rdf.BlankNode × rdf_mapping.State))
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  match t.subject with
-  | rdf.Subject.Iri _ => ok none
-  | rdf.Subject.Blank blank =>
-    let state1 ← rdf_mapping.take state index
-    let state2 ← rdf_mapping.record state1 blank
-    let bn ← rdf_mapping.copy_blank blank
-    ok (some (bn, state2))
-
-/-- [rowl_kernel::rdf_mapping::all_disjoint_classes]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2703:0-2734:1 -/
-def rdf_mapping.all_disjoint_classes
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.axiom_node triples index state
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let (blank, state1) := p
-    let s ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
-          115#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state1 blank s
-    match o1 with
-    | none => ok rdf_mapping.Read.Fail
-    | some list =>
-      let state2 ← rdf_mapping.take state1 list
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples list
-      let o2 ← rdf_mapping.class_list2 triples kinds t.object state2 fuel
-      match o2 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p1 =>
-        let (members, state3) := p1
-        let i := alloc.vec.Vec.len members.rest
-        if i >= 1#usize
-        then
-          ok (rdf_mapping.Read.Found (model.Axiom.DisjointClasses members)
-            state3)
-        else ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::first_member_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2737:0-2755:1 -/
-def rdf_mapping.first_member_kind
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (state : rdf_mapping.State) (node : rdf.Object) :
-  Result (Option rdf_mapping.PropertyKind)
-  := do
-  match node with
-  | rdf.Object.Iri _ => ok none
-  | rdf.Object.Blank blank =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 48#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
-          115#u8, 116#u8
-          ]))
-    let o ← rdf_mapping.find triples state blank s
-    match o with
-    | none => ok none
-    | some first =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples first
-      rdf_mapping.node_kind kinds t.object
-  | rdf.Object.Literal _ => ok none
-
-/-- [rowl_kernel::rdf_mapping::all_disjoint_properties]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2757:0-2805:1 -/
-def rdf_mapping.all_disjoint_properties
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.axiom_node triples index state
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let (blank, state1) := p
-    let s ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
-          115#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state1 blank s
-    match o1 with
-    | none => ok rdf_mapping.Read.Fail
-    | some list =>
-      let state2 ← rdf_mapping.take state1 list
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples list
-      let o2 ← rdf_mapping.first_member_kind triples kinds state2 t.object
-      match o2 with
-      | none => ok rdf_mapping.Read.Fail
-      | some pk =>
-        match pk with
-        | rdf_mapping.PropertyKind.Object =>
-          let o3 ←
-            rdf_mapping.property_list2 triples kinds t.object state2 fuel
-          match o3 with
-          | none => ok rdf_mapping.Read.Fail
-          | some p1 =>
-            let (members, state3) := p1
-            let i := alloc.vec.Vec.len members.rest
-            if i >= 1#usize
-            then
-              ok (rdf_mapping.Read.Found (model.Axiom.DisjointObjectProperties
-                members) state3)
-            else ok rdf_mapping.Read.Fail
-        | rdf_mapping.PropertyKind.Data =>
-          let o3 ← rdf_mapping.data_list2 triples kinds t.object state2 fuel
-          match o3 with
-          | none => ok rdf_mapping.Read.Fail
-          | some p1 =>
-            let (members, state3) := p1
-            let i := alloc.vec.Vec.len members.rest
-            if i >= 1#usize
-            then
-              ok (rdf_mapping.Read.Found (model.Axiom.DisjointDataProperties
-                members) state3)
-            else ok rdf_mapping.Read.Fail
-        | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::all_different]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2807:0-2832:1 -/
-def rdf_mapping.all_different
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.axiom_node triples index state
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let (blank, state1) := p
-    let s ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
-          115#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state1 blank s
-    match o1 with
-    | none => ok rdf_mapping.Read.Fail
-    | some list =>
-      let state2 ← rdf_mapping.take state1 list
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples list
-      let o2 ← rdf_mapping.individual_list2 triples t.object state2 fuel
-      match o2 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p1 =>
-        let (members, state3) := p1
-        let i := alloc.vec.Vec.len members.rest
-        if i >= 1#usize
-        then
-          ok (rdf_mapping.Read.Found (model.Axiom.DifferentIndividuals members)
-            state3)
-        else ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::negative_assertion]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2834:0-2914:1 -/
-def rdf_mapping.negative_assertion
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let o ← rdf_mapping.axiom_node triples index state
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some p =>
-    let (blank, state1) := p
-    let s ←
-      lift (Array.to_slice
-        (Array.make 46#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 115#u8, 111#u8, 117#u8, 114#u8, 99#u8, 101#u8,
-          73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8, 100#u8, 117#u8, 97#u8,
-          108#u8
-          ]))
-    let o1 ← rdf_mapping.find triples state1 blank s
-    match o1 with
-    | none => ok rdf_mapping.Read.Fail
-    | some source =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples source
-      let o2 ← rdf_mapping.node_individual t.object
-      match o2 with
-      | none => ok rdf_mapping.Read.Fail
-      | some subject =>
-        let state2 ← rdf_mapping.take state1 source
-        let s1 ←
-          lift (Array.to_slice
-            (Array.make 47#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 97#u8, 115#u8, 115#u8,
-              101#u8, 114#u8, 116#u8, 105#u8, 111#u8, 110#u8, 80#u8, 114#u8,
-              111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-              ]))
-        let o3 ← rdf_mapping.find triples state2 blank s1
-        match o3 with
-        | none => ok rdf_mapping.Read.Fail
-        | some property =>
-          let state3 ← rdf_mapping.take state2 property
-          let t1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              rdf.Triple) triples property
-          let o4 ← rdf_mapping.node_kind kinds t1.object
-          match o4 with
-          | none => ok rdf_mapping.Read.Fail
-          | some pk =>
-            match pk with
-            | rdf_mapping.PropertyKind.Object =>
-              let o5 ←
-                rdf_mapping.property_expression triples t1.object state3
-              match o5 with
-              | none => ok rdf_mapping.Read.Fail
-              | some p1 =>
-                let (role, state4) := p1
-                let s2 ←
-                  lift (Array.to_slice
-                    (Array.make 46#usize [
-                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                      108#u8, 35#u8, 116#u8, 97#u8, 114#u8, 103#u8, 101#u8,
-                      116#u8, 73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8,
-                      100#u8, 117#u8, 97#u8, 108#u8
-                      ]))
-                let o6 ← rdf_mapping.find triples state4 blank s2
-                match o6 with
-                | none => ok rdf_mapping.Read.Fail
-                | some target =>
-                  let t2 ←
-                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                      rdf.Triple) triples target
-                  let o7 ← rdf_mapping.node_individual t2.object
-                  match o7 with
-                  | none => ok rdf_mapping.Read.Fail
-                  | some object =>
-                    let s3 ← rdf_mapping.take state4 target
-                    ok (rdf_mapping.Read.Found
-                      (model.Axiom.NegativeObjectPropertyAssertion role subject
-                      object) s3)
-            | rdf_mapping.PropertyKind.Data =>
-              let o5 ← rdf_mapping.node_iri t1.object
-              match o5 with
-              | none => ok rdf_mapping.Read.Fail
-              | some iri =>
-                let s2 ←
-                  lift (Array.to_slice
-                    (Array.make 41#usize [
-                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                      108#u8, 35#u8, 116#u8, 97#u8, 114#u8, 103#u8, 101#u8,
-                      116#u8, 86#u8, 97#u8, 108#u8, 117#u8, 101#u8
-                      ]))
-                let o6 ← rdf_mapping.find triples state3 blank s2
-                match o6 with
-                | none => ok rdf_mapping.Read.Fail
-                | some target =>
-                  let t2 ←
-                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                      rdf.Triple) triples target
-                  let o7 ← rdf_mapping.node_literal t2.object
-                  match o7 with
-                  | none => ok rdf_mapping.Read.Fail
-                  | some value =>
-                    let s3 ← rdf_mapping.take state3 target
-                    ok (rdf_mapping.Read.Found
-                      (model.Axiom.NegativeDataPropertyAssertion { iri }
-                      subject value) s3)
-            | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::class_assertion]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2916:0-2935:1 -/
-def rdf_mapping.class_assertion
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let state1 ← rdf_mapping.take state index
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let o ← rdf_mapping.subject_node t.subject
-  let o1 ← rdf_mapping.node_individual o
-  match o1 with
-  | none => ok rdf_mapping.Read.Fail
-  | some individual =>
-    let o2 ← rdf_mapping.class_expression triples kinds t.object state1 fuel
-    match o2 with
-    | none => ok rdf_mapping.Read.Fail
-    | some p =>
-      let («class», state2) := p
-      ok (rdf_mapping.Read.Found (model.Axiom.ClassAssertion «class»
-        individual) state2)
-
-/-- [rowl_kernel::rdf_mapping::blank_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2938:0-2943:1 -/
-def rdf_mapping.blank_subject (triple : rdf.Triple) : Result Bool := do
-  match triple.subject with
-  | rdf.Subject.Iri _ => ok false
-  | rdf.Subject.Blank _ => ok true
-
-/-- [rowl_kernel::rdf_mapping::reserved_object]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3043:0-3058:1 -/
-def rdf_mapping.reserved_object (node : rdf.Object) : Result Bool := do
-  match node with
-  | rdf.Object.Iri iri =>
-    let b ← vocabulary.reserved_iri iri.spelling
-    if b
-    then
-      let s ←
-        lift (Array.to_slice
-          (Array.make 35#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 84#u8, 104#u8, 105#u8,
-            110#u8, 103#u8
-            ]))
-      let b1 ← rdf_mapping.same iri.spelling s
-      if b1
-      then ok false
-      else
-        let s1 ←
-          lift (Array.to_slice
-            (Array.make 37#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 111#u8, 116#u8,
-              104#u8, 105#u8, 110#u8, 103#u8
-              ]))
-        let b2 ← rdf_mapping.same iri.spelling s1
-        ok (¬ b2)
-    else ok false
-  | rdf.Object.Blank _ => ok false
-  | rdf.Object.Literal _ => ok false
-
-/-- [rowl_kernel::rdf_mapping::entity_of]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3756:0-3766:1 -/
-def rdf_mapping.entity_of
-  (kind : typing.EntityKind) (spelling : alloc.vec.Vec Std.U8) :
-  Result model.Entity
-  := do
-  let iri ← rdf_mapping.iri_of spelling
-  match kind with
-  | typing.EntityKind.Class => ok (model.Entity.Class { iri })
-  | typing.EntityKind.Datatype => ok (model.Entity.Datatype { iri })
-  | typing.EntityKind.ObjectProperty =>
-    ok (model.Entity.ObjectProperty { iri })
-  | typing.EntityKind.DataProperty => ok (model.Entity.DataProperty { iri })
-  | typing.EntityKind.AnnotationProperty =>
-    ok (model.Entity.AnnotationProperty { iri })
-  | typing.EntityKind.NamedIndividual =>
-    ok (model.Entity.NamedIndividual { iri })
-
-/-- [rowl_kernel::rdf_mapping::declaration_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3738:0-3754:1 -/
-def rdf_mapping.declaration_kind
-  (object : rdf.Object) : Result (Option typing.EntityKind) := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 35#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
-        ]))
-  let b ← rdf_mapping.object_is object s
-  if b
-  then ok (some typing.EntityKind.Class)
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 45#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
-          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
-          35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8, 121#u8, 112#u8, 101#u8
-          ]))
-    let b1 ← rdf_mapping.object_is object s1
-    if b1
-    then ok (some typing.EntityKind.Datatype)
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 44#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 79#u8, 98#u8, 106#u8, 101#u8,
-            99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
-            116#u8, 121#u8
-            ]))
-      let b2 ← rdf_mapping.object_is object s2
-      if b2
-      then ok (some typing.EntityKind.ObjectProperty)
-      else
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 46#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 68#u8, 97#u8, 116#u8,
-              97#u8, 116#u8, 121#u8, 112#u8, 101#u8, 80#u8, 114#u8, 111#u8,
-              112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-              ]))
-        let b3 ← rdf_mapping.object_is object s3
-        if b3
-        then ok (some typing.EntityKind.DataProperty)
-        else
-          let s4 ←
-            lift (Array.to_slice
-              (Array.make 48#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8,
-                111#u8, 116#u8, 97#u8, 116#u8, 105#u8, 111#u8, 110#u8, 80#u8,
-                114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-                ]))
-          let b4 ← rdf_mapping.object_is object s4
-          if b4
-          then ok (some typing.EntityKind.AnnotationProperty)
-          else
-            let s5 ←
-              lift (Array.to_slice
-                (Array.make 45#usize [
-                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
-                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 97#u8,
-                  109#u8, 101#u8, 100#u8, 73#u8, 110#u8, 100#u8, 105#u8,
-                  118#u8, 105#u8, 100#u8, 117#u8, 97#u8, 108#u8
-                  ]))
-            let b5 ← rdf_mapping.object_is object s5
-            if b5
-            then ok (some typing.EntityKind.NamedIndividual)
-            else ok none
-
-/-- [rowl_kernel::rdf_mapping::declaration]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3027:0-3038:1 -/
-def rdf_mapping.declaration
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  match t.subject with
-  | rdf.Subject.Iri iri =>
-    let o ← rdf_mapping.declaration_kind t.object
-    match o with
-    | none => ok rdf_mapping.Read.Fail
-    | some kind =>
-      let e ← rdf_mapping.entity_of kind iri.spelling
-      let s ← rdf_mapping.take state index
-      ok (rdf_mapping.Read.Found (model.Axiom.Declaration e) s)
-  | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
-
-/-- [rowl_kernel::rdf_mapping::declares]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3019:0-3024:1 -/
-def rdf_mapping.declares (object : rdf.Object) : Result Bool := do
-  let o ← rdf_mapping.declaration_kind object
-  match o with
-  | none => ok false
-  | some _ => ok true
-
-/-- [rowl_kernel::rdf_mapping::typing]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2946:0-3016:1 -/
-def rdf_mapping.typing
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let s ←
-    lift (Array.to_slice
-      (Array.make 41#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 82#u8, 101#u8, 115#u8, 116#u8, 114#u8, 105#u8, 99#u8,
-        116#u8, 105#u8, 111#u8, 110#u8
-        ]))
-  let b ← rdf_mapping.object_is t.object s
-  if b
-  then
-    let b1 ← rdf_mapping.blank_subject t
-    if b1
-    then ok (rdf_mapping.Read.Skip state)
-    else ok rdf_mapping.Read.Fail
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 35#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
-          ]))
-    let b1 ← rdf_mapping.object_is t.object s1
-    if b1
-    then
-      let b2 ← rdf_mapping.blank_subject t
-      if b2
-      then ok (rdf_mapping.Read.Skip state)
-      else rdf_mapping.declaration triples index state
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 45#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
-            47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8,
-            101#u8, 109#u8, 97#u8, 35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8,
-            121#u8, 112#u8, 101#u8
-            ]))
-      let b2 ← rdf_mapping.object_is t.object s2
-      if b2
-      then
-        let b3 ← rdf_mapping.blank_subject t
-        if b3
-        then ok (rdf_mapping.Read.Skip state)
-        else rdf_mapping.declaration triples index state
-      else
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 35#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 120#u8, 105#u8,
-              111#u8, 109#u8
-              ]))
-        let b3 ← rdf_mapping.object_is t.object s3
-        if b3
-        then
-          let b4 ← rdf_mapping.blank_subject t
-          if b4
-          then ok (rdf_mapping.Read.Skip state)
-          else ok rdf_mapping.Read.Fail
-        else
-          let s4 ←
-            lift (Array.to_slice
-              (Array.make 40#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8,
-                111#u8, 116#u8, 97#u8, 116#u8, 105#u8, 111#u8, 110#u8
-                ]))
-          let b4 ← rdf_mapping.object_is t.object s4
-          if b4
-          then
-            let b5 ← rdf_mapping.blank_subject t
-            if b5
-            then ok (rdf_mapping.Read.Skip state)
-            else ok rdf_mapping.Read.Fail
-          else
-            let b5 ← rdf_mapping.declares t.object
-            if b5
-            then rdf_mapping.declaration triples index state
-            else
-              let s5 ←
-                lift (Array.to_slice
-                  (Array.make 48#usize [
-                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
-                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                    70#u8, 117#u8, 110#u8, 99#u8, 116#u8, 105#u8, 111#u8,
-                    110#u8, 97#u8, 108#u8, 80#u8, 114#u8, 111#u8, 112#u8,
-                    101#u8, 114#u8, 116#u8, 121#u8
-                    ]))
-              let b6 ← rdf_mapping.object_is t.object s5
-              if b6
-              then rdf_mapping.characteristic triples kinds index state 0#u8
-              else
-                let s6 ←
-                  lift (Array.to_slice
-                    (Array.make 55#usize [
-                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                      108#u8, 35#u8, 73#u8, 110#u8, 118#u8, 101#u8, 114#u8,
-                      115#u8, 101#u8, 70#u8, 117#u8, 110#u8, 99#u8, 116#u8,
-                      105#u8, 111#u8, 110#u8, 97#u8, 108#u8, 80#u8, 114#u8,
-                      111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-                      ]))
-                let b7 ← rdf_mapping.object_is t.object s6
-                if b7
-                then rdf_mapping.characteristic triples kinds index state 1#u8
-                else
-                  let s7 ←
-                    lift (Array.to_slice
-                      (Array.make 47#usize [
-                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                        108#u8, 35#u8, 82#u8, 101#u8, 102#u8, 108#u8, 101#u8,
-                        120#u8, 105#u8, 118#u8, 101#u8, 80#u8, 114#u8, 111#u8,
-                        112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-                        ]))
-                  let b8 ← rdf_mapping.object_is t.object s7
-                  if b8
-                  then
-                    rdf_mapping.characteristic triples kinds index state 2#u8
-                  else
-                    let s8 ←
-                      lift (Array.to_slice
-                        (Array.make 49#usize [
-                          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                          119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                          111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                          50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                          108#u8, 35#u8, 73#u8, 114#u8, 114#u8, 101#u8, 102#u8,
-                          108#u8, 101#u8, 120#u8, 105#u8, 118#u8, 101#u8,
-                          80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
-                          116#u8, 121#u8
-                          ]))
-                    let b9 ← rdf_mapping.object_is t.object s8
-                    if b9
-                    then
-                      rdf_mapping.characteristic triples kinds index state 3#u8
-                    else
-                      let s9 ←
-                        lift (Array.to_slice
-                          (Array.make 47#usize [
-                            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                            47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                            51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8,
-                            48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8,
-                            111#u8, 119#u8, 108#u8, 35#u8, 83#u8, 121#u8,
-                            109#u8, 109#u8, 101#u8, 116#u8, 114#u8, 105#u8,
-                            99#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8,
-                            114#u8, 116#u8, 121#u8
-                            ]))
-                      let b10 ← rdf_mapping.object_is t.object s9
-                      if b10
-                      then
-                        rdf_mapping.characteristic triples kinds index state
-                          4#u8
-                      else
-                        let s10 ←
-                          lift (Array.to_slice
-                            (Array.make 48#usize [
-                              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                              47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                              51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-                              50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8,
-                              115#u8, 121#u8, 109#u8, 109#u8, 101#u8, 116#u8,
-                              114#u8, 105#u8, 99#u8, 80#u8, 114#u8, 111#u8,
-                              112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-                              ]))
-                        let b11 ← rdf_mapping.object_is t.object s10
-                        if b11
-                        then
-                          rdf_mapping.characteristic triples kinds index state
-                            5#u8
-                        else
-                          let s11 ←
-                            lift (Array.to_slice
-                              (Array.make 48#usize [
-                                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                                47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                                51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-                                50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
-                                55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                                84#u8, 114#u8, 97#u8, 110#u8, 115#u8, 105#u8,
-                                116#u8, 105#u8, 118#u8, 101#u8, 80#u8, 114#u8,
-                                111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-                                ]))
-                          let b12 ← rdf_mapping.object_is t.object s11
-                          if b12
-                          then
-                            rdf_mapping.characteristic triples kinds index
-                              state 6#u8
-                          else
-                            let s12 ←
-                              lift (Array.to_slice
-                                (Array.make 48#usize [
-                                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                                  47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                                  51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-                                  50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
-                                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                                  65#u8, 108#u8, 108#u8, 68#u8, 105#u8, 115#u8,
-                                  106#u8, 111#u8, 105#u8, 110#u8, 116#u8,
-                                  67#u8, 108#u8, 97#u8, 115#u8, 115#u8, 101#u8,
-                                  115#u8
-                                  ]))
-                            let b13 ← rdf_mapping.object_is t.object s12
-                            if b13
-                            then
-                              rdf_mapping.all_disjoint_classes triples kinds
-                                index state fuel
-                            else
-                              let s13 ←
-                                lift (Array.to_slice
-                                  (Array.make 51#usize [
-                                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
-                                    47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
-                                    46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
-                                    114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                                    50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-                                    119#u8, 108#u8, 35#u8, 65#u8, 108#u8,
-                                    108#u8, 68#u8, 105#u8, 115#u8, 106#u8,
-                                    111#u8, 105#u8, 110#u8, 116#u8, 80#u8,
-                                    114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
-                                    116#u8, 105#u8, 101#u8, 115#u8
-                                    ]))
-                              let b14 ← rdf_mapping.object_is t.object s13
-                              if b14
-                              then
-                                rdf_mapping.all_disjoint_properties triples
-                                  kinds index state fuel
-                              else
-                                let s14 ←
-                                  lift (Array.to_slice
-                                    (Array.make 42#usize [
-                                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
-                                      47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
-                                      46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
-                                      114#u8, 103#u8, 47#u8, 50#u8, 48#u8,
-                                      48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8,
-                                      111#u8, 119#u8, 108#u8, 35#u8, 65#u8,
-                                      108#u8, 108#u8, 68#u8, 105#u8, 102#u8,
-                                      102#u8, 101#u8, 114#u8, 101#u8, 110#u8,
-                                      116#u8
-                                      ]))
-                                let b15 ← rdf_mapping.object_is t.object s14
-                                if b15
-                                then
-                                  rdf_mapping.all_different triples index state
-                                    fuel
-                                else
-                                  let s15 ←
-                                    lift (Array.to_slice
-                                      (Array.make 55#usize [
-                                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
-                                        47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
-                                        46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
-                                        114#u8, 103#u8, 47#u8, 50#u8, 48#u8,
-                                        48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                                        47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                                        78#u8, 101#u8, 103#u8, 97#u8, 116#u8,
-                                        105#u8, 118#u8, 101#u8, 80#u8, 114#u8,
-                                        111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
-                                        121#u8, 65#u8, 115#u8, 115#u8, 101#u8,
-                                        114#u8, 116#u8, 105#u8, 111#u8, 110#u8
-                                        ]))
-                                  let b16 ←
-                                    rdf_mapping.object_is t.object s15
-                                  if b16
-                                  then
-                                    rdf_mapping.negative_assertion triples
-                                      kinds index state
-                                  else
-                                    let b17 ←
-                                      rdf_mapping.reserved_object t.object
-                                    if b17
-                                    then ok rdf_mapping.Read.Fail
-                                    else
-                                      rdf_mapping.class_assertion triples kinds
-                                        index state fuel
-
-/-- [rowl_kernel::rdf_mapping::reifier_type]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3564:0-3584:1 -/
-def rdf_mapping.reifier_type (object : rdf.Object) : Result Bool := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 35#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 65#u8, 120#u8, 105#u8, 111#u8, 109#u8
-        ]))
-  let b ← rdf_mapping.object_is object s
-  if b
-  then ok true
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 40#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8,
-          116#u8, 105#u8, 111#u8, 110#u8
-          ]))
-    let b1 ← rdf_mapping.object_is object s1
-    if b1
-    then ok true
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 48#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 108#u8, 108#u8, 68#u8,
-            105#u8, 115#u8, 106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 67#u8,
-            108#u8, 97#u8, 115#u8, 115#u8, 101#u8, 115#u8
-            ]))
-      let b2 ← rdf_mapping.object_is object s2
-      if b2
-      then ok true
-      else
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 51#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 108#u8, 108#u8,
-              68#u8, 105#u8, 115#u8, 106#u8, 111#u8, 105#u8, 110#u8, 116#u8,
-              80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 105#u8,
-              101#u8, 115#u8
-              ]))
-        let b3 ← rdf_mapping.object_is object s3
-        if b3
-        then ok true
-        else
-          let s4 ←
-            lift (Array.to_slice
-              (Array.make 42#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 108#u8, 108#u8,
-                68#u8, 105#u8, 102#u8, 102#u8, 101#u8, 114#u8, 101#u8, 110#u8,
-                116#u8
-                ]))
-          let b4 ← rdf_mapping.object_is object s4
-          if b4
-          then ok true
-          else
-            let s5 ←
-              lift (Array.to_slice
-                (Array.make 55#usize [
-                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
-                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 101#u8,
-                  103#u8, 97#u8, 116#u8, 105#u8, 118#u8, 101#u8, 80#u8, 114#u8,
-                  111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8, 65#u8,
-                  115#u8, 115#u8, 101#u8, 114#u8, 116#u8, 105#u8, 111#u8,
-                  110#u8
-                  ]))
-            rdf_mapping.object_is object s5
-
-/-- [rowl_kernel::rdf_mapping::reifier_typing]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3587:0-3604:1 -/
-def rdf_mapping.reifier_typing
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (node : rdf.BlankNode) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let b ← rdf_mapping.about t node
-    if b
-    then
-      let s ←
-        lift (Array.to_slice
-          (Array.make 47#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
-            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
-            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
-            35#u8, 116#u8, 121#u8, 112#u8, 101#u8
-            ]))
-      let b1 ← rdf_mapping.same t.predicate.spelling s
-      if b1
-      then rdf_mapping.reifier_type t.object
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::typed_reifier_in]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3607:0-3622:1 -/
-def rdf_mapping.typed_reifier_in
-  (triples : alloc.vec.Vec rdf.Triple) (bucket : alloc.vec.Vec Std.Usize)
-  (node : rdf.BlankNode) (k : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len bucket
-  if k < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        bucket k
-    let b ← rdf_mapping.reifier_typing triples i1 node
-    if b
-    then ok true
-    else
-      let i2 ← k + 1#usize
-      rdf_mapping.typed_reifier_in triples bucket node i2
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::reifier_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3627:0-3639:1 -/
-def rdf_mapping.reifier_subject
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (subject : rdf.Subject) :
-  Result Bool
-  := do
-  match subject with
-  | rdf.Subject.Iri _ => ok false
-  | rdf.Subject.Blank node =>
-    let i ← rdf_mapping.hash_blank node
-    let i1 := alloc.vec.Vec.len state.subjects
-    let bucket ← rdf_mapping.bucket_of i i1
-    let i2 := alloc.vec.Vec.len state.subjects
-    if bucket < i2
-    then
-      let v ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          (alloc.vec.Vec Std.Usize)) state.subjects bucket
-      rdf_mapping.typed_reifier_in triples v node 0#usize
-    else ok false
-
-/-- [rowl_kernel::rdf_mapping::annotation_value]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3131:0-3143:1 -/
-def rdf_mapping.annotation_value
-  (node : rdf.Object) : Result (Option model.AnnotationValue) := do
-  match node with
-  | rdf.Object.Iri iri =>
-    let i ← rdf_mapping.iri_of iri.spelling
-    ok (some (model.AnnotationValue.Iri i))
-  | rdf.Object.Blank blank =>
-    let v ← nnf.copy_bytes blank.scope
-    let v1 ← nnf.copy_bytes blank.label
-    ok (some (model.AnnotationValue.Anonymous { scope := v, label := v1 }))
-  | rdf.Object.Literal literal =>
-    let o ← rdf_mapping.literal_of literal
-    match o with
-    | none => ok none
-    | some value => ok (some (model.AnnotationValue.Literal value))
-
-/-- [rowl_kernel::rdf_mapping::annotation_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3121:0-3129:1 -/
-def rdf_mapping.annotation_subject
-  (subject : rdf.Subject) : Result model.AnnotationSubject := do
-  match subject with
-  | rdf.Subject.Iri iri =>
-    let i ← rdf_mapping.iri_of iri.spelling
-    ok (model.AnnotationSubject.Iri i)
-  | rdf.Subject.Blank blank =>
-    let v ← nnf.copy_bytes blank.scope
-    let v1 ← nnf.copy_bytes blank.label
-    ok (model.AnnotationSubject.Anonymous { scope := v, label := v1 })
-
-/-- [rowl_kernel::rdf_mapping::annotation_assertion]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3101:0-3119:1 -/
-def rdf_mapping.annotation_assertion
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let b ← rdf_mapping.reifier_subject triples state t.subject
-  if b
-  then ok (rdf_mapping.Read.Skip state)
-  else
-    let o ← rdf_mapping.annotation_value t.object
-    match o with
-    | none => ok rdf_mapping.Read.Fail
-    | some value =>
-      let i ← rdf_mapping.iri_of t.predicate.spelling
-      let «as» ← rdf_mapping.annotation_subject t.subject
-      let s ← rdf_mapping.take state index
-      ok (rdf_mapping.Read.Found (model.Axiom.AnnotationAssertion { iri := i }
-        «as» value) s)
-
-/-- [rowl_kernel::rdf_mapping::assertion]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3061:0-3096:1 -/
-def rdf_mapping.assertion
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) :
-  Result rdf_mapping.Read
-  := do
-  let triple ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let o ← rdf_mapping.property_kind kinds triple.predicate.spelling
-  match o with
-  | none => ok rdf_mapping.Read.Fail
-  | some pk =>
-    match pk with
-    | rdf_mapping.PropertyKind.Object =>
-      let o1 ← rdf_mapping.individual_pair triples index
-      match o1 with
-      | none => ok rdf_mapping.Read.Fail
-      | some p =>
-        let (subject, object) := p
-        let i ← rdf_mapping.iri_of triple.predicate.spelling
-        let s ← rdf_mapping.take state index
-        ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyAssertion
-          (model.ObjectPropertyExpression.Property { iri := i }) subject
-          object) s)
-    | rdf_mapping.PropertyKind.Data =>
-      let o1 ← rdf_mapping.subject_node triple.subject
-      let o2 ← rdf_mapping.node_individual o1
-      match o2 with
-      | none => ok rdf_mapping.Read.Fail
-      | some subject =>
-        let o3 ← rdf_mapping.node_literal triple.object
-        match o3 with
-        | none => ok rdf_mapping.Read.Fail
-        | some value =>
-          let i ← rdf_mapping.iri_of triple.predicate.spelling
-          let s ← rdf_mapping.take state index
-          ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyAssertion
-            { iri := i } subject value) s)
-    | rdf_mapping.PropertyKind.Annotation =>
-      rdf_mapping.annotation_assertion triples index state
-
-/-- [rowl_kernel::rdf_mapping::object_spells]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3146:0-3151:1 -/
-def rdf_mapping.object_spells
-  (object : rdf.Object) (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
-  match object with
-  | rdf.Object.Iri iri => rdf_mapping.same_vec iri.spelling spelling
-  | rdf.Object.Blank _ => ok false
-  | rdf.Object.Literal _ => ok false
-
-/-- [rowl_kernel::rdf_mapping::subject_is]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3154:0-3162:1 -/
-def rdf_mapping.subject_is
-  (object : rdf.Object) (subject : rdf.Subject) : Result Bool := do
-  match subject with
-  | rdf.Subject.Iri iri => rdf_mapping.object_spells object iri.spelling
-  | rdf.Subject.Blank node =>
-    match object with
-    | rdf.Object.Iri _ => ok false
-    | rdf.Object.Blank blank => rdf_mapping.same_blank blank node
-    | rdf.Object.Literal _ => ok false
-
-/-- [rowl_kernel::rdf_mapping::reifier_parts]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3166:0-3205:1 -/
-def rdf_mapping.reifier_parts
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (node : rdf.BlankNode) (main : rdf.Triple) (kind : Slice Std.U8) :
-  Result (Option (Std.Usize × Std.Usize × Std.Usize))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 47#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 97#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8, 116#u8,
-        101#u8, 100#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
-        121#u8
-        ]))
-  let o ← rdf_mapping.find triples state node s
-  match o with
-  | none => ok none
-  | some property =>
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples property
-    let b ← rdf_mapping.object_spells t.object main.predicate.spelling
-    if b
-    then
-      let s1 ←
-        lift (Array.to_slice
-          (Array.make 45#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 97#u8, 110#u8, 110#u8,
-            111#u8, 116#u8, 97#u8, 116#u8, 101#u8, 100#u8, 84#u8, 97#u8,
-            114#u8, 103#u8, 101#u8, 116#u8
-            ]))
-      let o1 ← rdf_mapping.find triples state node s1
-      match o1 with
-      | none => ok none
-      | some target =>
-        let t1 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            rdf.Triple) triples target
-        let b1 ← rdf_mapping.same_object t1.object main.object
-        if b1
-        then
-          let o2 ← rdf_mapping.find_type triples state node kind
-          match o2 with
-          | none => ok none
-          | some typing => ok (some (property, target, typing))
-        else ok none
-    else ok none
-
-/-- [rowl_kernel::rdf_mapping::reifier_source]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3209:0-3239:1 -/
-def rdf_mapping.reifier_source
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (main : rdf.Triple) (kind : Slice Std.U8) (source : Std.Usize)
-  (triple : rdf.Triple) :
-  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
-  := do
-  match triple.subject with
-  | rdf.Subject.Iri _ => ok none
-  | rdf.Subject.Blank node =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 45#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 97#u8, 110#u8, 110#u8, 111#u8, 116#u8, 97#u8,
-          116#u8, 101#u8, 100#u8, 83#u8, 111#u8, 117#u8, 114#u8, 99#u8, 101#u8
-          ]))
-    let b ← rdf_mapping.same triple.predicate.spelling s
-    if b
-    then
-      let b1 ← rdf_mapping.subject_is triple.object main.subject
-      if b1
-      then
-        let o ← rdf_mapping.reifier_parts triples state node main kind
-        match o with
-        | none => ok none
-        | some t =>
-          let (property, target, typing) := t
-          ok (some (source, property, target, typing))
-      else ok none
-    else ok none
-
-/-- [rowl_kernel::rdf_mapping::reifier_at]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3243:0-3259:1 -/
-def rdf_mapping.reifier_at
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (main : rdf.Triple) (kind : Slice Std.U8) (source : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len triples
-  if source < i
-  then
-    let b ← rdf_mapping.is_used state.used source
-    if b
-    then ok none
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples source
-      rdf_mapping.reifier_source triples state main kind source t
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::reifier_in]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3263:0-3279:1 -/
-def rdf_mapping.reifier_in
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (main : rdf.Triple) (kind : Slice Std.U8) (bucket : alloc.vec.Vec Std.Usize)
-  (k : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len bucket
-  if k < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        bucket k
-    let o ← rdf_mapping.reifier_at triples state main kind i1
-    match o with
-    | none =>
-      let i2 ← k + 1#usize
-      rdf_mapping.reifier_in triples state main kind bucket i2
-    | some _ => ok o
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::reifier]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3284:0-3296:1 -/
-def rdf_mapping.reifier
-  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
-  (main : rdf.Triple) (kind : Slice Std.U8) :
-  Result (Option (Std.Usize × Std.Usize × Std.Usize × Std.Usize))
-  := do
-  let i ← rdf_mapping.hash_subject main.subject
-  let i1 := alloc.vec.Vec.len state.sources
-  let bucket ← rdf_mapping.bucket_of i i1
-  let i2 := alloc.vec.Vec.len state.sources
-  if bucket < i2
-  then
-    let v ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
-        Std.Usize)) state.sources bucket
-    rdf_mapping.reifier_in triples state main kind v 0#usize
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::is_annotation]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3299:0-3304:1 -/
-def rdf_mapping.is_annotation
-  (kinds : rdf_mapping.Kinds) («name» : alloc.vec.Vec Std.U8) :
-  Result Bool
-  := do
-  let o ← rdf_mapping.property_kind kinds «name»
-  match o with
-  | none => ok false
-  | some pk =>
-    match pk with
-    | rdf_mapping.PropertyKind.Object => ok false
-    | rdf_mapping.PropertyKind.Data => ok false
-    | rdf_mapping.PropertyKind.Annotation => ok true
-
-/-- [rowl_kernel::rdf_mapping::fits_annotation]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3308:0-3326:1 -/
-def rdf_mapping.fits_annotation
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (used : alloc.vec.Vec Bool) (index : Std.Usize) (node : rdf.BlankNode) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used used index
-    if b
-    then ok false
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let b1 ← rdf_mapping.about t node
-      if b1
-      then rdf_mapping.is_annotation kinds t.predicate.spelling
-      else ok false
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::find_annotation_in]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3330:0-3347:1 -/
-def rdf_mapping.find_annotation_in
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (used : alloc.vec.Vec Bool) (bucket : alloc.vec.Vec Std.Usize)
-  (node : rdf.BlankNode) (k : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len bucket
-  if k < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        bucket k
-    let b ← rdf_mapping.fits_annotation triples kinds used i1 node
-    if b
-    then ok (some i1)
-    else
-      let i2 ← k + 1#usize
-      rdf_mapping.find_annotation_in triples kinds used bucket node i2
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::find_annotation]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3350:0-3369:1 -/
-def rdf_mapping.find_annotation
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (state : rdf_mapping.State) (node : rdf.BlankNode) :
-  Result (Option Std.Usize)
-  := do
-  let i ← rdf_mapping.hash_blank node
-  let i1 := alloc.vec.Vec.len state.subjects
-  let bucket ← rdf_mapping.bucket_of i i1
-  let i2 := alloc.vec.Vec.len state.subjects
-  if bucket < i2
-  then
-    let v ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
-        Std.Usize)) state.subjects bucket
-    rdf_mapping.find_annotation_in triples kinds state.used v node 0#usize
-  else ok none
-
-mutual
-
-/-- [rowl_kernel::rdf_mapping::reified]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3374:0-3402:1 -/
-def rdf_mapping.reified
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (main : Std.Usize) (kind : Slice Std.U8) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
-  Result (Option ((alloc.vec.Vec model.Annotation) × rdf_mapping.State))
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples main
-  let o ← rdf_mapping.reifier triples state t kind
-  match o with
-  | none => ok (some (alloc.vec.Vec.new model.Annotation, state))
-  | some t1 =>
-    let (source, property, target, typing) := t1
-    let t2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples source
-    match t2.subject with
-    | rdf.Subject.Iri _ => ok none
-    | rdf.Subject.Blank node =>
-      let s ← rdf_mapping.take state source
-      let s1 ← rdf_mapping.take s property
-      let s2 ← rdf_mapping.take s1 target
-      let state1 ← rdf_mapping.take s2 typing
-      let state2 ← rdf_mapping.record state1 node
-      let o1 ←
-        rdf_mapping.node_annotations triples kinds node state2
-          (alloc.vec.Vec.new model.Annotation) fuel
-      match o1 with
-      | none => ok none
-      | some p =>
-        let (annotations, _) := p
-        let i := alloc.vec.Vec.len annotations
-        if 0#usize < i
-        then ok o1
-        else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::node_annotations]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3407:0-3453:1 -/
-def rdf_mapping.node_annotations
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (node : rdf.BlankNode) (state : rdf_mapping.State)
-  (out : alloc.vec.Vec model.Annotation) (fuel : Std.Usize) :
-  Result (Option ((alloc.vec.Vec model.Annotation) × rdf_mapping.State))
-  := do
-  let o ← rdf_mapping.find_annotation triples kinds state node
-  match o with
-  | none => ok (some (out, state))
-  | some index =>
-    if 0#usize < fuel
-    then
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let o1 ← rdf_mapping.annotation_value t.object
-      match o1 with
-      | none => ok none
-      | some value =>
-        let s ←
-          lift (Array.to_slice
-            (Array.make 40#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8,
-              111#u8, 116#u8, 97#u8, 116#u8, 105#u8, 111#u8, 110#u8
-              ]))
-        let s1 ← rdf_mapping.take state index
-        let i ← fuel - 1#usize
-        let o2 ← rdf_mapping.reified triples kinds index s s1 i
-        match o2 with
-        | none => ok none
-        | some p =>
-          let (inner, state1) := p
-          let i1 := alloc.vec.Vec.len out
-          if i1 < core.num.Usize.MAX
-          then
-            let i2 ← rdf_mapping.iri_of t.predicate.spelling
-            let out1 ←
-              alloc.vec.Vec.push out (model.Annotation.mk inner ({ iri := i2 }
-                : model.AnnotationProperty) value)
-            rdf_mapping.node_annotations triples kinds node state1 out1 i
-          else ok none
-    else ok none
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::rdf_mapping::main_triples]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3458:0-3520:1 -/
-def rdf_mapping.main_triples («axiom» : model.Axiom) : Result Std.U8 := do
-  match «axiom» with
-  | model.Axiom.Declaration _ => ok 1#u8
-  | model.Axiom.SubClassOf _ _ => ok 1#u8
-  | model.Axiom.EquivalentClasses members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 2#u8
-    else ok 1#u8
-  | model.Axiom.DisjointClasses members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 0#u8
-    else ok 1#u8
-  | model.Axiom.DisjointUnion _ _ => ok 1#u8
-  | model.Axiom.SubObjectPropertyOf _ _ => ok 1#u8
-  | model.Axiom.EquivalentObjectProperties members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 2#u8
-    else ok 1#u8
-  | model.Axiom.DisjointObjectProperties members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 0#u8
-    else ok 1#u8
-  | model.Axiom.InverseObjectProperties _ _ => ok 1#u8
-  | model.Axiom.ObjectPropertyDomain _ _ => ok 1#u8
-  | model.Axiom.ObjectPropertyRange _ _ => ok 1#u8
-  | model.Axiom.FunctionalObjectProperty _ => ok 1#u8
-  | model.Axiom.InverseFunctionalObjectProperty _ => ok 1#u8
-  | model.Axiom.ReflexiveObjectProperty _ => ok 1#u8
-  | model.Axiom.IrreflexiveObjectProperty _ => ok 1#u8
-  | model.Axiom.SymmetricObjectProperty _ => ok 1#u8
-  | model.Axiom.AsymmetricObjectProperty _ => ok 1#u8
-  | model.Axiom.TransitiveObjectProperty _ => ok 1#u8
-  | model.Axiom.SubDataPropertyOf _ _ => ok 1#u8
-  | model.Axiom.EquivalentDataProperties members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 2#u8
-    else ok 1#u8
-  | model.Axiom.DisjointDataProperties members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 0#u8
-    else ok 1#u8
-  | model.Axiom.DataPropertyDomain _ _ => ok 1#u8
-  | model.Axiom.DataPropertyRange _ _ => ok 1#u8
-  | model.Axiom.FunctionalDataProperty _ => ok 1#u8
-  | model.Axiom.DatatypeDefinition _ _ => ok 1#u8
-  | model.Axiom.HasKey _ _ _ => ok 1#u8
-  | model.Axiom.SameIndividual members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 2#u8
-    else ok 1#u8
-  | model.Axiom.DifferentIndividuals members =>
-    let i := alloc.vec.Vec.len members.rest
-    if 0#usize < i
-    then ok 0#u8
-    else ok 1#u8
-  | model.Axiom.ClassAssertion _ _ => ok 1#u8
-  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok 1#u8
-  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok 0#u8
-  | model.Axiom.DataPropertyAssertion _ _ _ => ok 1#u8
-  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok 0#u8
-  | model.Axiom.AnnotationAssertion _ _ _ => ok 1#u8
-  | model.Axiom.SubAnnotationPropertyOf _ _ => ok 1#u8
-  | model.Axiom.AnnotationPropertyDomain _ _ => ok 1#u8
-  | model.Axiom.AnnotationPropertyRange _ _ => ok 1#u8
-
-/-- [rowl_kernel::rdf_mapping::annotate]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3524:0-3560:1 -/
-def rdf_mapping.annotate
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) («axiom» : model.Axiom) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
-  Result (Option (model.AnnotatedAxiom × rdf_mapping.State))
-  := do
-  let shape ← rdf_mapping.main_triples «axiom»
-  if shape = 0#u8
-  then
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    match t.subject with
-    | rdf.Subject.Iri _ => ok none
-    | rdf.Subject.Blank node =>
-      let o ←
-        rdf_mapping.node_annotations triples kinds node state
-          (alloc.vec.Vec.new model.Annotation) fuel
-      match o with
-      | none => ok none
-      | some p =>
-        let (annotations, state1) := p
-        ok (some ({ annotations, «axiom» }, state1))
-  else
-    if shape = 1#u8
-    then
-      let s ←
-        lift (Array.to_slice
-          (Array.make 35#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 120#u8, 105#u8,
-            111#u8, 109#u8
-            ]))
-      let o ← rdf_mapping.reified triples kinds index s state fuel
-      match o with
-      | none => ok none
-      | some p =>
-        let (annotations, state1) := p
-        ok (some ({ annotations, «axiom» }, state1))
-    else ok none
-
-/-- [rowl_kernel::rdf_mapping::structural]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3642:0-3653:1 -/
-def rdf_mapping.structural
-  («name» : alloc.vec.Vec Std.U8) : Result Bool := do
-  let b ← vocabulary.reserved_iri «name»
-  if b
-  then
-    let o ← builtins.builtin_kind «name»
-    match o with
-    | none => ok true
-    | some ek =>
-      match ek with
-      | typing.EntityKind.Class => ok true
-      | typing.EntityKind.Datatype => ok true
-      | typing.EntityKind.ObjectProperty => ok false
-      | typing.EntityKind.DataProperty => ok false
-      | typing.EntityKind.AnnotationProperty => ok false
-      | typing.EntityKind.NamedIndividual => ok true
-  else ok false
-
-/-- [rowl_kernel::rdf_mapping::read_axiom]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3656:0-3699:1 -/
-def rdf_mapping.read_axiom
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
-  Result rdf_mapping.Read
-  := do
-  let t ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-      triples index
-  let s ←
-    lift (Array.to_slice
-      (Array.make 47#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
-        101#u8
-        ]))
-  let b ← rdf_mapping.same t.predicate.spelling s
-  if b
-  then rdf_mapping.typing triples kinds index state fuel
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 47#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
-          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
-          35#u8, 115#u8, 117#u8, 98#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8,
-          79#u8, 102#u8
-          ]))
-    let b1 ← rdf_mapping.same t.predicate.spelling s1
-    if b1
-    then rdf_mapping.sub_class triples kinds index state fuel
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 45#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 101#u8, 113#u8, 117#u8,
-            105#u8, 118#u8, 97#u8, 108#u8, 101#u8, 110#u8, 116#u8, 67#u8,
-            108#u8, 97#u8, 115#u8, 115#u8
-            ]))
-      let b2 ← rdf_mapping.same t.predicate.spelling s2
-      if b2
-      then rdf_mapping.equivalent_class triples kinds index state fuel
-      else
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 42#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 105#u8, 115#u8,
-              106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 87#u8, 105#u8, 116#u8,
-              104#u8
-              ]))
-        let b3 ← rdf_mapping.same t.predicate.spelling s3
-        if b3
-        then rdf_mapping.disjoint_class triples kinds index state fuel
-        else
-          let s4 ←
-            lift (Array.to_slice
-              (Array.make 45#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 105#u8, 115#u8,
-                106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 85#u8, 110#u8, 105#u8,
-                111#u8, 110#u8, 79#u8, 102#u8
-                ]))
-          let b4 ← rdf_mapping.same t.predicate.spelling s4
-          if b4
-          then rdf_mapping.disjoint_union triples kinds index state fuel
-          else
-            let s5 ←
-              lift (Array.to_slice
-                (Array.make 50#usize [
-                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8,
-                  49#u8, 47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8,
-                  104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8, 117#u8, 98#u8,
-                  80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
-                  121#u8, 79#u8, 102#u8
-                  ]))
-            let b5 ← rdf_mapping.same t.predicate.spelling s5
-            if b5
-            then rdf_mapping.sub_property triples kinds index state
-            else
-              let s6 ←
-                lift (Array.to_slice
-                  (Array.make 48#usize [
-                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
-                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                    112#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
-                    121#u8, 67#u8, 104#u8, 97#u8, 105#u8, 110#u8, 65#u8,
-                    120#u8, 105#u8, 111#u8, 109#u8
-                    ]))
-              let b6 ← rdf_mapping.same t.predicate.spelling s6
-              if b6
-              then rdf_mapping.property_chain triples kinds index state fuel
-              else
-                let s7 ←
-                  lift (Array.to_slice
-                    (Array.make 48#usize [
-                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                      108#u8, 35#u8, 101#u8, 113#u8, 117#u8, 105#u8, 118#u8,
-                      97#u8, 108#u8, 101#u8, 110#u8, 116#u8, 80#u8, 114#u8,
-                      111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-                      ]))
-                let b7 ← rdf_mapping.same t.predicate.spelling s7
-                if b7
-                then rdf_mapping.equivalent_property triples kinds index state
-                else
-                  let s8 ←
-                    lift (Array.to_slice
-                      (Array.make 50#usize [
-                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                        108#u8, 35#u8, 112#u8, 114#u8, 111#u8, 112#u8, 101#u8,
-                        114#u8, 116#u8, 121#u8, 68#u8, 105#u8, 115#u8, 106#u8,
-                        111#u8, 105#u8, 110#u8, 116#u8, 87#u8, 105#u8, 116#u8,
-                        104#u8
-                        ]))
-                  let b8 ← rdf_mapping.same t.predicate.spelling s8
-                  if b8
-                  then rdf_mapping.disjoint_property triples kinds index state
-                  else
-                    let s9 ←
-                      lift (Array.to_slice
-                        (Array.make 39#usize [
-                          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                          119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                          111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                          50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                          108#u8, 35#u8, 105#u8, 110#u8, 118#u8, 101#u8,
-                          114#u8, 115#u8, 101#u8, 79#u8, 102#u8
-                          ]))
-                    let b9 ← rdf_mapping.same t.predicate.spelling s9
-                    if b9
-                    then rdf_mapping.inverse_properties triples index state
-                    else
-                      let s10 ←
-                        lift (Array.to_slice
-                          (Array.make 43#usize [
-                            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                            47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                            51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8,
-                            48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8,
-                            114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8,
-                            104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8,
-                            111#u8, 109#u8, 97#u8, 105#u8, 110#u8
-                            ]))
-                      let b10 ← rdf_mapping.same t.predicate.spelling s10
-                      if b10
-                      then
-                        rdf_mapping.domain_range triples kinds index state
-                          false fuel
-                      else
-                        let s11 ←
-                          lift (Array.to_slice
-                            (Array.make 42#usize [
-                              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                              47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                              51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-                              50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
-                              47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
-                              99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
-                              114#u8, 97#u8, 110#u8, 103#u8, 101#u8
-                              ]))
-                        let b11 ← rdf_mapping.same t.predicate.spelling s11
-                        if b11
-                        then
-                          rdf_mapping.domain_range triples kinds index state
-                            true fuel
-                        else
-                          let s12 ←
-                            lift (Array.to_slice
-                              (Array.make 36#usize [
-                                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                                47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                                51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-                                50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
-                                55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                                115#u8, 97#u8, 109#u8, 101#u8, 65#u8, 115#u8
-                                ]))
-                          let b12 ← rdf_mapping.same t.predicate.spelling s12
-                          if b12
-                          then rdf_mapping.same_individual triples index state
-                          else
-                            let s13 ←
-                              lift (Array.to_slice
-                                (Array.make 43#usize [
-                                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
-                                  47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
-                                  51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-                                  50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
-                                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
-                                  100#u8, 105#u8, 102#u8, 102#u8, 101#u8,
-                                  114#u8, 101#u8, 110#u8, 116#u8, 70#u8,
-                                  114#u8, 111#u8, 109#u8
-                                  ]))
-                            let b13 ←
-                              rdf_mapping.same t.predicate.spelling s13
-                            if b13
-                            then
-                              rdf_mapping.different_individuals triples index
-                                state
-                            else
-                              let s14 ←
-                                lift (Array.to_slice
-                                  (Array.make 36#usize [
-                                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
-                                    47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
-                                    46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
-                                    114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                                    50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-                                    119#u8, 108#u8, 35#u8, 104#u8, 97#u8,
-                                    115#u8, 75#u8, 101#u8, 121#u8
-                                    ]))
-                              let b14 ←
-                                rdf_mapping.same t.predicate.spelling s14
-                              if b14
-                              then
-                                rdf_mapping.has_key triples kinds index state
-                                  fuel
-                              else
-                                let b15 ←
-                                  rdf_mapping.structural t.predicate.spelling
-                                if b15
-                                then ok (rdf_mapping.Read.Skip state)
-                                else
-                                  rdf_mapping.assertion triples kinds index
-                                    state
-
-/-- [rowl_kernel::rdf_mapping::axioms_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3703:0-3735:1 -/
-def rdf_mapping.axioms_from
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (index : Std.Usize) (state : rdf_mapping.State)
-  (out : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used state.used index
-    if b
-    then
-      let i1 ← index + 1#usize
-      rdf_mapping.axioms_from triples kinds i1 state out
-    else
-      let i1 := alloc.vec.Vec.len triples
-      let r ← rdf_mapping.read_axiom triples kinds index state i1
-      match r with
-      | rdf_mapping.Read.Skip state1 =>
-        let i2 ← index + 1#usize
-        rdf_mapping.axioms_from triples kinds i2 state1 out
-      | rdf_mapping.Read.Found «axiom» state1 =>
-        let i2 := alloc.vec.Vec.len triples
-        let o ← rdf_mapping.annotate triples kinds index «axiom» state1 i2
-        match o with
-        | none => ok none
-        | some p =>
-          let (annotated, state2) := p
-          let i3 := alloc.vec.Vec.len out
-          if i3 < core.num.Usize.MAX
-          then
-            let out1 ← alloc.vec.Vec.push out annotated
-            let i4 ← index + 1#usize
-            rdf_mapping.axioms_from triples kinds i4 state2 out1
-          else ok none
-      | rdf_mapping.Read.Fail => ok none
-  else ok (some (out, state))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::add_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3769:0-3781:1 -/
-def rdf_mapping.add_kind
-  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
-  (kind : typing.EntityKind) :
-  Result (Option rdf_mapping.Kinds)
-  := do
-  let i ← rdf_mapping.hash_iri iri
-  let i1 := alloc.vec.Vec.len kinds.buckets
-  let bucket ← rdf_mapping.bucket_of i i1
-  let i2 := alloc.vec.Vec.len kinds.buckets
-  if bucket < i2
-  then
-    let v ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
-        rdf_mapping.Declared)) kinds.buckets bucket
-    let i3 := alloc.vec.Vec.len v
-    if i3 < core.num.Usize.MAX
-    then
-      let (v1, index_mut_back) ←
-        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-          (alloc.vec.Vec rdf_mapping.Declared)) kinds.buckets bucket
-      let v2 ← alloc.vec.Vec.push v1 ({ iri, kind } : rdf_mapping.Declared)
-      let v3 := index_mut_back v2
-      ok (some { buckets := v3 })
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::declared_entity]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3784:0-3799:1 -/
-def rdf_mapping.declared_entity
-  (triple : rdf.Triple) :
-  Result (Option ((alloc.vec.Vec Std.U8) × typing.EntityKind))
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 47#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
-        101#u8
-        ]))
-  let b ← rdf_mapping.same triple.predicate.spelling s
-  if b
-  then
-    match triple.subject with
-    | rdf.Subject.Iri iri =>
-      let o ← rdf_mapping.declaration_kind triple.object
-      match o with
-      | none => ok none
-      | some kind => let v ← nnf.copy_bytes iri.spelling
-                     ok (some (v, kind))
-    | rdf.Subject.Blank _ => ok none
-  else ok none
-
-/-- [rowl_kernel::rdf_mapping::declared_kinds]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3802:0-3814:1 -/
-def rdf_mapping.declared_kinds
-  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
-  (kinds : rdf_mapping.Kinds) :
-  Result (Option rdf_mapping.Kinds)
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let t ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        triples index
-    let o ← rdf_mapping.declared_entity t
-    match o with
-    | none =>
-      let i1 ← index + 1#usize
-      rdf_mapping.declared_kinds triples i1 kinds
-    | some p =>
-      let (spelling, kind) := p
-      let o1 ← rdf_mapping.add_kind kinds spelling kind
-      match o1 with
-      | none => ok none
-      | some kinds1 =>
-        let i1 ← index + 1#usize
-        rdf_mapping.declared_kinds triples i1 kinds1
-  else ok (some kinds)
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::find_header]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3817:0-3842:1 -/
-def rdf_mapping.find_header
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used used index
-    if b
-    then let i1 ← index + 1#usize
-         rdf_mapping.find_header triples used i1
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let s ←
-        lift (Array.to_slice
-          (Array.make 47#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
-            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
-            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
-            35#u8, 116#u8, 121#u8, 112#u8, 101#u8
-            ]))
-      let b1 ← rdf_mapping.same t.predicate.spelling s
-      if b1
-      then
-        let s1 ←
-          lift (Array.to_slice
-            (Array.make 38#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 79#u8, 110#u8, 116#u8,
-              111#u8, 108#u8, 111#u8, 103#u8, 121#u8
-              ]))
-        let b2 ← rdf_mapping.object_is t.object s1
-        if b2
-        then
-          match t.subject with
-          | rdf.Subject.Iri _ => ok (some index)
-          | rdf.Subject.Blank _ =>
-            let i1 ← index + 1#usize
-            rdf_mapping.find_header triples used i1
-        else let i1 ← index + 1#usize
-             rdf_mapping.find_header triples used i1
-      else let i1 ← index + 1#usize
-           rdf_mapping.find_header triples used i1
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::about_iri]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3845:0-3850:1 -/
-def rdf_mapping.about_iri
-  (triple : rdf.Triple) (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
-  match triple.subject with
-  | rdf.Subject.Iri iri => rdf_mapping.same_vec iri.spelling spelling
-  | rdf.Subject.Blank _ => ok false
-
-/-- [rowl_kernel::rdf_mapping::header_parts]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3854:0-3984:1 -/
-def rdf_mapping.header_parts
-  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
-  (ontology : alloc.vec.Vec Std.U8) (index : Std.Usize)
-  (state : rdf_mapping.State) (version : Option model.Iri)
-  (imports : alloc.vec.Vec model.Iri)
-  (annotations : alloc.vec.Vec model.Annotation) :
-  Result (Option ((Option model.Iri) × (alloc.vec.Vec model.Iri) ×
-    (alloc.vec.Vec model.Annotation) × rdf_mapping.State))
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used state.used index
-    if b
-    then
-      let i1 ← index + 1#usize
-      rdf_mapping.header_parts triples kinds ontology i1 state version imports
-        annotations
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let b1 ← rdf_mapping.about_iri t ontology
-      if b1
-      then
-        let s ←
-          lift (Array.to_slice
-            (Array.make 40#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 118#u8, 101#u8, 114#u8,
-              115#u8, 105#u8, 111#u8, 110#u8, 73#u8, 82#u8, 73#u8
-              ]))
-        let b2 ← rdf_mapping.same t.predicate.spelling s
-        if b2
-        then
-          match version with
-          | none =>
-            let o ← rdf_mapping.node_iri t.object
-            match o with
-            | none => ok none
-            | some _ =>
-              let i1 ← index + 1#usize
-              let s1 ← rdf_mapping.take state index
-              rdf_mapping.header_parts triples kinds ontology i1 s1 o imports
-                annotations
-          | some _ => ok none
-        else
-          let s1 ←
-            lift (Array.to_slice
-              (Array.make 37#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 105#u8, 109#u8, 112#u8,
-                111#u8, 114#u8, 116#u8, 115#u8
-                ]))
-          let b3 ← rdf_mapping.same t.predicate.spelling s1
-          if b3
-          then
-            let o ← rdf_mapping.node_iri t.object
-            match o with
-            | none => ok none
-            | some iri =>
-              let i1 := alloc.vec.Vec.len imports
-              if i1 < core.num.Usize.MAX
-              then
-                let imports1 ← alloc.vec.Vec.push imports iri
-                let i2 ← index + 1#usize
-                let s2 ← rdf_mapping.take state index
-                rdf_mapping.header_parts triples kinds ontology i2 s2 version
-                  imports1 annotations
-              else ok none
-          else
-            let o ← rdf_mapping.property_kind kinds t.predicate.spelling
-            match o with
-            | none =>
-              let i1 ← index + 1#usize
-              rdf_mapping.header_parts triples kinds ontology i1 state version
-                imports annotations
-            | some pk =>
-              match pk with
-              | rdf_mapping.PropertyKind.Object =>
-                let i1 ← index + 1#usize
-                rdf_mapping.header_parts triples kinds ontology i1 state
-                  version imports annotations
-              | rdf_mapping.PropertyKind.Data =>
-                let i1 ← index + 1#usize
-                rdf_mapping.header_parts triples kinds ontology i1 state
-                  version imports annotations
-              | rdf_mapping.PropertyKind.Annotation =>
-                let o1 ← rdf_mapping.annotation_value t.object
-                match o1 with
-                | none => ok none
-                | some value =>
-                  let s2 ←
-                    lift (Array.to_slice
-                      (Array.make 40#usize [
-                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
-                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
-                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
-                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-                        108#u8, 35#u8, 65#u8, 110#u8, 110#u8, 111#u8, 116#u8,
-                        97#u8, 116#u8, 105#u8, 111#u8, 110#u8
-                        ]))
-                  let s3 ← rdf_mapping.take state index
-                  let i1 := alloc.vec.Vec.len triples
-                  let o2 ← rdf_mapping.reified triples kinds index s2 s3 i1
-                  match o2 with
-                  | none => ok none
-                  | some p =>
-                    let (inner, state1) := p
-                    let i2 := alloc.vec.Vec.len annotations
-                    if i2 < core.num.Usize.MAX
-                    then
-                      let i3 ← rdf_mapping.iri_of t.predicate.spelling
-                      let annotations1 ←
-                        alloc.vec.Vec.push annotations (model.Annotation.mk
-                          inner ({ iri := i3 } : model.AnnotationProperty)
-                          value)
-                      let i4 ← index + 1#usize
-                      rdf_mapping.header_parts triples kinds ontology i4 state1
-                        version imports annotations1
-                    else ok none
-      else
-        let i1 ← index + 1#usize
-        rdf_mapping.header_parts triples kinds ontology i1 state version
-          imports annotations
-  else ok (some (version, imports, annotations, state))
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::repeats_used]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3987:0-4001:1 -/
-def rdf_mapping.repeats_used
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (triple : rdf.Triple) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used used index
-    if b
-    then
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let b1 ← rdf_mapping.same_triple t triple
-      if b1
-      then ok true
-      else
-        let i1 ← index + 1#usize
-        rdf_mapping.repeats_used triples used triple i1
-    else
-      let i1 ← index + 1#usize
-      rdf_mapping.repeats_used triples used triple i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::all_read]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 4004:0-4016:1 -/
-def rdf_mapping.all_read
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len triples
-  if index < i
-  then
-    let b ← rdf_mapping.is_used used index
-    if b
-    then let i1 ← index + 1#usize
-         rdf_mapping.all_read triples used i1
-    else
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          triples index
-      let b1 ← rdf_mapping.repeats_used triples used t 0#usize
-      if b1
-      then let i1 ← index + 1#usize
-           rdf_mapping.all_read triples used i1
-      else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::unused]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 4018:0-4025:1 -/
-def rdf_mapping.unused
-  (count : Std.Usize) (out : alloc.vec.Vec Bool) :
-  Result (alloc.vec.Vec Bool)
-  := do
-  let i := alloc.vec.Vec.len out
-  if i < count
-  then let out1 ← alloc.vec.Vec.push out false
-       rdf_mapping.unused count out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::rdf_mapping::map_graph]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 4030:0-4096:1
-    Visibility: public -/
-def rdf_mapping.map_graph
-  (graph : rdf.RawGraph) : Result (Option rdf_mapping.Mapped) := do
-  let i := alloc.vec.Vec.len graph.triples
-  let count ← rdf_mapping.bucket_count i
-  let v ←
-    rdf_mapping.empty_buckets count (alloc.vec.Vec.new (alloc.vec.Vec
-      rdf_mapping.Declared))
-  let o ← rdf_mapping.declared_kinds graph.triples 0#usize { buckets := v }
-  match o with
-  | none => ok none
-  | some kinds =>
-    let i1 := alloc.vec.Vec.len graph.triples
-    let v1 ← rdf_mapping.unused i1 (alloc.vec.Vec.new Bool)
-    let v2 ←
-      rdf_mapping.empty_buckets count (alloc.vec.Vec.new (alloc.vec.Vec
-        Std.Usize))
-    let v3 ← rdf_mapping.subjects_from graph.triples 0#usize v2
-    let v4 ← rdf_mapping.sources_from graph.triples 0#usize v2
-    let o1 ← rdf_mapping.find_header graph.triples v1 0#usize
-    match o1 with
-    | none =>
-      let o2 ←
-        rdf_mapping.axioms_from graph.triples kinds 0#usize
-          {
-            used := v1,
-            blanks := (alloc.vec.Vec.new rdf.BlankNode),
-            subjects := v3,
-            sources := v4
-          } (alloc.vec.Vec.new model.AnnotatedAxiom)
-      match o2 with
-      | none => ok none
-      | some p =>
-        let (axioms, state) := p
-        let b ← rdf_mapping.all_read graph.triples state.used 0#usize
-        if b
-        then
-          ok (some
-            {
-              ontology :=
-                {
-                  identity := model.OntologyIdentity.Anonymous,
-                  imports := (alloc.vec.Vec.new model.Iri),
-                  annotations := (alloc.vec.Vec.new model.Annotation),
-                  axioms
-                },
-              blanks := state.blanks
-            })
-        else ok none
-    | some header =>
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-          graph.triples header
-      match t.subject with
-      | rdf.Subject.Iri iri =>
-        let state ←
-          rdf_mapping.take
-            {
-              used := v1,
-              blanks := (alloc.vec.Vec.new rdf.BlankNode),
-              subjects := v3,
-              sources := v4
-            } header
-        let o2 ←
-          rdf_mapping.header_parts graph.triples kinds iri.spelling 0#usize
-            state none (alloc.vec.Vec.new model.Iri) (alloc.vec.Vec.new
-            model.Annotation)
-        match o2 with
-        | none => ok none
-        | some t1 =>
-          let (version, imports, annotations, state1) := t1
-          let i2 ← rdf_mapping.iri_of iri.spelling
-          let o3 ←
-            rdf_mapping.axioms_from graph.triples kinds 0#usize state1
-              (alloc.vec.Vec.new model.AnnotatedAxiom)
-          match o3 with
-          | none => ok none
-          | some p =>
-            let (axioms, state2) := p
-            let b ← rdf_mapping.all_read graph.triples state2.used 0#usize
-            if b
-            then
-              ok (some
-                {
-                  ontology :=
-                    {
-                      identity := (model.OntologyIdentity.Named i2 version),
-                      imports,
-                      annotations,
-                      axioms
-                    },
-                  blanks := state2.blanks
-                })
-            else ok none
-      | rdf.Subject.Blank _ => ok none
-
-/-- [rowl_kernel::references::Span]
-    Source: 'crates/rowl-kernel/src/references.rs', lines 24:0-27:1
-    Visibility: public -/
-structure references.Span where
-  start : Std.Usize
-  «end» : Std.Usize
-
 /-- [rowl_kernel::references::{impl core::clone::Clone for rowl_kernel::references::Span}::clone]:
     Source: 'crates/rowl-kernel/src/references.rs', lines 23:9-23:14
     Visibility: public -/
@@ -57221,16 +61496,6 @@ def references.Span.Insts.CoreMarkerCopy : core.marker.Copy references.Span
   cloneInst := references.Span.Insts.CoreCloneClone
 }
 
-/-- [rowl_kernel::references::Parts]
-    Source: 'crates/rowl-kernel/src/references.rs', lines 32:0-38:1
-    Visibility: public -/
-structure references.Parts where
-  scheme : Option references.Span
-  authority : Option references.Span
-  path : references.Span
-  query : Option references.Span
-  fragment : Option references.Span
-
 /-- [rowl_kernel::references::{impl core::clone::Clone for rowl_kernel::references::Parts}::clone]:
     Source: 'crates/rowl-kernel/src/references.rs', lines 31:9-31:14
     Visibility: public -/
@@ -57253,810 +61518,6 @@ def references.Parts.Insts.CoreMarkerCopy : core.marker.Copy references.Parts
   := {
   cloneInst := references.Parts.Insts.CoreCloneClone
 }
-
-/-- [rowl_kernel::references::stops]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 43:0-48:1 -/
-def references.stops (level : Std.U8) (byte : Std.U8) : Result Bool := do
-  if byte = 35#u8
-  then ok true
-  else
-    if 0#u8 < level
-    then
-      if byte = 63#u8
-      then ok true
-      else
-        if 1#u8 < level
-        then
-          if byte = 47#u8
-          then ok true
-          else if 2#u8 < level
-               then ok (byte = 58#u8)
-               else ok false
-        else if 2#u8 < level
-             then ok (byte = 58#u8)
-             else ok false
-    else
-      if 1#u8 < level
-      then
-        if byte = 47#u8
-        then ok true
-        else if 2#u8 < level
-             then ok (byte = 58#u8)
-             else ok false
-      else if 2#u8 < level
-           then ok (byte = 58#u8)
-           else ok false
-
-/-- [rowl_kernel::references::scan]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 52:0-62:1 -/
-def references.scan
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (level : Std.U8) :
-  Result Std.Usize
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← references.stops level i1
-    if b
-    then ok index
-    else let i2 ← index + 1#usize
-         references.scan bytes i2 level
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::references::byte_is]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 65:0-67:1 -/
-def references.byte_is
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (value : Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    ok (i1 = value)
-  else ok false
-
-/-- [rowl_kernel::references::scheme_ends]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 70:0-72:1 -/
-def references.scheme_ends
-  (bytes : alloc.vec.Vec Std.U8) (colon : Std.Usize) : Result Bool := do
-  if 0#usize < colon
-  then references.byte_is bytes colon 58#u8
-  else ok false
-
-/-- [rowl_kernel::references::double_slash]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 75:0-77:1 -/
-def references.double_slash
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let b ← references.byte_is bytes index 47#u8
-  if b
-  then let i ← index + 1#usize
-       references.byte_is bytes i 47#u8
-  else ok false
-
-/-- [rowl_kernel::references::split]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 81:0-137:1
-    Visibility: public -/
-def references.split
-  (bytes : alloc.vec.Vec Std.U8) : Result references.Parts := do
-  let colon ← references.scan bytes 0#usize 3#u8
-  let has_scheme ← references.scheme_ends bytes colon
-  let start ← if has_scheme
-                then colon + 1#usize
-                else ok 0#usize
-  let has_authority ← references.double_slash bytes start
-  let path_start ←
-    if has_authority
-    then do
-         let i ← start + 2#usize
-         references.scan bytes i 2#u8
-    else ok start
-  let path_end ← references.scan bytes path_start 1#u8
-  let has_query ← references.byte_is bytes path_end 63#u8
-  let query_end ←
-    if has_query
-    then do
-         let i ← path_end + 1#usize
-         references.scan bytes i 0#u8
-    else ok path_end
-  let i := alloc.vec.Vec.len bytes
-  let o ←
-    if has_scheme
-    then ok (some ({ start := 0#usize, «end» := colon } : references.Span))
-    else ok none
-  let o1 ←
-    if has_authority
-    then
-      do
-      let i1 ← start + 2#usize
-      ok (some ({ start := i1, «end» := path_start } : references.Span))
-    else ok none
-  let o2 ←
-    if has_query
-    then
-      do
-      let i1 ← path_end + 1#usize
-      ok (some ({ start := i1, «end» := query_end } : references.Span))
-    else ok none
-  if query_end < i
-  then
-    let i1 ← query_end + 1#usize
-    let i2 := alloc.vec.Vec.len bytes
-    ok
-      {
-        scheme := o,
-        authority := o1,
-        path := { start := path_start, «end» := path_end },
-        query := o2,
-        fragment := (some { start := i1, «end» := i2 })
-      }
-  else
-    ok
-      {
-        scheme := o,
-        authority := o1,
-        path := { start := path_start, «end» := path_end },
-        query := o2,
-        fragment := none
-      }
-
-/-- [rowl_kernel::references::before]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 140:0-142:1 -/
-def references.before
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result Bool
-  := do
-  if index < «end»
-  then let i := alloc.vec.Vec.len bytes
-       ok (index < i)
-  else ok false
-
-/-- [rowl_kernel::references::append]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 145:0-152:1 -/
-def references.append
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let b ← references.before bytes index «end»
-  if b
-  then
-    let i ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let out1 ← alloc.vec.Vec.push out i
-    let i1 ← index + 1#usize
-    references.append bytes i1 «end» out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::references::put]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 155:0-158:1 -/
-def references.put
-  (out : alloc.vec.Vec Std.U8) (byte : Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  alloc.vec.Vec.push out byte
-
-/-- [rowl_kernel::references::at]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 161:0-163:1 -/
-def references.at
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (value : Std.U8) :
-  Result Bool
-  := do
-  if index < «end»
-  then references.byte_is bytes index value
-  else ok false
-
-/-- [rowl_kernel::references::starts2]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 166:0-168:1 -/
-def references.starts2
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (a : Std.U8) (b : Std.U8) :
-  Result Bool
-  := do
-  let b1 ← references.at bytes index «end» a
-  if b1
-  then let i ← index + 1#usize
-       references.at bytes i «end» b
-  else ok false
-
-/-- [rowl_kernel::references::starts3]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 171:0-173:1 -/
-def references.starts3
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (a : Std.U8) (b : Std.U8) (c : Std.U8) :
-  Result Bool
-  := do
-  let b1 ← references.starts2 bytes index «end» a b
-  if b1
-  then let i ← index + 2#usize
-       references.at bytes i «end» c
-  else ok false
-
-/-- [rowl_kernel::references::starts4]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 176:0-178:1 -/
-def references.starts4
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (a : Std.U8) (b : Std.U8) (c : Std.U8) (d : Std.U8) :
-  Result Bool
-  := do
-  let b1 ← references.starts3 bytes index «end» a b c
-  if b1
-  then let i ← index + 3#usize
-       references.at bytes i «end» d
-  else ok false
-
-/-- [rowl_kernel::references::is1]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 181:0-183:1 -/
-def references.is1
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (a : Std.U8) :
-  Result Bool
-  := do
-  let b ← references.at bytes index «end» a
-  if b
-  then let i ← index + 1#usize
-       ok (i = «end»)
-  else ok false
-
-/-- [rowl_kernel::references::is2]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 186:0-188:1 -/
-def references.is2
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (a : Std.U8) (b : Std.U8) :
-  Result Bool
-  := do
-  let b1 ← references.starts2 bytes index «end» a b
-  if b1
-  then let i ← index + 2#usize
-       ok (i = «end»)
-  else ok false
-
-/-- [rowl_kernel::references::is3]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 191:0-193:1 -/
-def references.is3
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (a : Std.U8) (b : Std.U8) (c : Std.U8) :
-  Result Bool
-  := do
-  let b1 ← references.starts3 bytes index «end» a b c
-  if b1
-  then let i ← index + 3#usize
-       ok (i = «end»)
-  else ok false
-
-/-- [rowl_kernel::references::exhausted]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 196:0-198:1 -/
-def references.exhausted
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result Bool
-  := do
-  if «end» <= index
-  then ok true
-  else let i := alloc.vec.Vec.len bytes
-       ok (i < «end»)
-
-/-- [rowl_kernel::references::inside_segment]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 201:0-203:1 -/
-def references.inside_segment
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result Bool
-  := do
-  let b ← references.before bytes index «end»
-  if b
-  then
-    let i ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    ok (i != 47#u8)
-  else ok false
-
-/-- [rowl_kernel::references::segment_end]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 206:0-212:1 -/
-def references.segment_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result Std.Usize
-  := do
-  let b ← references.inside_segment bytes index «end»
-  if b
-  then let i ← index + 1#usize
-       references.segment_end bytes i «end»
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::references::searching]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 215:0-217:1 -/
-def references.searching
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (index : Std.Usize) :
-  Result Bool
-  := do
-  if start < index
-  then let i := alloc.vec.Vec.len bytes
-       ok (index <= i)
-  else ok false
-
-/-- [rowl_kernel::references::last_slash]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 220:0-230:1 -/
-def references.last_slash
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let b ← references.searching bytes start index
-  if b
-  then
-    let i ← index - 1#usize
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        i
-    if i1 = 47#u8
-    then ok (some i)
-    else references.last_slash bytes start i
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::references::pop_segment]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 234:0-239:1 -/
-def references.pop_segment
-  (out : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
-  let i := alloc.vec.Vec.len out
-  let o ← references.last_slash out 0#usize i
-  match o with
-  | none => ok (alloc.vec.Vec.new Std.U8)
-  | some slash =>
-    references.append out 0#usize slash (alloc.vec.Vec.new Std.U8)
-
-/-- [rowl_kernel::references::Step]
-    Source: 'crates/rowl-kernel/src/references.rs', lines 242:0-261:1 -/
-@[discriminant isize]
-inductive references.Step where
-| Finish : references.Step
-| RemoveParent : references.Step
-| RemoveCurrent : references.Step
-| SkipCurrent : references.Step
-| FinalCurrent : references.Step
-| SkipParent : references.Step
-| FinalParent : references.Step
-| DropDots : references.Step
-| MoveSegment : references.Step
-
-/-- [rowl_kernel::references::step]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 264:0-286:1 -/
-def references.step
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result references.Step
-  := do
-  let b ← references.exhausted bytes index «end»
-  if b
-  then ok references.Step.Finish
-  else
-    let b1 ← references.starts3 bytes index «end» 46#u8 46#u8 47#u8
-    if b1
-    then ok references.Step.RemoveParent
-    else
-      let b2 ← references.starts2 bytes index «end» 46#u8 47#u8
-      if b2
-      then ok references.Step.RemoveCurrent
-      else
-        let b3 ← references.starts3 bytes index «end» 47#u8 46#u8 47#u8
-        if b3
-        then ok references.Step.SkipCurrent
-        else
-          let b4 ← references.is2 bytes index «end» 47#u8 46#u8
-          if b4
-          then ok references.Step.FinalCurrent
-          else
-            let b5 ←
-              references.starts4 bytes index «end» 47#u8 46#u8 46#u8 47#u8
-            if b5
-            then ok references.Step.SkipParent
-            else
-              let b6 ← references.is3 bytes index «end» 47#u8 46#u8 46#u8
-              if b6
-              then ok references.Step.FinalParent
-              else
-                let b7 ← references.is1 bytes index «end» 46#u8
-                if b7
-                then ok references.Step.DropDots
-                else
-                  let b8 ← references.is2 bytes index «end» 46#u8 46#u8
-                  if b8
-                  then ok references.Step.DropDots
-                  else ok references.Step.MoveSegment
-
-/-- [rowl_kernel::references::remove_dots]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 293:0-308:1 -/
-def references.remove_dots
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let s ← references.step bytes index «end»
-  match s with
-  | references.Step.Finish => ok out
-  | references.Step.RemoveParent =>
-    let i ← index + 3#usize
-    references.remove_dots bytes i «end» out
-  | references.Step.RemoveCurrent =>
-    let i ← index + 2#usize
-    references.remove_dots bytes i «end» out
-  | references.Step.SkipCurrent =>
-    let i ← index + 2#usize
-    references.remove_dots bytes i «end» out
-  | references.Step.FinalCurrent => references.put out 47#u8
-  | references.Step.SkipParent =>
-    let i ← index + 3#usize
-    let v ← references.pop_segment out
-    references.remove_dots bytes i «end» v
-  | references.Step.FinalParent =>
-    let v ← references.pop_segment out
-    references.put v 47#u8
-  | references.Step.DropDots => ok out
-  | references.Step.MoveSegment =>
-    let i ← index + 1#usize
-    let stop ← references.segment_end bytes i «end»
-    let v ← references.append bytes index stop out
-    references.remove_dots bytes stop «end» v
-partial_fixpoint
-
-/-- [rowl_kernel::references::component]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 311:0-316:1 -/
-def references.component
-  (bytes : alloc.vec.Vec Std.U8) (span : Option references.Span)
-  (before : Std.U8) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  match span with
-  | none => ok out
-  | some span1 =>
-    let v ← references.put out before
-    references.append bytes span1.start span1.end v
-
-/-- [rowl_kernel::references::authority]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 319:0-324:1 -/
-def references.authority
-  (bytes : alloc.vec.Vec Std.U8) (span : Option references.Span)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  match span with
-  | none => ok out
-  | some span1 =>
-    let v ← references.put out 47#u8
-    let v1 ← references.put v 47#u8
-    references.append bytes span1.start span1.end v1
-
-/-- [rowl_kernel::references::bare_authority]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 327:0-329:1 -/
-def references.bare_authority (b : references.Parts) : Result Bool := do
-  let b1 := core.option.Option.is_some b.authority
-  if b1
-  then ok (b.path.end <= b.path.start)
-  else ok false
-
-/-- [rowl_kernel::references::merge]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 334:0-344:1 -/
-def references.merge
-  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
-  (reference : alloc.vec.Vec Std.U8) (path : references.Span) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let b1 ← references.bare_authority b
-  let directory ←
-    if b1
-    then references.put (alloc.vec.Vec.new Std.U8) 47#u8
-    else
-      do
-      let o ← references.last_slash base b.path.start b.path.end
-      match o with
-      | none => ok (alloc.vec.Vec.new Std.U8)
-      | some slash =>
-        let i ← slash + 1#usize
-        references.append base b.path.start i (alloc.vec.Vec.new Std.U8)
-  references.append reference path.start path.end directory
-
-/-- [rowl_kernel::references::clean_path]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 347:0-350:1 -/
-def references.clean_path
-  (bytes : alloc.vec.Vec Std.U8) (span : references.Span)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let path ←
-    references.remove_dots bytes span.start span.end (alloc.vec.Vec.new Std.U8)
-  let i := alloc.vec.Vec.len path
-  references.append path 0#usize i out
-
-/-- [rowl_kernel::references::relative_path]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 354:0-378:1 -/
-def references.relative_path
-  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
-  (reference : alloc.vec.Vec Std.U8) (r : references.Parts)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let out1 ← references.authority base b.authority out
-  if r.path.end <= r.path.start
-  then
-    let out2 ← references.append base b.path.start b.path.end out1
-    let b1 := core.option.Option.is_some r.query
-    if b1
-    then references.component reference r.query 63#u8 out2
-    else references.component base b.query 63#u8 out2
-  else
-    let b1 ← references.byte_is reference r.path.start 47#u8
-    if b1
-    then
-      let out2 ← references.clean_path reference r.path out1
-      references.component reference r.query 63#u8 out2
-    else
-      let merged ← references.merge base b reference r.path
-      let i := alloc.vec.Vec.len merged
-      let out2 ←
-        references.clean_path merged { start := 0#usize, «end» := i } out1
-      references.component reference r.query 63#u8 out2
-
-/-- [rowl_kernel::references::absolute]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 382:0-388:1 -/
-def references.absolute
-  (reference : alloc.vec.Vec Std.U8) (own : references.Span)
-  (r : references.Parts) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let v ←
-    references.append reference own.start own.end (alloc.vec.Vec.new Std.U8)
-  let out ← references.put v 58#u8
-  let out1 ← references.authority reference r.authority out
-  let out2 ← references.clean_path reference r.path out1
-  let out3 ← references.component reference r.query 63#u8 out2
-  references.component reference r.fragment 35#u8 out3
-
-/-- [rowl_kernel::references::relative]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 392:0-402:1 -/
-def references.relative
-  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
-  (scheme : references.Span) (reference : alloc.vec.Vec Std.U8)
-  (r : references.Parts) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let v ←
-    references.append base scheme.start scheme.end (alloc.vec.Vec.new Std.U8)
-  let out ← references.put v 58#u8
-  let b1 := core.option.Option.is_some r.authority
-  let out1 ←
-    if b1
-    then
-      do
-      let out2 ← references.authority reference r.authority out
-      let out3 ← references.clean_path reference r.path out2
-      references.component reference r.query 63#u8 out3
-    else references.relative_path base b reference r out
-  references.component reference r.fragment 35#u8 out1
-
-/-- [rowl_kernel::references::small]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 406:0-408:1 -/
-def references.small
-  (base : alloc.vec.Vec Std.U8) (reference : alloc.vec.Vec Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len base
-  let i1 ← core.num.Usize.MAX / 8#usize
-  if i < i1
-  then let i2 := alloc.vec.Vec.len reference
-       ok (i2 < i1)
-  else ok false
-
-/-- [rowl_kernel::references::resolve]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 413:0-429:1
-    Visibility: public -/
-def references.resolve
-  (base : alloc.vec.Vec Std.U8) (reference : alloc.vec.Vec Std.U8) :
-  Result (Option (alloc.vec.Vec Std.U8))
-  := do
-  let b ← references.small base reference
-  if b
-  then
-    let r ← references.split reference
-    match r.scheme with
-    | none =>
-      let b1 ← references.split base
-      match b1.scheme with
-      | none => ok none
-      | some scheme =>
-        let v ← references.relative base b1 scheme reference r
-        ok (some v)
-    | some own => let v ← references.absolute reference own r
-                  ok (some v)
-  else ok none
-
-/-- [rowl_kernel::references::plain]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 433:0-441:1 -/
-def references.plain (byte : Std.U8) : Result Bool := do
-  if 65#u8 <= byte
-  then
-    if byte <= 90#u8
-    then ok true
-    else
-      if 97#u8 <= byte
-      then
-        if byte <= 122#u8
-        then ok true
-        else
-          if 48#u8 <= byte
-          then
-            if byte <= 57#u8
-            then ok true
-            else
-              if byte = 45#u8
-              then ok true
-              else
-                if byte = 46#u8
-                then ok true
-                else if byte = 95#u8
-                     then ok true
-                     else ok (byte = 126#u8)
-          else
-            if byte = 45#u8
-            then ok true
-            else
-              if byte = 46#u8
-              then ok true
-              else if byte = 95#u8
-                   then ok true
-                   else ok (byte = 126#u8)
-      else
-        if 48#u8 <= byte
-        then
-          if byte <= 57#u8
-          then ok true
-          else
-            if byte = 45#u8
-            then ok true
-            else
-              if byte = 46#u8
-              then ok true
-              else if byte = 95#u8
-                   then ok true
-                   else ok (byte = 126#u8)
-        else
-          if byte = 45#u8
-          then ok true
-          else
-            if byte = 46#u8
-            then ok true
-            else if byte = 95#u8
-                 then ok true
-                 else ok (byte = 126#u8)
-  else
-    if 97#u8 <= byte
-    then
-      if byte <= 122#u8
-      then ok true
-      else
-        if 48#u8 <= byte
-        then
-          if byte <= 57#u8
-          then ok true
-          else
-            if byte = 45#u8
-            then ok true
-            else
-              if byte = 46#u8
-              then ok true
-              else if byte = 95#u8
-                   then ok true
-                   else ok (byte = 126#u8)
-        else
-          if byte = 45#u8
-          then ok true
-          else
-            if byte = 46#u8
-            then ok true
-            else if byte = 95#u8
-                 then ok true
-                 else ok (byte = 126#u8)
-    else
-      if 48#u8 <= byte
-      then
-        if byte <= 57#u8
-        then ok true
-        else
-          if byte = 45#u8
-          then ok true
-          else
-            if byte = 46#u8
-            then ok true
-            else if byte = 95#u8
-                 then ok true
-                 else ok (byte = 126#u8)
-      else
-        if byte = 45#u8
-        then ok true
-        else
-          if byte = 46#u8
-          then ok true
-          else if byte = 95#u8
-               then ok true
-               else ok (byte = 126#u8)
-
-/-- [rowl_kernel::references::path_byte]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 444:0-446:1 -/
-def references.path_byte
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← references.plain i1
-    if b
-    then ok true
-    else ok (i1 = 47#u8)
-  else ok false
-
-/-- [rowl_kernel::references::plain_end]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 449:0-455:1 -/
-def references.plain_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let b ← references.path_byte bytes index
-  if b
-  then let i ← index + 1#usize
-       references.plain_end bytes i
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::references::plain_relative]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 459:0-466:1 -/
-def references.plain_relative
-  (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
-  let «end» ← references.plain_end bytes 0#usize
-  let i := alloc.vec.Vec.len bytes
-  if «end» < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        «end»
-    if i1 = 35#u8
-    then
-      let i2 ← «end» + 1#usize
-      let i3 ← references.plain_end bytes i2
-      let i4 := alloc.vec.Vec.len bytes
-      ok (i3 = i4)
-    else ok false
-  else ok true
-
-/-- [rowl_kernel::references::is_reference]:
-    Source: 'crates/rowl-kernel/src/references.rs', lines 470:0-474:1
-    Visibility: public -/
-def references.is_reference (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
-  let b ← references.plain_relative bytes
-  if b
-  then ok true
-  else
-    let mr ← iri.validate_iri bytes
-    let b1 ←
-      match mr with
-      | regular.MatchResult.Matched b2 => if b2
-                                          then ok true
-                                          else ok false
-      | regular.MatchResult.MalformedUtf8 _ => ok false
-    if b1
-    then ok true
-    else
-      let mr1 ← iri.validate_reference bytes
-      match mr1 with
-      | regular.MatchResult.Matched b2 => if b2
-                                          then ok true
-                                          else ok false
-      | regular.MatchResult.MalformedUtf8 _ => ok false
 
 /-- [rowl_kernel::roles::classify_non_simple]:
     Source: 'crates/rowl-kernel/src/roles.rs', lines 555:0-558:1
@@ -60895,22 +64356,6 @@ def snapshot.resolve_texts
   | imports.Resolution.DuplicateDocument key =>
     ok (snapshot.TextResolution.DuplicateDocument key)
 
-/-- [rowl_kernel::source_reasoning::source_ontology]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 20:0-30:1
-    Visibility: public -/
-def source_reasoning.source_ontology
-  (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
-  (scope : alloc.vec.Vec Std.U8) :
-  Result (core.result.Result (Option model.RawOntology)
-    functional_document.DocumentError)
-  := do
-  let r ← functional_document.read_document bytes limits
-  match r with
-  | core.result.Result.Ok document =>
-    let o ← functional_model.document_ontology document scope
-    ok (core.result.Result.Ok o)
-  | core.result.Result.Err error => ok (core.result.Result.Err error)
-
 /-- [rowl_kernel::source_reasoning::source_prepared]:
     Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 33:0-43:1
     Visibility: public -/
@@ -61220,3134 +64665,5 @@ def tbox.satisfiable_in
   (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do
   let rb ← tbox.no_roles
   tbox.satisfiable_with concept axioms rb
-
-/-- [rowl_kernel::turtle::ErrorKind]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 40:0-76:1
-    Visibility: public -/
-@[discriminant isize]
-inductive turtle.ErrorKind where
-| MalformedUtf8 : turtle.ErrorKind
-| UnexpectedEnd : turtle.ErrorKind
-| InvalidCharacter : turtle.ErrorKind
-| InvalidEscape : turtle.ErrorKind
-| InvalidIri : turtle.ErrorKind
-| InvalidBlankLabel : turtle.ErrorKind
-| InvalidLanguageTag : turtle.ErrorKind
-| InvalidLiteralKind : turtle.ErrorKind
-| UndefinedPrefix : turtle.ErrorKind
-| ExpectedPrefix : turtle.ErrorKind
-| ExpectedIri : turtle.ErrorKind
-| ExpectedSubject : turtle.ErrorKind
-| ExpectedVerb : turtle.ErrorKind
-| ExpectedObject : turtle.ErrorKind
-| ExpectedPeriod : turtle.ErrorKind
-| ExpectedBracket : turtle.ErrorKind
-| ResourceLimit : turtle.ErrorKind
-
-/-- [rowl_kernel::turtle::ReadError]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 78:0-81:1
-    Visibility: public -/
-structure turtle.ReadError where
-  kind : turtle.ErrorKind
-  offset : Std.Usize
-
-/-- [rowl_kernel::turtle::ReadResult]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 83:0-86:1
-    Visibility: public -/
-@[discriminant isize]
-inductive turtle.ReadResult where
-| Graph : rdf.RawGraph → turtle.ReadResult
-| Error : turtle.ReadError → turtle.ReadResult
-
-/-- [rowl_kernel::turtle::Limits]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 88:0-91:1
-    Visibility: public -/
-structure turtle.Limits where
-  max_term_bytes : Std.Usize
-  max_triples : Std.Usize
-
-/-- [rowl_kernel::turtle::Prefix]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 94:0-97:1
-    Visibility: public -/
-structure turtle.Prefix where
-  «name» : alloc.vec.Vec Std.U8
-  iri : alloc.vec.Vec Std.U8
-
-/-- [rowl_kernel::turtle::error]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 103:0-105:1 -/
-def turtle.error
-  (kind : turtle.ErrorKind) (offset : Std.Usize) :
-  Result turtle.ReadError
-  := do
-  ok { kind, offset }
-
-/-- [rowl_kernel::turtle::kind_of]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 109:0-126:1 -/
-def turtle.kind_of (kind : ntriples.ErrorKind) : Result turtle.ErrorKind := do
-  match kind with
-  | ntriples.ErrorKind.MalformedUtf8 => ok turtle.ErrorKind.MalformedUtf8
-  | ntriples.ErrorKind.UnexpectedEnd => ok turtle.ErrorKind.UnexpectedEnd
-  | ntriples.ErrorKind.ExpectedIri => ok turtle.ErrorKind.ExpectedIri
-  | ntriples.ErrorKind.ExpectedSubject => ok turtle.ErrorKind.ExpectedSubject
-  | ntriples.ErrorKind.ExpectedObject => ok turtle.ErrorKind.ExpectedObject
-  | ntriples.ErrorKind.ExpectedPeriod => ok turtle.ErrorKind.ExpectedPeriod
-  | ntriples.ErrorKind.ExpectedLineEnd => ok turtle.ErrorKind.ExpectedPeriod
-  | ntriples.ErrorKind.InvalidCharacter => ok turtle.ErrorKind.InvalidCharacter
-  | ntriples.ErrorKind.InvalidEscape => ok turtle.ErrorKind.InvalidEscape
-  | ntriples.ErrorKind.InvalidIri => ok turtle.ErrorKind.InvalidIri
-  | ntriples.ErrorKind.InvalidBlankLabel =>
-    ok turtle.ErrorKind.InvalidBlankLabel
-  | ntriples.ErrorKind.InvalidLanguageTag =>
-    ok turtle.ErrorKind.InvalidLanguageTag
-  | ntriples.ErrorKind.InvalidLiteralKind =>
-    ok turtle.ErrorKind.InvalidLiteralKind
-  | ntriples.ErrorKind.ResourceLimit => ok turtle.ErrorKind.ResourceLimit
-
-/-- [rowl_kernel::turtle::from_ntriples]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 128:0-133:1 -/
-def turtle.from_ntriples
-  (e : ntriples.ReadError) : Result turtle.ReadError := do
-  let ek ← turtle.kind_of e.kind
-  ok { kind := ek, offset := e.offset }
-
-/-- [rowl_kernel::turtle::unit]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 136:0-141:1 -/
-def turtle.unit
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result (Option (Std.U32 × Std.Usize)) turtle.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  match r with
-  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::needed]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 144:0-149:1 -/
-def turtle.needed
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
-  := do
-  let r ← ntriples.required bytes position
-  match r with
-  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::space]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 152:0-157:1 -/
-def turtle.space
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result Std.Usize turtle.ReadError)
-  := do
-  let r ← ntriples.skip bytes position true
-  match r with
-  | core.result.Result.Ok next => ok (core.result.Result.Ok next)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::copied]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 160:0-165:1 -/
-def turtle.copied
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize)
-  (limit : Std.Usize) :
-  Result (core.result.Result (alloc.vec.Vec Std.U8) turtle.ReadError)
-  := do
-  let r ← ntriples.copy_term bytes start «end» limit
-  match r with
-  | core.result.Result.Ok value => ok (core.result.Result.Ok value)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::quoted_iri]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 168:0-173:1 -/
-def turtle.quoted_iri
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let r ← ntriples.quoted bytes start true limit
-  match r with
-  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::quoted_string]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 176:0-181:1 -/
-def turtle.quoted_string
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let r ← ntriples.quoted bytes start false limit
-  match r with
-  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::string_item]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 185:0-190:1 -/
-def turtle.string_item
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
-  (next : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
-  := do
-  let r ← ntriples.quoted_item bytes position cp next false
-  match r with
-  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::string_escape]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 193:0-198:1 -/
-def turtle.string_escape
-  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (next : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
-  := do
-  let r ← ntriples.escape bytes slash next false
-  match r with
-  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
-  | core.result.Result.Err e =>
-    let re ← turtle.from_ntriples e
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::byte_is]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 201:0-203:1 -/
-def turtle.byte_is
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (value : Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    ok (i1 = value)
-  else ok false
-
-/-- [rowl_kernel::turtle::copy_from]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 210:0-217:1 -/
-def turtle.copy_from
-  (values : alloc.vec.Vec Std.U8) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) values
-        index
-    let out1 ← alloc.vec.Vec.push out i1
-    let i2 ← index + 1#usize
-    turtle.copy_from values i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::copy_bytes]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 206:0-208:1 -/
-def turtle.copy_bytes
-  (values : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
-  turtle.copy_from values 0#usize (alloc.vec.Vec.new Std.U8)
-
-/-- [rowl_kernel::turtle::constant_from]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 224:0-231:1 -/
-def turtle.constant_from
-  (values : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := Slice.len values
-  if index < i
-  then
-    let i1 ← Slice.index_usize values index
-    let out1 ← alloc.vec.Vec.push out i1
-    let i2 ← index + 1#usize
-    turtle.constant_from values i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::constant]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 220:0-222:1 -/
-def turtle.constant
-  (values : Slice Std.U8) : Result (alloc.vec.Vec Std.U8) := do
-  turtle.constant_from values 0#usize (alloc.vec.Vec.new Std.U8)
-
-/-- [rowl_kernel::turtle::copy_iri]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 233:0-237:1 -/
-def turtle.copy_iri (iri : rdf.RdfIri) : Result rdf.RdfIri := do
-  let v ← turtle.copy_bytes iri.spelling
-  ok { spelling := v }
-
-/-- [rowl_kernel::turtle::copy_subject]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 239:0-247:1 -/
-def turtle.copy_subject (subject : rdf.Subject) : Result rdf.Subject := do
-  match subject with
-  | rdf.Subject.Iri iri =>
-    let ri ← turtle.copy_iri iri
-    ok (rdf.Subject.Iri ri)
-  | rdf.Subject.Blank node =>
-    let v ← turtle.copy_bytes node.scope
-    let v1 ← turtle.copy_bytes node.label
-    ok (rdf.Subject.Blank { scope := v, label := v1 })
-
-/-- [rowl_kernel::turtle::object_of]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 250:0-255:1 -/
-def turtle.object_of (subject : rdf.Subject) : Result rdf.Object := do
-  match subject with
-  | rdf.Subject.Iri iri => ok (rdf.Object.Iri iri)
-  | rdf.Subject.Blank node => ok (rdf.Object.Blank node)
-
-/-- [rowl_kernel::turtle::rdf_iri]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 257:0-261:1 -/
-def turtle.rdf_iri (spelling : Slice Std.U8) : Result rdf.RdfIri := do
-  let v ← turtle.constant spelling
-  ok { spelling := v }
-
-/-- [rowl_kernel::turtle::rdf_type]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 263:0-265:1 -/
-def turtle.rdf_type : Result rdf.RdfIri := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 47#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
-        101#u8
-        ]))
-  turtle.rdf_iri s
-
-/-- [rowl_kernel::turtle::rdf_first]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 267:0-269:1 -/
-def turtle.rdf_first : Result rdf.RdfIri := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 48#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
-        115#u8, 116#u8
-        ]))
-  turtle.rdf_iri s
-
-/-- [rowl_kernel::turtle::rdf_rest]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 271:0-273:1 -/
-def turtle.rdf_rest : Result rdf.RdfIri := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 47#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 114#u8, 101#u8, 115#u8,
-        116#u8
-        ]))
-  turtle.rdf_iri s
-
-/-- [rowl_kernel::turtle::rdf_nil]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 275:0-277:1 -/
-def turtle.rdf_nil : Result rdf.RdfIri := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 46#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 110#u8, 105#u8, 108#u8
-        ]))
-  turtle.rdf_iri s
-
-/-- [rowl_kernel::turtle::xsd]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 279:0-281:1 -/
-def turtle.xsd (kind : Slice Std.U8) : Result rdf.LiteralKind := do
-  let ri ← turtle.rdf_iri kind
-  ok (rdf.LiteralKind.Datatype ri)
-
-/-- [rowl_kernel::turtle::same_constant_from]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 295:0-305:1 -/
-def turtle.same_constant_from
-  (value : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len value
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) value
-        index
-    let i2 ← Slice.index_usize pattern index
-    if i1 = i2
-    then let i3 ← index + 1#usize
-         turtle.same_constant_from value pattern i3
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::same_constant]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 291:0-293:1 -/
-def turtle.same_constant
-  (value : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len value
-  let i1 := Slice.len pattern
-  if i = i1
-  then turtle.same_constant_from value pattern 0#usize
-  else ok false
-
-/-- [rowl_kernel::turtle::lang_string]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 284:0-289:1 -/
-def turtle.lang_string (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 53#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 108#u8, 97#u8, 110#u8,
-        103#u8, 83#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
-        ]))
-  turtle.same_constant spelling s
-
-/-- [rowl_kernel::turtle::digits]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 308:0-316:1 -/
-def turtle.digits
-  (number : Std.Usize) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let out1 ←
-    if number < 10#usize
-    then ok out
-    else do
-         let i ← number / 10#usize
-         turtle.digits i out
-  let i ← number % 10#usize
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← 48#u8 + i1
-  alloc.vec.Vec.push out1 i2
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::marked]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 319:0-323:1 -/
-def turtle.marked
-  (marker : Std.U8) (number : Std.Usize) : Result (alloc.vec.Vec Std.U8) := do
-  let label ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) marker
-  turtle.digits number label
-
-/-- [rowl_kernel::turtle::bracket_node]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 326:0-331:1 -/
-def turtle.bracket_node
-  (scope : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result rdf.BlankNode
-  := do
-  let v ← turtle.copy_bytes scope
-  let v1 ← turtle.marked 255#u8 start
-  ok { scope := v, label := v1 }
-
-/-- [rowl_kernel::turtle::list_node]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 334:0-339:1 -/
-def turtle.list_node
-  (scope : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result rdf.BlankNode
-  := do
-  let v ← turtle.copy_bytes scope
-  let v1 ← turtle.marked 254#u8 start
-  ok { scope := v, label := v1 }
-
-/-- [rowl_kernel::turtle::emit]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 342:0-354:1 -/
-def turtle.emit
-  (triples : alloc.vec.Vec rdf.Triple) (triple : rdf.Triple)
-  (limits : turtle.Limits) (position : Std.Usize) :
-  Result (core.result.Result (alloc.vec.Vec rdf.Triple) turtle.ReadError)
-  := do
-  let i := alloc.vec.Vec.len triples
-  if i < limits.max_triples
-  then
-    let triples1 ← alloc.vec.Vec.push triples triple
-    ok (core.result.Result.Ok triples1)
-  else
-    let re ← turtle.error turtle.ErrorKind.ResourceLimit position
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::pn_u]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 359:0-361:1 -/
-def turtle.pn_u (cp : Std.U32) : Result Bool := do
-  let b ← ntriples.pn_base cp
-  if b
-  then ok true
-  else ok (cp = 95#u32)
-
-/-- [rowl_kernel::turtle::pn_chars]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 364:0-371:1 -/
-def turtle.pn_chars (cp : Std.U32) : Result Bool := do
-  let b ← turtle.pn_u cp
-  if b
-  then ok true
-  else
-    if cp = 45#u32
-    then ok true
-    else
-      let b1 ← ntriples.ascii_digit cp
-      if b1
-      then ok true
-      else
-        if cp = 183#u32
-        then ok true
-        else
-          let b2 ← ntriples.in_range cp 768#u32 879#u32
-          if b2
-          then ok true
-          else ntriples.in_range cp 8255#u32 8256#u32
-
-/-- [rowl_kernel::turtle::label_first]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 374:0-376:1 -/
-def turtle.label_first (cp : Std.U32) : Result Bool := do
-  let b ← turtle.pn_u cp
-  if b
-  then ok true
-  else ntriples.ascii_digit cp
-
-/-- [rowl_kernel::turtle::local_first_char]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 380:0-382:1 -/
-def turtle.local_first_char (cp : Std.U32) : Result Bool := do
-  let b ← turtle.pn_u cp
-  if b
-  then ok true
-  else if cp = 58#u32
-       then ok true
-       else ntriples.ascii_digit cp
-
-/-- [rowl_kernel::turtle::local_char]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 385:0-387:1 -/
-def turtle.local_char (cp : Std.U32) : Result Bool := do
-  let b ← turtle.pn_chars cp
-  if b
-  then ok true
-  else ok (cp = 58#u32)
-
-/-- [rowl_kernel::turtle::local_escape]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 391:0-400:1 -/
-def turtle.local_escape (cp : Std.U32) : Result Bool := do
-  if cp = 33#u32
-  then ok true
-  else
-    let b ← ntriples.in_range cp 35#u32 47#u32
-    if b
-    then ok true
-    else
-      if cp = 59#u32
-      then ok true
-      else
-        if cp = 61#u32
-        then ok true
-        else
-          if cp = 63#u32
-          then ok true
-          else
-            if cp = 64#u32
-            then ok true
-            else if cp = 95#u32
-                 then ok true
-                 else ok (cp = 126#u32)
-
-/-- [rowl_kernel::turtle::plx_start]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 403:0-405:1 -/
-def turtle.plx_start (cp : Std.U32) : Result Bool := do
-  if cp = 37#u32
-  then ok true
-  else ok (cp = 92#u32)
-
-/-- [rowl_kernel::turtle::name_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 409:0-422:1 -/
-def turtle.name_end
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
-  :
-  Result (core.result.Result Std.Usize turtle.ReadError)
-  := do
-  let r ← turtle.unit bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok accepted)
-    | some p =>
-      let (cp, next) := p
-      let b ← turtle.pn_chars cp
-      if b
-      then turtle.name_end bytes next next
-      else
-        if cp = 46#u32
-        then turtle.name_end bytes next accepted
-        else ok (core.result.Result.Ok accepted)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::prefix_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 425:0-432:1 -/
-def turtle.prefix_end
-  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
-  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.name_end bytes next next
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is bytes val 58#u8
-    if b
-    then ok (core.result.Result.Ok (some val))
-    else ok (core.result.Result.Ok none)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::prefix_colon]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 435:0-448:1 -/
-def turtle.prefix_colon
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.unit bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok none)
-    | some p =>
-      let (cp, next) := p
-      if cp = 58#u32
-      then ok (core.result.Result.Ok (some start))
-      else
-        let b ← ntriples.pn_base cp
-        if b
-        then turtle.prefix_end bytes next
-        else ok (core.result.Result.Ok none)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::hex_at]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 451:0-462:1 -/
-def turtle.hex_at
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.unit bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok none)
-    | some p =>
-      let (cp, next) := p
-      let o ← ntriples.hex cp
-      let b := core.option.Option.is_some o
-      if b
-      then ok (core.result.Result.Ok (some next))
-      else ok (core.result.Result.Ok none)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::percent]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 465:0-470:1 -/
-def turtle.percent
-  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
-  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.hex_at bytes next
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok none)
-    | some second => turtle.hex_at bytes second
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::local_escaped]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 473:0-484:1 -/
-def turtle.local_escaped
-  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
-  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.unit bytes next
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok none)
-    | some p =>
-      let (cp, after) := p
-      let b ← turtle.local_escape cp
-      if b
-      then ok (core.result.Result.Ok (some after))
-      else ok (core.result.Result.Ok none)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::plx]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 487:0-493:1 -/
-def turtle.plx
-  (bytes : alloc.vec.Vec Std.U8) (cp : Std.U32) (next : Std.Usize) :
-  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
-  := do
-  if cp = 37#u32
-  then turtle.percent bytes next
-  else turtle.local_escaped bytes next
-
-/-- [rowl_kernel::turtle::local_first]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 496:0-509:1 -/
-def turtle.local_first
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.unit bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok none)
-    | some p =>
-      let (cp, next) := p
-      let b ← turtle.plx_start cp
-      if b
-      then turtle.plx bytes cp next
-      else
-        let b1 ← turtle.local_first_char cp
-        if b1
-        then ok (core.result.Result.Ok (some next))
-        else ok (core.result.Result.Ok none)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::Local]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 512:0-516:1 -/
-@[discriminant isize]
-inductive turtle.Local where
-| Name : Std.Usize → turtle.Local
-| Dot : Std.Usize → turtle.Local
-| End : turtle.Local
-
-/-- [rowl_kernel::turtle::local_plx]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 519:0-524:1 -/
-def turtle.local_plx
-  (bytes : alloc.vec.Vec Std.U8) (cp : Std.U32) (next : Std.Usize) :
-  Result (core.result.Result turtle.Local turtle.ReadError)
-  := do
-  let r ← turtle.plx bytes cp next
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok turtle.Local.End)
-    | some after => ok (core.result.Result.Ok (turtle.Local.Name after))
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      turtle.Local (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::local_next]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 526:0-541:1 -/
-def turtle.local_next
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result turtle.Local turtle.ReadError)
-  := do
-  let r ← turtle.unit bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok turtle.Local.End)
-    | some p =>
-      let (cp, next) := p
-      let b ← turtle.plx_start cp
-      if b
-      then turtle.local_plx bytes cp next
-      else
-        let b1 ← turtle.local_char cp
-        if b1
-        then ok (core.result.Result.Ok (turtle.Local.Name next))
-        else
-          if cp = 46#u32
-          then ok (core.result.Result.Ok (turtle.Local.Dot next))
-          else ok (core.result.Result.Ok turtle.Local.End)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      turtle.Local (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::local_rest]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 545:0-551:1 -/
-def turtle.local_rest
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
-  :
-  Result (core.result.Result Std.Usize turtle.ReadError)
-  := do
-  let r ← turtle.local_next bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | turtle.Local.Name next => turtle.local_rest bytes next next
-    | turtle.Local.Dot next => turtle.local_rest bytes next accepted
-    | turtle.Local.End => ok (core.result.Result.Ok accepted)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::local_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 554:0-559:1 -/
-def turtle.local_end
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result (core.result.Result Std.Usize turtle.ReadError)
-  := do
-  let r ← turtle.local_first bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok start)
-    | some next => turtle.local_rest bytes next next
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::before]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 562:0-564:1 -/
-def turtle.before
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result Bool
-  := do
-  if index < «end»
-  then let i := alloc.vec.Vec.len bytes
-       ok (index < i)
-  else ok false
-
-/-- [rowl_kernel::turtle::push_limited]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 567:0-574:1 -/
-def turtle.push_limited
-  (out : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.U8))
-  := do
-  let i := alloc.vec.Vec.len out
-  if i < limit
-  then let out1 ← alloc.vec.Vec.push out byte
-       ok (some out1)
-  else ok none
-
-/-- [rowl_kernel::turtle::escaped_byte]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 577:0-583:1 -/
-def turtle.escaped_byte
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result (Std.U8 × Std.Usize)
-  := do
-  let b ← turtle.before bytes index «end»
-  if b
-  then
-    let i ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let i1 ← index + 1#usize
-    ok (i, i1)
-  else ok (92#u8, index)
-
-/-- [rowl_kernel::turtle::local_byte]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 587:0-593:1 -/
-def turtle.local_byte
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result (Std.U8 × Std.Usize)
-  := do
-  let i ←
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-      index
-  if i = 92#u8
-  then let i1 ← index + 1#usize
-       turtle.escaped_byte bytes i1 «end»
-  else let i1 ← index + 1#usize
-       ok (i, i1)
-
-/-- [rowl_kernel::turtle::unescape]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 597:0-613:1 -/
-def turtle.unescape
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (out : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.U8))
-  := do
-  let b ← turtle.before bytes index «end»
-  if b
-  then
-    let (byte, next) ← turtle.local_byte bytes index «end»
-    let o ← turtle.push_limited out byte limit
-    match o with
-    | none => ok none
-    | some out1 => turtle.unescape bytes next «end» out1 limit
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::same_span_from]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 620:0-630:1 -/
-def turtle.same_span_from
-  («name» : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
-  (start : Std.Usize) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len «name»
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-        «name» index
-    let i2 ← start + index
-    let i3 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        i2
-    if i1 = i3
-    then
-      let i4 ← index + 1#usize
-      turtle.same_span_from «name» bytes start i4
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::same_span]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 616:0-618:1 -/
-def turtle.same_span
-  («name» : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
-  (start : Std.Usize) («end» : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len «name»
-  let i1 ← «end» - start
-  if i = i1
-  then turtle.same_span_from «name» bytes start 0#usize
-  else ok false
-
-/-- [rowl_kernel::turtle::lookup]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 633:0-649:1 -/
-def turtle.lookup
-  (prefixes : alloc.vec.Vec turtle.Prefix) (bytes : alloc.vec.Vec Std.U8)
-  (start : Std.Usize) («end» : Std.Usize) (count : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  if 0#usize < count
-  then
-    let i ← count - 1#usize
-    let p ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice turtle.Prefix)
-        prefixes i
-    let b ← turtle.same_span p.name bytes start «end»
-    if b
-    then ok (some i)
-    else turtle.lookup prefixes bytes start «end» i
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::valid_iri]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 652:0-654:1 -/
-def turtle.valid_iri (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
-  let mr ← iri.validate_iri bytes
-  match mr with
-  | regular.MatchResult.Matched b => if b
-                                     then ok true
-                                     else ok false
-  | regular.MatchResult.MalformedUtf8 _ => ok false
-
-/-- [rowl_kernel::turtle::checked_iri]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 657:0-663:1 -/
-def turtle.checked_iri
-  (spelling : alloc.vec.Vec Std.U8) (start : Std.Usize) (next : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
-  := do
-  let b ← turtle.valid_iri spelling
-  if b
-  then ok (core.result.Result.Ok ({ spelling }, next))
-  else
-    let re ← turtle.error turtle.ErrorKind.InvalidIri start
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::bounded_iri]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 666:0-672:1 -/
-def turtle.bounded_iri
-  (spelling : alloc.vec.Vec Std.U8) (start : Std.Usize) (next : Std.Usize)
-  (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
-  := do
-  let i := alloc.vec.Vec.len spelling
-  if limit < i
-  then
-    let re ← turtle.error turtle.ErrorKind.ResourceLimit start
-    ok (core.result.Result.Err re)
-  else turtle.checked_iri spelling start next
-
-/-- [rowl_kernel::turtle::prefixed]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 676:0-694:1 -/
-def turtle.prefixed
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (colon : Std.Usize)
-  (prefixes : alloc.vec.Vec turtle.Prefix) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
-  := do
-  let i := alloc.vec.Vec.len prefixes
-  let o ← turtle.lookup prefixes bytes start colon i
-  match o with
-  | none =>
-    let re ← turtle.error turtle.ErrorKind.UndefinedPrefix start
-    ok (core.result.Result.Err re)
-  | some entry =>
-    let i1 ← colon + 1#usize
-    let r ← turtle.local_end bytes i1
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let p ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          turtle.Prefix) prefixes entry
-      let «namespace» ← turtle.copy_bytes p.iri
-      let o1 ← turtle.unescape bytes i1 val «namespace» limit
-      match o1 with
-      | none =>
-        let re ← turtle.error turtle.ErrorKind.ResourceLimit start
-        ok (core.result.Result.Err re)
-      | some spelling => turtle.bounded_iri spelling start val limit
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-
-/-- [rowl_kernel::turtle::iri_ref]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 697:0-707:1 -/
-def turtle.iri_ref
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.quoted_iri bytes start limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (reference, next) := val
-    let b ← references.is_reference reference
-    if b
-    then
-      let o ← references.resolve base reference
-      match o with
-      | none =>
-        let re ← turtle.error turtle.ErrorKind.InvalidIri start
-        ok (core.result.Result.Err re)
-      | some spelling => turtle.bounded_iri spelling start next limit
-    else
-      let re ← turtle.error turtle.ErrorKind.InvalidIri start
-      ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
-      residual
-
-/-- [rowl_kernel::turtle::iri]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 710:0-725:1 -/
-def turtle.iri
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
-  (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
-  := do
-  let b ← turtle.byte_is bytes start 60#u8
-  if b
-  then turtle.iri_ref bytes start base limit
-  else
-    let r ← turtle.prefix_colon bytes start
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      match val with
-      | none =>
-        let re ← turtle.error turtle.ErrorKind.ExpectedIri start
-        ok (core.result.Result.Err re)
-      | some colon => turtle.prefixed bytes start colon prefixes limit
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-
-/-- [rowl_kernel::turtle::blank_label]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 728:0-747:1 -/
-def turtle.blank_label
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.BlankNode × Std.Usize) turtle.ReadError)
-  := do
-  let i ← start + 1#usize
-  let b ← turtle.byte_is bytes i 58#u8
-  if b
-  then
-    let i1 ← start + 2#usize
-    let r ← turtle.needed bytes i1
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (first, next) := val
-      let b1 ← turtle.label_first first
-      if b1
-      then
-        let r1 ← turtle.name_end bytes next next
-        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-        match cf1 with
-        | core.ops.control_flow.ControlFlow.Continue val1 =>
-          let r2 ← turtle.copied bytes i1 val1 limit
-          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-          match cf2 with
-          | core.ops.control_flow.ControlFlow.Continue val2 =>
-            let v ← turtle.copy_bytes scope
-            ok (core.result.Result.Ok ({ scope := v, label := val2 }, val1))
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (rdf.BlankNode × Std.Usize) (core.convert.FromSame
-              turtle.ReadError) residual
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (rdf.BlankNode × Std.Usize) (core.convert.FromSame
-            turtle.ReadError) residual
-      else
-        let re ← turtle.error turtle.ErrorKind.InvalidBlankLabel i1
-        ok (core.result.Result.Err re)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.BlankNode × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  else
-    let re ← turtle.error turtle.ErrorKind.InvalidBlankLabel start
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::add]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 750:0-766:1 -/
-def turtle.add
-  (output : alloc.vec.Vec Std.U8) (value : Std.U32) (limit : Std.Usize)
-  (position : Std.Usize) :
-  Result (core.result.Result (alloc.vec.Vec Std.U8) turtle.ReadError)
-  := do
-  let o ← encoding.encode value
-  match o with
-  | none =>
-    let re ← turtle.error turtle.ErrorKind.InvalidEscape position
-    ok (core.result.Result.Err re)
-  | some encoded =>
-    let (b, output1) ← ntriples.append_encoded output encoded limit
-    if b
-    then ok (core.result.Result.Ok output1)
-    else
-      let re ← turtle.error turtle.ErrorKind.ResourceLimit position
-      ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::single_body]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 769:0-778:1 -/
-def turtle.single_body
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
-  (output : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let r ← turtle.needed bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, next) := val
-    if cp = 39#u32
-    then ok (core.result.Result.Ok (output, next))
-    else
-      let r1 ← turtle.string_item bytes position cp next
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, «end») := val1
-        let r2 ← turtle.add output value limit position
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          turtle.single_body bytes «end» val2 limit
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-            turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-          turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::triple_quote]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 781:0-785:1 -/
-def turtle.triple_quote
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (quote : Std.U8) :
-  Result Bool
-  := do
-  let b ← turtle.byte_is bytes position quote
-  if b
-  then
-    let i ← position + 1#usize
-    let b1 ← turtle.byte_is bytes i quote
-    if b1
-    then let i1 ← position + 2#usize
-         turtle.byte_is bytes i1 quote
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::turtle::long_item]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 788:0-795:1 -/
-def turtle.long_item
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.needed bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, next) := val
-    if cp = 92#u32
-    then turtle.string_escape bytes position next
-    else ok (core.result.Result.Ok val)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.U32 × Std.Usize) (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::long_body]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 800:0-808:1 -/
-def turtle.long_body
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (quote : Std.U8)
-  (output : alloc.vec.Vec Std.U8) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let b ← turtle.triple_quote bytes position quote
-  if b
-  then let i ← position + 3#usize
-       ok (core.result.Result.Ok (output, i))
-  else
-    let r ← turtle.long_item bytes position
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (value, «end») := val
-      let r1 ← turtle.add output value core.num.Usize.MAX position
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        turtle.long_body bytes «end» quote val1
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-          turtle.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-        turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::bounded_string]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 812:0-818:1 -/
-def turtle.bounded_string
-  (value : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize)
-  (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let i := alloc.vec.Vec.len value
-  if limit < i
-  then
-    let re ← turtle.error turtle.ErrorKind.ResourceLimit start
-    ok (core.result.Result.Err re)
-  else ok (core.result.Result.Ok (value, «end»))
-
-/-- [rowl_kernel::turtle::long_string]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 822:0-827:1 -/
-def turtle.long_string
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (quote : Std.U8)
-  (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let i ← start + 3#usize
-  let r ← turtle.long_body bytes i quote (alloc.vec.Vec.new Std.U8)
-  match r with
-  | core.result.Result.Ok p =>
-    let (value, «end») := p
-    turtle.bounded_string value start «end» limit
-  | core.result.Result.Err _ =>
-    let i1 ← start + 2#usize
-    ok (core.result.Result.Ok (alloc.vec.Vec.new Std.U8, i1))
-
-/-- [rowl_kernel::turtle::string]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 830:0-840:1 -/
-def turtle.string
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let b ← turtle.triple_quote bytes start 34#u8
-  if b
-  then turtle.long_string bytes start 34#u8 limit
-  else
-    let b1 ← turtle.triple_quote bytes start 39#u8
-    if b1
-    then turtle.long_string bytes start 39#u8 limit
-    else
-      let b2 ← turtle.byte_is bytes start 34#u8
-      if b2
-      then turtle.quoted_string bytes start limit
-      else
-        let i ← start + 1#usize
-        turtle.single_body bytes i (alloc.vec.Vec.new Std.U8) limit
-
-/-- [rowl_kernel::turtle::letter_byte]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1117:0-1119:1 -/
-def turtle.letter_byte (byte : Std.U8) : Result Bool := do
-  if 65#u8 <= byte
-  then
-    if byte <= 90#u8
-    then ok true
-    else if 97#u8 <= byte
-         then ok (byte <= 122#u8)
-         else ok false
-  else if 97#u8 <= byte
-       then ok (byte <= 122#u8)
-       else ok false
-
-/-- [rowl_kernel::turtle::letters_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 843:0-853:1 -/
-def turtle.letters_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← turtle.letter_byte i1
-    if b
-    then let i2 ← index + 1#usize
-         turtle.letters_end bytes i2
-    else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::digit_byte]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 960:0-962:1 -/
-def turtle.digit_byte (byte : Std.U8) : Result Bool := do
-  if 48#u8 <= byte
-  then ok (byte <= 57#u8)
-  else ok false
-
-/-- [rowl_kernel::turtle::alnum_byte]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 856:0-858:1 -/
-def turtle.alnum_byte (byte : Std.U8) : Result Bool := do
-  let b ← turtle.letter_byte byte
-  if b
-  then ok true
-  else turtle.digit_byte byte
-
-/-- [rowl_kernel::turtle::alnums_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 861:0-871:1 -/
-def turtle.alnums_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← turtle.alnum_byte i1
-    if b
-    then let i2 ← index + 1#usize
-         turtle.alnums_end bytes i2
-    else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::subtags_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 875:0-886:1 -/
-def turtle.subtags_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let b ← turtle.byte_is bytes index 45#u8
-  if b
-  then
-    let i ← index + 1#usize
-    let «end» ← turtle.alnums_end bytes i
-    if i < «end»
-    then turtle.subtags_end bytes «end»
-    else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::language]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 890:0-903:1 -/
-def turtle.language
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let i ← start + 1#usize
-  let head ← turtle.letters_end bytes i
-  if i < head
-  then
-    let «end» ← turtle.subtags_end bytes head
-    let r ← turtle.copied bytes i «end» limit
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let b ← langtag.well_formed val
-      if b
-      then ok (core.result.Result.Ok (val, «end»))
-      else
-        let re ← turtle.error turtle.ErrorKind.InvalidLanguageTag start
-        ok (core.result.Result.Err re)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-        turtle.ReadError) residual
-  else
-    let re ← turtle.error turtle.ErrorKind.InvalidLanguageTag start
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::datatype]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 906:0-924:1 -/
-def turtle.datatype
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
-  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
-  (limit : Std.Usize) :
-  Result (core.result.Result (rdf.LiteralKind × Std.Usize) turtle.ReadError)
-  := do
-  let i ← position + 1#usize
-  let b ← turtle.byte_is bytes i 94#u8
-  if b
-  then
-    let i1 ← position + 2#usize
-    let r ← turtle.space bytes i1
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let r1 ← turtle.iri bytes val base prefixes limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (datatype, next) := val1
-        let b1 ← turtle.lang_string datatype.spelling
-        if b1
-        then
-          let re ← turtle.error turtle.ErrorKind.InvalidLiteralKind position
-          ok (core.result.Result.Err re)
-        else
-          ok (core.result.Result.Ok (rdf.LiteralKind.Datatype datatype, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
-          turtle.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.LiteralKind × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  else
-    let re ← turtle.error turtle.ErrorKind.InvalidLiteralKind position
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::literal_kind]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 928:0-944:1 -/
-def turtle.literal_kind
-  (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize)
-  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
-  (limit : Std.Usize) :
-  Result (core.result.Result (rdf.LiteralKind × Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.space bytes «end»
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is bytes val 64#u8
-    if b
-    then
-      let r1 ← turtle.language bytes val limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (tag, next) := val1
-        ok (core.result.Result.Ok (rdf.LiteralKind.Language tag, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
-          turtle.ReadError) residual
-    else
-      let b1 ← turtle.byte_is bytes val 94#u8
-      if b1
-      then turtle.datatype bytes val base prefixes limit
-      else
-        let s ←
-          lift (Array.to_slice
-            (Array.make 39#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
-              115#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
-              ]))
-        let lk ← turtle.xsd s
-        ok (core.result.Result.Ok (lk, «end»))
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.LiteralKind × Std.Usize) (core.convert.FromSame turtle.ReadError)
-      residual
-
-/-- [rowl_kernel::turtle::literal]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 947:0-957:1 -/
-def turtle.literal
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
-  (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.string bytes start limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (lexical, «end») := val
-    let r1 ← turtle.literal_kind bytes «end» base prefixes limit
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let (kind, next) := val1
-      ok (core.result.Result.Ok ({ lexical, kind }, next))
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
-      residual
-
-/-- [rowl_kernel::turtle::digits_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 965:0-975:1 -/
-def turtle.digits_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← turtle.digit_byte i1
-    if b
-    then let i2 ← index + 1#usize
-         turtle.digits_end bytes i2
-    else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::sign_at]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 978:0-980:1 -/
-def turtle.sign_at
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let b ← turtle.byte_is bytes index 43#u8
-  if b
-  then ok true
-  else turtle.byte_is bytes index 45#u8
-
-/-- [rowl_kernel::turtle::exponent_at]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 983:0-985:1 -/
-def turtle.exponent_at
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let b ← turtle.byte_is bytes index 101#u8
-  if b
-  then ok true
-  else turtle.byte_is bytes index 69#u8
-
-/-- [rowl_kernel::turtle::unsigned]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 988:0-994:1 -/
-def turtle.unsigned
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let b ← turtle.sign_at bytes index
-  if b
-  then index + 1#usize
-  else ok index
-
-/-- [rowl_kernel::turtle::exponent_digits]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 997:0-1005:1 -/
-def turtle.exponent_digits
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i ← index + 1#usize
-  let digits ← turtle.unsigned bytes i
-  let «end» ← turtle.digits_end bytes digits
-  if digits < «end»
-  then ok (some «end»)
-  else ok none
-
-/-- [rowl_kernel::turtle::exponent_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1008:0-1014:1 -/
-def turtle.exponent_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let b ← turtle.exponent_at bytes index
-  if b
-  then turtle.exponent_digits bytes index
-  else ok none
-
-/-- [rowl_kernel::turtle::Number]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1017:0-1021:1 -/
-@[discriminant isize]
-inductive turtle.Number where
-| Integer : turtle.Number
-| Decimal : turtle.Number
-| Double : turtle.Number
-
-/-- [rowl_kernel::turtle::with_exponent]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1024:0-1029:1 -/
-def turtle.with_exponent
-  (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize) (plain : turtle.Number)
-  :
-  Result (Std.Usize × turtle.Number)
-  := do
-  let o ← turtle.exponent_end bytes «end»
-  match o with
-  | none => ok («end», plain)
-  | some after => ok (after, turtle.Number.Double)
-
-/-- [rowl_kernel::turtle::fraction]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1033:0-1045:1 -/
-def turtle.fraction
-  (bytes : alloc.vec.Vec Std.U8) (digits : Std.Usize) (point : Std.Usize) :
-  Result (Option (Std.Usize × turtle.Number))
-  := do
-  let i ← point + 1#usize
-  let «end» ← turtle.digits_end bytes i
-  if i < «end»
-  then
-    let p ← turtle.with_exponent bytes «end» turtle.Number.Decimal
-    ok (some p)
-  else
-    if digits < point
-    then
-      let o ← turtle.exponent_end bytes i
-      match o with
-      | none => ok (some (point, turtle.Number.Integer))
-      | some after => ok (some (after, turtle.Number.Double))
-    else ok none
-
-/-- [rowl_kernel::turtle::number_end]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1048:0-1058:1 -/
-def turtle.number_end
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result (Option (Std.Usize × turtle.Number))
-  := do
-  let digits ← turtle.unsigned bytes start
-  let point ← turtle.digits_end bytes digits
-  let b ← turtle.byte_is bytes point 46#u8
-  if b
-  then turtle.fraction bytes digits point
-  else
-    if digits < point
-    then
-      let p ← turtle.with_exponent bytes point turtle.Number.Integer
-      ok (some p)
-    else ok none
-
-/-- [rowl_kernel::turtle::number]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1061:0-1074:1 -/
-def turtle.number
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) turtle.ReadError)
-  := do
-  let o ← turtle.number_end bytes start
-  match o with
-  | none =>
-    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
-    ok (core.result.Result.Err re)
-  | some p =>
-    let («end», kind) := p
-    let r ← turtle.copied bytes start «end» limit
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      match kind with
-      | turtle.Number.Integer =>
-        let s ←
-          lift (Array.to_slice
-            (Array.make 40#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
-              105#u8, 110#u8, 116#u8, 101#u8, 103#u8, 101#u8, 114#u8
-              ]))
-        let kind1 ← turtle.xsd s
-        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
-      | turtle.Number.Decimal =>
-        let s ←
-          lift (Array.to_slice
-            (Array.make 40#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
-              100#u8, 101#u8, 99#u8, 105#u8, 109#u8, 97#u8, 108#u8
-              ]))
-        let kind1 ← turtle.xsd s
-        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
-      | turtle.Number.Double =>
-        let s ←
-          lift (Array.to_slice
-            (Array.make 39#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
-              100#u8, 111#u8, 117#u8, 98#u8, 108#u8, 101#u8
-              ]))
-        let kind1 ← turtle.xsd s
-        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-
-/-- [rowl_kernel::turtle::word_from]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1081:0-1091:1 -/
-def turtle.word_from
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := Slice.len word
-  if index < i
-  then
-    let i1 ← start + index
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        i1
-    let i3 ← Slice.index_usize word index
-    if i2 = i3
-    then let i4 ← index + 1#usize
-         turtle.word_from bytes start word i4
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::word_at]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1077:0-1079:1 -/
-def turtle.word_at
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if start <= i
-  then
-    let i1 := Slice.len word
-    let i2 := alloc.vec.Vec.len bytes
-    let i3 ← i2 - start
-    if i1 <= i3
-    then turtle.word_from bytes start word 0#usize
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::turtle::either]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1094:0-1096:1 -/
-def turtle.either
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (upper : Std.U8)
-  (lower : Std.U8) :
-  Result Bool
-  := do
-  let b ← turtle.byte_is bytes index upper
-  if b
-  then ok true
-  else turtle.byte_is bytes index lower
-
-/-- [rowl_kernel::turtle::prefix_word]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1099:0-1106:1 -/
-def turtle.prefix_word
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) : Result Bool := do
-  let b ← turtle.either bytes start 80#u8 112#u8
-  if b
-  then
-    let i ← start + 1#usize
-    let b1 ← turtle.either bytes i 82#u8 114#u8
-    if b1
-    then
-      let i1 ← start + 2#usize
-      let b2 ← turtle.either bytes i1 69#u8 101#u8
-      if b2
-      then
-        let i2 ← start + 3#usize
-        let b3 ← turtle.either bytes i2 70#u8 102#u8
-        if b3
-        then
-          let i3 ← start + 4#usize
-          let b4 ← turtle.either bytes i3 73#u8 105#u8
-          if b4
-          then let i4 ← start + 5#usize
-               turtle.either bytes i4 88#u8 120#u8
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::turtle::base_word]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1109:0-1114:1 -/
-def turtle.base_word
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) : Result Bool := do
-  let b ← turtle.either bytes start 66#u8 98#u8
-  if b
-  then
-    let i ← start + 1#usize
-    let b1 ← turtle.either bytes i 65#u8 97#u8
-    if b1
-    then
-      let i1 ← start + 2#usize
-      let b2 ← turtle.either bytes i1 83#u8 115#u8
-      if b2
-      then let i2 ← start + 3#usize
-           turtle.either bytes i2 69#u8 101#u8
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::turtle::tag_byte]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1122:0-1124:1 -/
-def turtle.tag_byte (byte : Std.U8) : Result Bool := do
-  let b ← turtle.letter_byte byte
-  if b
-  then ok true
-  else
-    let b1 ← turtle.digit_byte byte
-    if b1
-    then ok true
-    else ok (byte = 45#u8)
-
-/-- [rowl_kernel::turtle::tag_continues]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1127:0-1129:1 -/
-def turtle.tag_continues
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    turtle.tag_byte i1
-  else ok false
-
-/-- [rowl_kernel::turtle::at_keyword]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1133:0-1137:1 -/
-def turtle.at_keyword
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8) :
-  Result Bool
-  := do
-  let b ← turtle.byte_is bytes start 64#u8
-  if b
-  then
-    let i ← start + 1#usize
-    let b1 ← turtle.word_at bytes i word
-    if b1
-    then
-      let i1 := Slice.len word
-      let i2 ← i + i1
-      let b2 ← turtle.tag_continues bytes i2
-      ok (¬ b2)
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::turtle::quote]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1140:0-1142:1 -/
-def turtle.quote (cp : Std.U32) : Result Bool := do
-  if cp = 34#u32
-  then ok true
-  else ok (cp = 39#u32)
-
-/-- [rowl_kernel::turtle::number_start]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1145:0-1147:1 -/
-def turtle.number_start (cp : Std.U32) : Result Bool := do
-  let b ← ntriples.ascii_digit cp
-  if b
-  then ok true
-  else
-    if cp = 43#u32
-    then ok true
-    else if cp = 45#u32
-         then ok true
-         else ok (cp = 46#u32)
-
-/-- [rowl_kernel::turtle::word_start]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1150:0-1152:1 -/
-def turtle.word_start (cp : Std.U32) : Result Bool := do
-  let b ← ntriples.pn_base cp
-  if b
-  then ok true
-  else ok (cp = 58#u32)
-
-/-- [rowl_kernel::turtle::Start]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1155:0-1164:1 -/
-@[discriminant isize]
-inductive turtle.Start where
-| Iri : turtle.Start
-| Blank : turtle.Start
-| Bracket : turtle.Start
-| Paren : turtle.Start
-| Quote : turtle.Start
-| Number : turtle.Start
-| Word : turtle.Start
-| Other : turtle.Start
-
-/-- [rowl_kernel::turtle::start_of]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1166:0-1184:1 -/
-def turtle.start_of (cp : Std.U32) : Result turtle.Start := do
-  if cp = 60#u32
-  then ok turtle.Start.Iri
-  else
-    if cp = 95#u32
-    then ok turtle.Start.Blank
-    else
-      if cp = 91#u32
-      then ok turtle.Start.Bracket
-      else
-        if cp = 40#u32
-        then ok turtle.Start.Paren
-        else
-          let b ← turtle.quote cp
-          if b
-          then ok turtle.Start.Quote
-          else
-            let b1 ← turtle.number_start cp
-            if b1
-            then ok turtle.Start.Number
-            else
-              let b2 ← turtle.word_start cp
-              if b2
-              then ok turtle.Start.Word
-              else ok turtle.Start.Other
-
-/-- [rowl_kernel::turtle::boolean]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1187:0-1192:1 -/
-def turtle.boolean (lexical : Slice Std.U8) : Result rdf.RdfLiteral := do
-  let v ← turtle.constant lexical
-  let s ←
-    lift (Array.to_slice
-      (Array.make 40#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
-        104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8, 111#u8, 111#u8, 108#u8,
-        101#u8, 97#u8, 110#u8
-        ]))
-  let lk ← turtle.xsd s
-  ok { lexical := v, kind := lk }
-
-/-- [rowl_kernel::turtle::boolean_at]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1195:0-1203:1 -/
-def turtle.boolean_at
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
-  let b ← turtle.word_at bytes start s
-  if b
-  then
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
-    let rl ← turtle.boolean s1
-    let i ← start + 4#usize
-    ok (core.result.Result.Ok (rdf.Object.Literal rl, i))
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
-    let b1 ← turtle.word_at bytes start s1
-    if b1
-    then
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
-      let rl ← turtle.boolean s2
-      let i ← start + 5#usize
-      ok (core.result.Result.Ok (rdf.Object.Literal rl, i))
-    else
-      let re ← turtle.error turtle.ErrorKind.ExpectedObject start
-      ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::word_object]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1206:0-1219:1 -/
-def turtle.word_object
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (prefixes : alloc.vec.Vec turtle.Prefix) (limit : Std.Usize) :
-  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.prefix_colon bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => turtle.boolean_at bytes start
-    | some colon =>
-      let r1 ← turtle.prefixed bytes start colon prefixes limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (iri, next) := val1
-        ok (core.result.Result.Ok (rdf.Object.Iri iri, next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
-          residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
-      residual
-
-/-- [rowl_kernel::turtle::Context]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1223:0-1229:1 -/
-structure turtle.Context where
-  bytes : alloc.vec.Vec Std.U8
-  scope : alloc.vec.Vec Std.U8
-  base : alloc.vec.Vec Std.U8
-  prefixes : alloc.vec.Vec turtle.Prefix
-  limits : turtle.Limits
-
-/-- [rowl_kernel::turtle::term]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1233:0-1257:1 -/
-def turtle.term
-  (cx : turtle.Context) (start : Std.Usize) (kind : turtle.Start) :
-  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
-  := do
-  match kind with
-  | turtle.Start.Iri =>
-    let r ← turtle.iri_ref cx.bytes start cx.base cx.limits.max_term_bytes
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (iri, next) := val
-      ok (core.result.Result.Ok (rdf.Object.Iri iri, next))
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  | turtle.Start.Blank =>
-    let r ←
-      turtle.blank_label cx.bytes start cx.scope cx.limits.max_term_bytes
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (node, next) := val
-      ok (core.result.Result.Ok (rdf.Object.Blank node, next))
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  | turtle.Start.Bracket =>
-    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
-    ok (core.result.Result.Err re)
-  | turtle.Start.Paren =>
-    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
-    ok (core.result.Result.Err re)
-  | turtle.Start.Quote =>
-    let r ←
-      turtle.literal cx.bytes start cx.base cx.prefixes
-        cx.limits.max_term_bytes
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (literal, next) := val
-      ok (core.result.Result.Ok (rdf.Object.Literal literal, next))
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  | turtle.Start.Number =>
-    let r ← turtle.number cx.bytes start cx.limits.max_term_bytes
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (literal, next) := val
-      ok (core.result.Result.Ok (rdf.Object.Literal literal, next))
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  | turtle.Start.Word =>
-    turtle.word_object cx.bytes start cx.prefixes cx.limits.max_term_bytes
-  | turtle.Start.Other =>
-    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::verb_follows]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1427:0-1429:1 -/
-def turtle.verb_follows
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    if i1 != 59#u8
-    then if i1 != 46#u8
-         then ok (i1 != 93#u8)
-         else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::turtle::keyword_a]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1395:0-1401:1 -/
-def turtle.keyword_a
-  (cp : Std.U32) (start : Std.Usize) (next : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
-  := do
-  if cp = 97#u32
-  then let ri ← turtle.rdf_type
-       ok (core.result.Result.Ok (ri, next))
-  else
-    let re ← turtle.error turtle.ErrorKind.ExpectedVerb start
-    ok (core.result.Result.Err re)
-
-/-- [rowl_kernel::turtle::verb]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1404:0-1423:1 -/
-def turtle.verb
-  (cx : turtle.Context) (position : Std.Usize) :
-  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.space cx.bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let r1 ← turtle.needed cx.bytes val
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let (cp, next) := val1
-      if cp = 60#u32
-      then turtle.iri_ref cx.bytes val cx.base cx.limits.max_term_bytes
-      else
-        let b ← turtle.word_start cp
-        if b
-        then
-          let r2 ← turtle.prefix_colon cx.bytes val
-          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-          match cf2 with
-          | core.ops.control_flow.ControlFlow.Continue val2 =>
-            match val2 with
-            | none => turtle.keyword_a cp val next
-            | some colon =>
-              turtle.prefixed cx.bytes val colon cx.prefixes
-                cx.limits.max_term_bytes
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (rdf.RdfIri × Std.Usize) (core.convert.FromSame
-              turtle.ReadError) residual
-        else
-          let re ← turtle.error turtle.ErrorKind.ExpectedVerb val
-          ok (core.result.Result.Err re)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
-      residual
-
-mutual
-
-/-- [rowl_kernel::turtle::node]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1261:0-1277:1 -/
-def turtle.node
-  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (rdf.Object × Std.Usize × (alloc.vec.Vec
-    rdf.Triple)) turtle.ReadError)
-  := do
-  let r ← turtle.needed cx.bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, _) := val
-    let s ← turtle.start_of cp
-    match s with
-    | turtle.Start.Iri =>
-      let r1 ← turtle.term cx start turtle.Start.Iri
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (value, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Blank =>
-      let r1 ← turtle.term cx start turtle.Start.Blank
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (value, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Bracket =>
-      let r1 ← turtle.bracket cx start out
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (node, next, out1, _) := val1
-        ok (core.result.Result.Ok (rdf.Object.Blank node, next, out1))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Paren =>
-      let r1 ← turtle.collection cx start out
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (head, next, out1) := val1
-        let o ← turtle.object_of head
-        ok (core.result.Result.Ok (o, next, out1))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Quote =>
-      let r1 ← turtle.term cx start turtle.Start.Quote
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (value, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Number =>
-      let r1 ← turtle.term cx start turtle.Start.Number
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (value, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Word =>
-      let r1 ← turtle.term cx start turtle.Start.Word
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (value, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Other =>
-      let r1 ← turtle.term cx start turtle.Start.Other
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, next) := val1
-        ok (core.result.Result.Ok (value, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
-      (core.convert.FromSame turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::bracket]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1281:0-1299:1 -/
-def turtle.bracket
-  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (rdf.BlankNode × Std.Usize × (alloc.vec.Vec
-    rdf.Triple) × Bool) turtle.ReadError)
-  := do
-  let i ← start + 1#usize
-  let r ← turtle.space cx.bytes i
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is cx.bytes val 93#u8
-    if b
-    then
-      let bn ← turtle.bracket_node cx.scope start
-      let i1 ← val + 1#usize
-      ok (core.result.Result.Ok (bn, i1, out, false))
-    else
-      let bn ← turtle.bracket_node cx.scope start
-      let r1 ← turtle.predicate_object_list cx val (rdf.Subject.Blank bn) out
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (after, out1) := val1
-        let r2 ← turtle.space cx.bytes after
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          let b1 ← turtle.byte_is cx.bytes val2 93#u8
-          if b1
-          then
-            let i1 ← val2 + 1#usize
-            ok (core.result.Result.Ok (bn, i1, out1, true))
-          else
-            let re ← turtle.error turtle.ErrorKind.ExpectedBracket val2
-            ok (core.result.Result.Err re)
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
-            (core.convert.FromSame turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
-          (core.convert.FromSame turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
-      (core.convert.FromSame turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::collection]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1303:0-1312:1 -/
-def turtle.collection
-  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (rdf.Subject × Std.Usize × (alloc.vec.Vec
-    rdf.Triple)) turtle.ReadError)
-  := do
-  let i ← start + 1#usize
-  let r ← turtle.space cx.bytes i
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is cx.bytes val 41#u8
-    if b
-    then
-      let ri ← turtle.rdf_nil
-      let i1 ← val + 1#usize
-      ok (core.result.Result.Ok (rdf.Subject.Iri ri, i1, out))
-    else
-      let r1 ← turtle.member cx val out
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (after, out1) := val1
-        let r2 ← turtle.members cx after val out1
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          let («end», out2) := val2
-          let bn ← turtle.list_node cx.scope val
-          ok (core.result.Result.Ok (rdf.Subject.Blank bn, «end», out2))
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-            (core.convert.FromSame turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-      (core.convert.FromSame turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::member]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1316:0-1320:1 -/
-def turtle.member
-  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let bn ← turtle.list_node cx.scope start
-  let predicate ← turtle.rdf_first
-  turtle.object cx start (rdf.Subject.Blank bn) predicate out
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::members]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1324:0-1345:1 -/
-def turtle.members
-  (cx : turtle.Context) (position : Std.Usize) (last : Std.Usize)
-  (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let r ← turtle.space cx.bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let bn ← turtle.list_node cx.scope last
-    let b ← turtle.byte_is cx.bytes val 41#u8
-    if b
-    then
-      let ri ← turtle.rdf_rest
-      let ri1 ← turtle.rdf_nil
-      let r1 ←
-        turtle.emit out
-          {
-            subject := (rdf.Subject.Blank bn),
-            predicate := ri,
-            object := (rdf.Object.Iri ri1)
-          } cx.limits val
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let i ← val + 1#usize
-        ok (core.result.Result.Ok (i, val1))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-          turtle.ReadError) residual
-    else
-      let ri ← turtle.rdf_rest
-      let bn1 ← turtle.list_node cx.scope val
-      let r1 ←
-        turtle.emit out
-          {
-            subject := (rdf.Subject.Blank bn),
-            predicate := ri,
-            object := (rdf.Object.Blank bn1)
-          } cx.limits val
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let r2 ← turtle.member cx val val1
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          let (after, out1) := val2
-          turtle.members cx after val out1
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-            turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-          turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-      turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::object]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1348:0-1364:1 -/
-def turtle.object
-  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
-  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let r ← turtle.space cx.bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let r1 ← turtle.node cx val out
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let (value, next, out1) := val1
-      let s ← turtle.copy_subject subject
-      let ri ← turtle.copy_iri predicate
-      let r2 ←
-        turtle.emit out1 { subject := s, predicate := ri, object := value }
-          cx.limits val
-      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-      match cf2 with
-      | core.ops.control_flow.ControlFlow.Continue val2 =>
-        ok (core.result.Result.Ok (next, val2))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-          turtle.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-        turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-      turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::object_list]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1367:0-1376:1 -/
-def turtle.object_list
-  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
-  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let r ← turtle.object cx position subject predicate out
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (next, out1) := val
-    turtle.more_objects cx next subject predicate out1
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-      turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::more_objects]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1378:0-1392:1 -/
-def turtle.more_objects
-  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
-  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let r ← turtle.space cx.bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is cx.bytes val 44#u8
-    if b
-    then
-      let i ← val + 1#usize
-      let r1 ← turtle.object cx i subject predicate out
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (after, out1) := val1
-        turtle.more_objects cx after subject predicate out1
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-          turtle.ReadError) residual
-    else ok (core.result.Result.Ok (val, out))
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-      turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::predicate_object_list]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1432:0-1441:1 -/
-def turtle.predicate_object_list
-  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
-  (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let r ← turtle.verb cx position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (predicate, next) := val
-    let r1 ← turtle.object_list cx next subject predicate out
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let (after, out1) := val1
-      turtle.more_predicates cx after subject out1
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-        turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-      turtle.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::more_predicates]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1443:0-1457:1 -/
-def turtle.more_predicates
-  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
-  (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let r ← turtle.space cx.bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is cx.bytes val 59#u8
-    if b
-    then
-      let i ← val + 1#usize
-      let r1 ← turtle.space cx.bytes i
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let b1 ← turtle.verb_follows cx.bytes val1
-        if b1
-        then
-          let r2 ← turtle.verb cx val1
-          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-          match cf2 with
-          | core.ops.control_flow.ControlFlow.Continue val2 =>
-            let (predicate, objects) := val2
-            let r3 ← turtle.object_list cx objects subject predicate out
-            let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
-            match cf3 with
-            | core.ops.control_flow.ControlFlow.Continue val3 =>
-              let («end», out1) := val3
-              turtle.more_predicates cx «end» subject out1
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                (Std.Usize × (alloc.vec.Vec rdf.Triple))
-                (core.convert.FromSame turtle.ReadError) residual
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-              turtle.ReadError) residual
-        else turtle.more_predicates cx val1 subject out
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-          turtle.ReadError) residual
-    else ok (core.result.Result.Ok (val, out))
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-      turtle.ReadError) residual
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::turtle::subject]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1460:0-1482:1 -/
-def turtle.subject
-  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (rdf.Subject × Std.Usize × (alloc.vec.Vec
-    rdf.Triple)) turtle.ReadError)
-  := do
-  let r ← turtle.needed cx.bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, _) := val
-    let s ← turtle.start_of cp
-    match s with
-    | turtle.Start.Iri =>
-      let r1 ← turtle.iri_ref cx.bytes start cx.base cx.limits.max_term_bytes
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (iri, next) := val1
-        ok (core.result.Result.Ok (rdf.Subject.Iri iri, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Blank =>
-      let r1 ←
-        turtle.blank_label cx.bytes start cx.scope cx.limits.max_term_bytes
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (node, next) := val1
-        ok (core.result.Result.Ok (rdf.Subject.Blank node, next, out))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Bracket =>
-      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
-      ok (core.result.Result.Err re)
-    | turtle.Start.Paren => turtle.collection cx start out
-    | turtle.Start.Quote =>
-      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
-      ok (core.result.Result.Err re)
-    | turtle.Start.Number =>
-      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
-      ok (core.result.Result.Err re)
-    | turtle.Start.Word =>
-      let r1 ← turtle.prefix_colon cx.bytes start
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        match val1 with
-        | none =>
-          let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
-          ok (core.result.Result.Err re)
-        | some colon =>
-          let r2 ←
-            turtle.prefixed cx.bytes start colon cx.prefixes
-              cx.limits.max_term_bytes
-          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-          match cf2 with
-          | core.ops.control_flow.ControlFlow.Continue val2 =>
-            let (iri, next) := val2
-            ok (core.result.Result.Ok (rdf.Subject.Iri iri, next, out))
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-              (core.convert.FromSame turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-          (core.convert.FromSame turtle.ReadError) residual
-    | turtle.Start.Other =>
-      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
-      ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
-      (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::optional_list]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1486:0-1493:1 -/
-def turtle.optional_list
-  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
-  (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let r ← turtle.space cx.bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is cx.bytes val 46#u8
-    if b
-    then ok (core.result.Result.Ok (val, out))
-    else turtle.predicate_object_list cx val subject out
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-      turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::triples]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1496:0-1509:1 -/
-def turtle.triples
-  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
-  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
-    turtle.ReadError)
-  := do
-  let b ← turtle.byte_is cx.bytes start 91#u8
-  if b
-  then
-    let r ← turtle.bracket cx start out
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (node, next, out1, listed) := val
-      if listed
-      then turtle.optional_list cx next (rdf.Subject.Blank node) out1
-      else turtle.predicate_object_list cx next (rdf.Subject.Blank node) out1
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-        turtle.ReadError) residual
-  else
-    let r ← turtle.subject cx start out
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      let (subject, next, out1) := val
-      turtle.predicate_object_list cx next subject out1
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
-        turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::period]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1512:0-1519:1 -/
-def turtle.period
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result Std.Usize turtle.ReadError)
-  := do
-  let r ← turtle.space bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let b ← turtle.byte_is bytes val 46#u8
-    if b
-    then let i ← val + 1#usize
-         ok (core.result.Result.Ok i)
-    else
-      let re ← turtle.error turtle.ErrorKind.ExpectedPeriod val
-      ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::Statement]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1522:0-1528:1 -/
-@[discriminant isize]
-inductive turtle.Statement where
-| AtPrefix : Std.Usize → turtle.Statement
-| AtBase : Std.Usize → turtle.Statement
-| Prefix : Std.Usize → turtle.Statement
-| Base : Std.Usize → turtle.Statement
-| Triples : turtle.Statement
-
-/-- [rowl_kernel::turtle::sparql]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1532:0-1537:1 -/
-def turtle.sparql
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
-  (keyword : turtle.Statement) :
-  Result (core.result.Result turtle.Statement turtle.ReadError)
-  := do
-  let r ← turtle.prefix_colon bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none => ok (core.result.Result.Ok keyword)
-    | some _ => ok (core.result.Result.Ok turtle.Statement.Triples)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      turtle.Statement (core.convert.FromSame turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::statement_start]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1539:0-1551:1 -/
-def turtle.statement_start
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result (core.result.Result turtle.Statement turtle.ReadError)
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 6#usize [ 112#u8, 114#u8, 101#u8, 102#u8, 105#u8, 120#u8 ]))
-  let b ← turtle.at_keyword bytes start s
-  if b
-  then
-    let i ← start + 7#usize
-    ok (core.result.Result.Ok (turtle.Statement.AtPrefix i))
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 4#usize [ 98#u8, 97#u8, 115#u8, 101#u8 ]))
-    let b1 ← turtle.at_keyword bytes start s1
-    if b1
-    then
-      let i ← start + 5#usize
-      ok (core.result.Result.Ok (turtle.Statement.AtBase i))
-    else
-      let b2 ← turtle.prefix_word bytes start
-      if b2
-      then
-        let i ← start + 6#usize
-        turtle.sparql bytes start (turtle.Statement.Prefix i)
-      else
-        let b3 ← turtle.base_word bytes start
-        if b3
-        then
-          let i ← start + 4#usize
-          turtle.sparql bytes start (turtle.Statement.Base i)
-        else ok (core.result.Result.Ok turtle.Statement.Triples)
-
-/-- [rowl_kernel::turtle::prefix_name]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1555:0-1564:1 -/
-def turtle.prefix_name
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let r ← turtle.space bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let r1 ← turtle.prefix_colon bytes val
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      match val1 with
-      | none =>
-        let re ← turtle.error turtle.ErrorKind.ExpectedPrefix val
-        ok (core.result.Result.Err re)
-      | some colon =>
-        let r2 ← turtle.copied bytes val colon limit
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          let i ← colon + 1#usize
-          ok (core.result.Result.Ok (val2, i))
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-            turtle.ReadError) residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-        turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::prefix_declaration]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1567:0-1583:1 -/
-def turtle.prefix_declaration
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
-  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result (turtle.Prefix × Std.Usize) turtle.ReadError)
-  := do
-  let r ← turtle.prefix_name bytes position limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let («name», after) := val
-    let r1 ← turtle.space bytes after
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let r2 ← turtle.iri_ref bytes val1 base limit
-      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-      match cf2 with
-      | core.ops.control_flow.ControlFlow.Continue val2 =>
-        let («namespace», next) := val2
-        ok (core.result.Result.Ok ({ «name», iri := «namespace».spelling },
-          next))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
-          residual
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
-        residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
-      residual
-
-/-- [rowl_kernel::turtle::base_declaration]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1586:0-1595:1 -/
-def turtle.base_declaration
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
-  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    turtle.ReadError)
-  := do
-  let r ← turtle.space bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let r1 ← turtle.iri_ref bytes val base limit
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let (iri, next) := val1
-      ok (core.result.Result.Ok (iri.spelling, next))
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-        turtle.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      turtle.ReadError) residual
-
-/-- [rowl_kernel::turtle::State]
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1598:0-1602:1 -/
-structure turtle.State where
-  base : alloc.vec.Vec Std.U8
-  prefixes : alloc.vec.Vec turtle.Prefix
-  triples : alloc.vec.Vec rdf.Triple
-
-/-- [rowl_kernel::turtle::declare]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1604:0-1607:1 -/
-def turtle.declare
-  (prefixes : alloc.vec.Vec turtle.Prefix) («prefix» : turtle.Prefix) :
-  Result (alloc.vec.Vec turtle.Prefix)
-  := do
-  alloc.vec.Vec.push prefixes «prefix»
-
-/-- [rowl_kernel::turtle::statement]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1610:0-1692:1 -/
-def turtle.statement
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
-  (limits : turtle.Limits) (start : Std.Usize) (state : turtle.State) :
-  Result (core.result.Result (Std.Usize × turtle.State) turtle.ReadError)
-  := do
-  let r ← turtle.statement_start bytes start
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | turtle.Statement.AtPrefix after =>
-      let r1 ←
-        turtle.prefix_declaration bytes after state.base limits.max_term_bytes
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let («prefix», next) := val1
-        let r2 ← turtle.period bytes next
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          let prefixes ← turtle.declare state.prefixes «prefix»
-          ok (core.result.Result.Ok (val2, { state with prefixes }))
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (Std.Usize × turtle.State) (core.convert.FromSame
-            turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
-          residual
-    | turtle.Statement.AtBase after =>
-      let r1 ←
-        turtle.base_declaration bytes after state.base limits.max_term_bytes
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (base, next) := val1
-        let r2 ← turtle.period bytes next
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          ok (core.result.Result.Ok (val2, { state with base }))
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (Std.Usize × turtle.State) (core.convert.FromSame
-            turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
-          residual
-    | turtle.Statement.Prefix after =>
-      let r1 ←
-        turtle.prefix_declaration bytes after state.base limits.max_term_bytes
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let («prefix», «end») := val1
-        let prefixes ← turtle.declare state.prefixes «prefix»
-        ok (core.result.Result.Ok («end», { state with prefixes }))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
-          residual
-    | turtle.Statement.Base after =>
-      let r1 ←
-        turtle.base_declaration bytes after state.base limits.max_term_bytes
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (base, «end») := val1
-        ok (core.result.Result.Ok («end», { state with base }))
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
-          residual
-    | turtle.Statement.Triples =>
-      let r1 ←
-        turtle.triples
-          {
-            bytes,
-            scope,
-            base := state.base,
-            prefixes := state.prefixes,
-            limits
-          } start state.triples
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (after, out) := val1
-        let r2 ← turtle.period bytes after
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue val2 =>
-          ok (core.result.Result.Ok (val2, { state with triples := out }))
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (Std.Usize × turtle.State) (core.convert.FromSame
-            turtle.ReadError) residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
-          residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
-      residual
-
-/-- [rowl_kernel::turtle::statements]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1695:0-1709:1 -/
-def turtle.statements
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
-  (limits : turtle.Limits) (position : Std.Usize) (state : turtle.State) :
-  Result (core.result.Result (alloc.vec.Vec rdf.Triple) turtle.ReadError)
-  := do
-  let r ← turtle.space bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let i := alloc.vec.Vec.len bytes
-    if val < i
-    then
-      let r1 ← turtle.statement bytes scope limits val state
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let («end», state1) := val1
-        turtle.statements bytes scope limits «end» state1
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (alloc.vec.Vec rdf.Triple) (core.convert.FromSame turtle.ReadError)
-          residual
-    else ok (core.result.Result.Ok state.triples)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (alloc.vec.Vec rdf.Triple) (core.convert.FromSame turtle.ReadError)
-      residual
-partial_fixpoint
-
-/-- [rowl_kernel::turtle::read_with_limits]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1715:0-1730:1
-    Visibility: public -/
-def turtle.read_with_limits
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
-  (base : alloc.vec.Vec Std.U8) (limits : turtle.Limits) :
-  Result turtle.ReadResult
-  := do
-  let v ← turtle.copy_bytes base
-  let r ←
-    turtle.statements bytes scope limits 0#usize
-      {
-        base := v,
-        prefixes := (alloc.vec.Vec.new turtle.Prefix),
-        triples := (alloc.vec.Vec.new rdf.Triple)
-      }
-  match r with
-  | core.result.Result.Ok triples => ok (turtle.ReadResult.Graph { triples })
-  | core.result.Result.Err e => ok (turtle.ReadResult.Error e)
-
-/-- [rowl_kernel::turtle::read]:
-    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1733:0-1743:1
-    Visibility: public -/
-def turtle.read
-  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
-  (base : alloc.vec.Vec Std.U8) :
-  Result turtle.ReadResult
-  := do
-  turtle.read_with_limits bytes scope base
-    { max_term_bytes := core.num.Usize.MAX, max_triples := core.num.Usize.MAX }
 
 end RowlRust

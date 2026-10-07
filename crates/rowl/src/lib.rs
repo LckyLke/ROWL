@@ -24,6 +24,7 @@ pub mod experimental {
     pub use rowl_frontend::functional_prefixes;
     pub use rowl_frontend::functional_property_axioms;
     pub use rowl_frontend::functional_ranges;
+    pub use rowl_frontend::import_catalog;
     pub use rowl_frontend::imports;
     pub use rowl_frontend::iri;
     pub use rowl_frontend::langtag;

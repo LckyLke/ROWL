@@ -1768,20 +1768,22 @@
       "requirement": "ImmutableCatalog",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::catalog",
+      "theorem": "Rowl.ImportCatalog.catalog_edges",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs::catalog_edges_are_the_import_references",
+      "implementation_scope": "The catalog is the caller's list of documents, read once and never fetched or changed. catalog lists every document under its position, without bytes, with the documents its import IRIs name, import by import (catalog_correct, CatalogOf); its edges are exactly the direct imports of the read documents (catalog_edges, DirectlyImports) and its reachability is exactly the import closure of section 3.4 (catalog_reachable, InClosure)."
     },
     {
       "id": "imports.HeaderDiscovery",
       "requirement": "HeaderDiscovery",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::read_sources",
+      "theorem": "Rowl.ImportCatalog.read_sources_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs::headers_come_from_the_verified_readers",
+      "implementation_scope": "The ontology IRI, version IRI and import IRIs of every document of a supplied catalog are those of the ontology its verified reader reads from its bytes: Functional Syntax by source_ontology, N-Triples and Turtle by their readers and the reverse RDF mapping, each document with its node IDs or blank nodes in the scope of its position (read_sources_correct, ReadAs); the first unreadable document is reported with the reader's first error. Catalogs of Functional Syntax documents are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved, and RDF documents are read without the declarations of the documents they import."
     },
     {
       "id": "imports.ClosureResolution",
@@ -1818,10 +1820,11 @@
       "requirement": "OntologyAndVersionIRIs",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::lookup",
+      "theorem": "Rowl.ImportCatalog.lookup_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs::ontology_and_version_iris_name_documents",
+      "implementation_scope": "An import IRI names the documents whose ontology IRI or version IRI it is, compared byte for byte (sections 3.2 and 3.4; Names, names_correct); lookup tells whether it names no document, exactly one, or several, giving the first two in catalog order (lookup_correct). An anonymous ontology is never named."
     },
     {
       "id": "imports.HeaderlessIncludes",
@@ -36559,6 +36562,215 @@
       "theorem": "Rowl.DlValidity.strip_annotations_entails",
       "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
       "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m3.ImportCatalog.scope_length",
+      "requirement": "Verified import catalog: scope_length",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::document_scope",
+      "theorem": "Rowl.ImportCatalog.scope_length",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.scope_injective",
+      "requirement": "Verified import catalog: scope_injective",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::document_scope",
+      "theorem": "Rowl.ImportCatalog.scope_injective",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.usize_below",
+      "requirement": "Verified import catalog: usize_below",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::document_scope",
+      "theorem": "Rowl.ImportCatalog.usize_below",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.document_scope_correct",
+      "requirement": "Verified import catalog: document_scope_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::document_scope",
+      "theorem": "Rowl.ImportCatalog.document_scope_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.read_source_correct",
+      "requirement": "Verified import catalog: read_source_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::read_source",
+      "theorem": "Rowl.ImportCatalog.read_source_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.read_source_functional_total",
+      "requirement": "Verified import catalog: read_source_functional_total",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::read_source",
+      "theorem": "Rowl.ImportCatalog.read_source_functional_total",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.read_sources_correct",
+      "requirement": "Verified import catalog: read_sources_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::read_sources",
+      "theorem": "Rowl.ImportCatalog.read_sources_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.read_sources_functional_total",
+      "requirement": "Verified import catalog: read_sources_functional_total",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::read_sources",
+      "theorem": "Rowl.ImportCatalog.read_sources_functional_total",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.names_correct",
+      "requirement": "Verified import catalog: names_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::names",
+      "theorem": "Rowl.ImportCatalog.names_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.mem_targets",
+      "requirement": "Verified import catalog: mem_targets",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::targets",
+      "theorem": "Rowl.ImportCatalog.mem_targets",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.targets_sorted",
+      "requirement": "Verified import catalog: targets_sorted",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::targets",
+      "theorem": "Rowl.ImportCatalog.targets_sorted",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.targets_from_correct",
+      "requirement": "Verified import catalog: targets_from_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::targets",
+      "theorem": "Rowl.ImportCatalog.targets_from_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.lookup_correct",
+      "requirement": "Verified import catalog: lookup_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::lookup",
+      "theorem": "Rowl.ImportCatalog.lookup_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.mem_dependencies",
+      "requirement": "Verified import catalog: mem_dependencies",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::catalog",
+      "theorem": "Rowl.ImportCatalog.mem_dependencies",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.dependencies_from_correct",
+      "requirement": "Verified import catalog: dependencies_from_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::catalog",
+      "theorem": "Rowl.ImportCatalog.dependencies_from_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.catalog_correct",
+      "requirement": "Verified import catalog: catalog_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::catalog",
+      "theorem": "Rowl.ImportCatalog.catalog_correct",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.catalog_keys_nodup",
+      "requirement": "Verified import catalog: catalog_keys_nodup",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::catalog",
+      "theorem": "Rowl.ImportCatalog.catalog_keys_nodup",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.catalog_edges",
+      "requirement": "Verified import catalog: catalog_edges",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::catalog",
+      "theorem": "Rowl.ImportCatalog.catalog_edges",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m3.ImportCatalog.catalog_reachable",
+      "requirement": "Verified import catalog: catalog_reachable",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_catalog::catalog",
+      "theorem": "Rowl.ImportCatalog.catalog_reachable",
+      "regression": "crates/rowl-kernel/tests/import_catalog.rs",
+      "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
     }
   ]
 }

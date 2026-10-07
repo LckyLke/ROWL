@@ -163,3 +163,4 @@ import Rowl.DataOntology
 import Rowl.Classification
 import Rowl.Saturation
 import Rowl.DlValidity
+import Rowl.ImportCatalog

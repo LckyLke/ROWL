@@ -137,6 +137,7 @@ import Rowl.DataOntology
 import Rowl.Classification
 import Rowl.Saturation
 import Rowl.DlValidity
+import Rowl.ImportCatalog
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -3275,6 +3276,25 @@ import Rowl.DlValidity
 #print axioms Rowl.DlValidity.strip_annotations_model
 #print axioms Rowl.DlValidity.strip_annotations_consistent
 #print axioms Rowl.DlValidity.strip_annotations_entails
+#print axioms Rowl.ImportCatalog.scope_length
+#print axioms Rowl.ImportCatalog.scope_injective
+#print axioms Rowl.ImportCatalog.usize_below
+#print axioms Rowl.ImportCatalog.document_scope_correct
+#print axioms Rowl.ImportCatalog.read_source_correct
+#print axioms Rowl.ImportCatalog.read_source_functional_total
+#print axioms Rowl.ImportCatalog.read_sources_correct
+#print axioms Rowl.ImportCatalog.read_sources_functional_total
+#print axioms Rowl.ImportCatalog.names_correct
+#print axioms Rowl.ImportCatalog.mem_targets
+#print axioms Rowl.ImportCatalog.targets_sorted
+#print axioms Rowl.ImportCatalog.targets_from_correct
+#print axioms Rowl.ImportCatalog.lookup_correct
+#print axioms Rowl.ImportCatalog.mem_dependencies
+#print axioms Rowl.ImportCatalog.dependencies_from_correct
+#print axioms Rowl.ImportCatalog.catalog_correct
+#print axioms Rowl.ImportCatalog.catalog_keys_nodup
+#print axioms Rowl.ImportCatalog.catalog_edges
+#print axioms Rowl.ImportCatalog.catalog_reachable
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -4661,3 +4681,20 @@ import Rowl.DlValidity
 #print axioms Rowl.Turtle.TriplesAgrees
 #print axioms Rowl.Turtle.ReadCorrect
 #print axioms Rowl.Turtle.initial
+#print axioms Rowl.ImportCatalog.scopeBytes
+#print axioms Rowl.ImportCatalog.scopeOf
+#print axioms Rowl.ImportCatalog.scopeVec
+#print axioms Rowl.ImportCatalog.ReadAs
+#print axioms Rowl.ImportCatalog.RejectedAs
+#print axioms Rowl.ImportCatalog.ReadCorrect
+#print axioms Rowl.ImportCatalog.AllRead
+#print axioms Rowl.ImportCatalog.SourcesCorrect
+#print axioms Rowl.ImportCatalog.NamesIdentity
+#print axioms Rowl.ImportCatalog.Names
+#print axioms Rowl.ImportCatalog.NamedAt
+#print axioms Rowl.ImportCatalog.Targets
+#print axioms Rowl.ImportCatalog.LookupCorrect
+#print axioms Rowl.ImportCatalog.Dependencies
+#print axioms Rowl.ImportCatalog.CatalogOf
+#print axioms Rowl.ImportCatalog.DirectlyImports
+#print axioms Rowl.ImportCatalog.InClosure

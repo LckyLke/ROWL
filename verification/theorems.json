@@ -3970,6 +3970,31 @@
         "Rowl.DlValidity.strip_annotations_consistent",
         "Rowl.DlValidity.strip_annotations_entails"
       ]
+    },
+    {
+      "module": "Rowl.ImportCatalog",
+      "namespace": "Rowl.ImportCatalog",
+      "theorems": [
+        "Rowl.ImportCatalog.scope_length",
+        "Rowl.ImportCatalog.scope_injective",
+        "Rowl.ImportCatalog.usize_below",
+        "Rowl.ImportCatalog.document_scope_correct",
+        "Rowl.ImportCatalog.read_source_correct",
+        "Rowl.ImportCatalog.read_source_functional_total",
+        "Rowl.ImportCatalog.read_sources_correct",
+        "Rowl.ImportCatalog.read_sources_functional_total",
+        "Rowl.ImportCatalog.names_correct",
+        "Rowl.ImportCatalog.mem_targets",
+        "Rowl.ImportCatalog.targets_sorted",
+        "Rowl.ImportCatalog.targets_from_correct",
+        "Rowl.ImportCatalog.lookup_correct",
+        "Rowl.ImportCatalog.mem_dependencies",
+        "Rowl.ImportCatalog.dependencies_from_correct",
+        "Rowl.ImportCatalog.catalog_correct",
+        "Rowl.ImportCatalog.catalog_keys_nodup",
+        "Rowl.ImportCatalog.catalog_edges",
+        "Rowl.ImportCatalog.catalog_reachable"
+      ]
     }
   ],
   "specifications": [
@@ -5358,6 +5383,23 @@
     "Rowl.Turtle.StatementAgrees",
     "Rowl.Turtle.TriplesAgrees",
     "Rowl.Turtle.ReadCorrect",
-    "Rowl.Turtle.initial"
+    "Rowl.Turtle.initial",
+    "Rowl.ImportCatalog.scopeBytes",
+    "Rowl.ImportCatalog.scopeOf",
+    "Rowl.ImportCatalog.scopeVec",
+    "Rowl.ImportCatalog.ReadAs",
+    "Rowl.ImportCatalog.RejectedAs",
+    "Rowl.ImportCatalog.ReadCorrect",
+    "Rowl.ImportCatalog.AllRead",
+    "Rowl.ImportCatalog.SourcesCorrect",
+    "Rowl.ImportCatalog.NamesIdentity",
+    "Rowl.ImportCatalog.Names",
+    "Rowl.ImportCatalog.NamedAt",
+    "Rowl.ImportCatalog.Targets",
+    "Rowl.ImportCatalog.LookupCorrect",
+    "Rowl.ImportCatalog.Dependencies",
+    "Rowl.ImportCatalog.CatalogOf",
+    "Rowl.ImportCatalog.DirectlyImports",
+    "Rowl.ImportCatalog.InClosure"
   ]
 }

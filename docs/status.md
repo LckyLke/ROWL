@@ -22,7 +22,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Domains can be infinite; data domains may extend the datatype map.
 - M3 symbol-indexed catalog closure with termination on cyclic imports, exact
   reachability, verbatim payload preservation and duplicate/missing-document
-  diagnostics. Import metadata is supplied explicitly; OWL byte parsing is pending.
+  diagnostics. Its import metadata now comes from document bytes (next item).
+- M3 import catalogs from document bytes (`import_catalog`). Every document of a
+  caller-supplied catalog (Functional Syntax, N-Triples or Turtle bytes; nothing
+  is fetched) is read by its verified reader, with its node IDs or blank nodes in
+  a scope of its own, the eight bytes of its position; whatever reading returns
+  is proved to be the reader's result, and Functional Syntax catalogs are proved
+  to be read (the reverse RDF mapping has no termination proof). An import IRI
+  names the documents whose ontology IRI or version IRI it is (§3.2, §3.4),
+  decided exactly; `lookup` reports none, exactly one or the first two of
+  several. The catalog for `imports::resolve` has exactly the direct imports as
+  edges and the §3.4 import closure as reachability. RDF documents are still
+  read without the declarations of the documents they import.
 - M3 strict RFC 3629 UTF-8 decoding with exact byte offsets and XML character
   checking. Complete text acceptance is proved in both directions; malformed
   units and forbidden characters return the first unit offset.
@@ -1084,7 +1095,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 3137 audited public theorems and 1386 audited semantic definitions. Consistency,
+- 3156 audited public theorems and 1403 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1101,7 +1112,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 566 Rust regression tests and 15 Python binding tests, plus separately fetched
+- 572 Rust regression tests and 15 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1118,7 +1129,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3330-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3349-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
