@@ -15,17 +15,19 @@ irrational numbers (`regionOf`), without the numbers of the literal values.
 Every such region but a bounded run of integers is infinite; a bounded run's
 integers that are no literal values have room for the node's distinct
 neighbours, by the axiom on the run or because the counts of the data
-restrictions are at most their number. Strings serve the string nodes, at the
-level of the deepest subtype of `xsd:string` whose class holds there
-(`Rowl.Strings.stringAt`: strings in exactly the subtypes up to the level);
-a node of the time instants gets the time instants of its line, with or
-without a time zone, that are in exactly the time cuts whose classes hold
-there (`timeSlot`): infinitely many, or the instants at the place of a closed
-and an open cut, which have room by the axiom on that place
-(`moment_cases`, `moment_peers_bound`); a node of a floating-point format gets
-the values of the slot its edge classes place it in; tagged strings, IRIs of
-letters a, octet sequences of zeros and values outside every datatype serve
-the other data nodes. When the
+restrictions are at most their number. A node of a kind with the length
+facets gets the strings, strings with a language tag, IRIs or octets
+(`Written`) that are in exactly the kinds in use whose classes hold there, with
+a length its classes of the lengths allow (`writtenSet`): infinitely many, or,
+in a slot of lengths that ends, as many as the axiom on its kind and slot
+counts, which have room by that axiom (`node_lengths`, `written_room`); a node
+of the time instants gets the time instants of its line, with or without a
+time zone, that are in exactly the time cuts whose classes hold there
+(`timeSlot`): infinitely many, or the instants at the place of a closed and an
+open cut, which have room by the axiom on that place (`moment_cases`,
+`moment_peers_bound`); a node of a floating-point format gets the values of the
+slot its edge classes place it in; values outside every datatype serve the
+other data nodes. When the
 interpretation of the encoding satisfies a closure's encoding, the OWL
 interpretation satisfies the closure (`sound_satisfies`), and every class
 expression holds at an element exactly when its encoding does (`sound_class`).
@@ -33,8 +35,8 @@ expression holds at an element exactly when its encoding does (`sound_class`).
 namespace Rowl.DataSound
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl
-open Rowl.DatatypeMap (Normative IsInteger IsDecimal XmlText TagValue integerType decimalType stringType plainType
-  booleanType)
+open Rowl.DatatypeMap (Normative IsInteger IsDecimal XmlText TagValue TextLength integerType decimalType stringType
+  plainType booleanType)
 open Rowl.Datatypes (Canonical valueOf typeOf kindOf InKind RealIn)
 open Rowl.AlcOntology (RoleOf)
 open Rowl.DataEncoding
@@ -100,16 +102,6 @@ theorem aText_injective : Function.Injective aText := by
   intro a b same
   simpa [aText] using congrArg List.length same
 
-/-- The language tag `en`. -/
-def enTag : List U8 := [101#u8, 110#u8]
-
-theorem enTag_value : TagValue enTag := by
-  refine ⟨enTag, ⟨[101, 110], ?_, Rowl.LangTag.two_letters_well_formed 101 110 (by omega) (by omega)⟩, ?_⟩
-  · refine .character (cp := 101) (width := 1) (by simp [Rowl.Unicode.Prefix, enTag]) (by decide) (by simp [enTag]) ?_
-    refine .character (cp := 110) (width := 1) (by simp [Rowl.Unicode.Prefix, enTag]) (by decide) (by simp [enTag]) ?_
-    exact Rowl.Regular.Utf8From.endOfInput
-  · simp [Rowl.DatatypeMap.Lowered, enTag]
-
 /-! ### Regions of numbers -/
 
 /-- The reals of the interval at a position of a list of cuts: in the cut
@@ -154,39 +146,6 @@ theorem enumerate_injective (S : Set ℝ) {m n : ℕ} (vm : S.Infinite ∨ m < S
     have sn : n < finite.toFinset.toList.length := card ▸ vn.resolve_left h
     rw [List.getD_eq_getElem _ _ sm, List.getD_eq_getElem _ _ sn] at same
     exact (List.Nodup.getElem_inj_iff (Finset.nodup_toList _)).mp same
-
-/-- The kinds of IRIs and of octet sequences, as regions of values. -/
-inductive Sequence where
-  | uri | hex | base64
-
-/-- The values of a `Sequence` region: IRIs of letters a, and octet
-    sequences of zeros. -/
-def codedAt : Sequence → ℕ → DatatypeMap.Coded
-  | .uri, n => .uri (aText n)
-  | .hex, n => .hex (List.replicate n 0#u8)
-  | .base64, n => .base64 (List.replicate n 0#u8)
-
-/-- The kind of a `Sequence` region. -/
-def sequenceKind : Sequence → datatypes.Kind
-  | .uri => .AnyUri
-  | .hex => .HexBinary
-  | .base64 => .Base64Binary
-
-theorem sequence_valid (s : Sequence) (n : ℕ) : (codedAt s n).Valid := by
-  cases s
-  · exact aText_xml n
-  · trivial
-  · trivial
-
-theorem sequence_injective {s s' : Sequence} {n n' : ℕ} (same : codedAt s n = codedAt s' n') : s = s' ∧ n = n' := by
-  cases s <;> cases s' <;> simp only [codedAt, reduceCtorEq, DatatypeMap.Coded.uri.injEq,
-    DatatypeMap.Coded.hex.injEq, DatatypeMap.Coded.base64.injEq] at same
-  · exact ⟨rfl, aText_injective same⟩
-  · exact ⟨rfl, by simpa using congrArg List.length same⟩
-  · exact ⟨rfl, by simpa using congrArg List.length same⟩
-
-theorem sequence_kind (s : Sequence) (n : ℕ) : codedKind (codedAt s n) = sequenceKind s := by
-  cases s <;> rfl
 
 /-- The values of a region of time instants: midnight on the first of January
     of a year, at offset zero in the region of the time stamps. -/
@@ -253,6 +212,182 @@ theorem pick_injective {α : Type} (d : α) (S : Set α) {m n : ℕ} (vm : S.Inf
     have sn : n < finite.toFinset.toList.length := card ▸ vn.resolve_left h
     rw [List.getD_eq_getElem _ _ sm, List.getD_eq_getElem _ _ sn] at same
     exact (List.Nodup.getElem_inj_iff (Finset.nodup_toList _)).mp same
+
+/-- ASCII bytes are the UTF-8 of their own code points. -/
+theorem ascii_utf8 (bs : List U8) (ascii : ∀ b ∈ bs, b.val < 128) :
+    Rowl.Regular.Utf8From bs 0 (bs.map (·.val)) := by
+  have step : ∀ k, k ≤ bs.length →
+      Rowl.Regular.Utf8From bs (bs.length - k) ((bs.drop (bs.length - k)).map (·.val)) := by
+    intro k
+    induction k with
+    | zero => intro _; simpa using Rowl.Regular.Utf8From.endOfInput
+    | succ k ih =>
+      intro hk
+      have rest := ih (by omega)
+      have inside : bs.length - (k + 1) < bs.length := by omega
+      have ha := ascii _ (List.getElem_mem inside)
+      have next : bs.length - (k + 1) + 1 = bs.length - k := by omega
+      rw [List.drop_eq_getElem_cons inside, next, List.map_cons]
+      refine .character (width := 1) ?_ (by decide) (by omega) ?_
+      · simp [Rowl.Unicode.Prefix, List.getElem?_eq_getElem inside, ha]
+      · rw [next]; exact rest
+  simpa using step bs.length le_rfl
+
+/-- The private-use language tag `x-a-…-a` with `n + 1` subtags `a`. -/
+def privateTag (n : ℕ) : List U8 := 120#u8 :: (List.replicate (n + 1) [45#u8, 97#u8]).flatten
+
+theorem privateTag_vals (n : ℕ) : ∀ b ∈ privateTag n, b.val = 120 ∨ b.val = 45 ∨ b.val = 97 := by
+  intro b mem
+  simp only [privateTag, List.mem_cons, List.mem_flatten, List.mem_replicate] at mem
+  rcases mem with rfl | ⟨l, ⟨_, rfl⟩, m⟩
+  · exact .inl rfl
+  · simp only [List.mem_cons, List.not_mem_nil, or_false] at m
+    rcases m with rfl | rfl
+    · exact .inr (.inl rfl)
+    · exact .inr (.inr rfl)
+
+theorem privateTag_value (n : ℕ) : TagValue (privateTag n) := by
+  have vals := privateTag_vals n
+  have word : (privateTag n).map (·.val) = 120 :: (List.replicate (n + 1) [45, 97]).flatten := by
+    simp [privateTag, List.map_flatten, List.map_replicate]
+  refine ⟨privateTag n, ⟨(privateTag n).map (·.val), ascii_utf8 _ (fun b m => by
+    rcases vals b m with h | h | h <;> omega), by rw [word]; exact Rowl.LangTag.private_use_well_formed n⟩, ?_⟩
+  unfold Rowl.DatatypeMap.Lowered
+  apply List.map_congr_left
+  intro b m
+  rcases vals b m with h | h | h <;> simp [h]
+
+theorem privateTag_injective : Function.Injective privateTag := by
+  intro a b same
+  have := congrArg List.length same
+  simp [privateTag] at this
+  omega
+
+/-! ### Values with a length -/
+
+/-- A value with a length, written out: a string, a string with a language
+    tag, an IRI, or the octets of `xsd:hexBinary` or `xsd:base64Binary`. -/
+inductive Written where
+  | text (t : List U8)
+  | tagged (t l : List U8)
+  | uri (t : List U8)
+  | hex (o : List U8)
+  | base64 (o : List U8)
+
+/-- A written value that stands for a value: of XML text, with a language
+    tag. -/
+def Written.Ok : Written → Prop
+  | .text t => XmlText t
+  | .tagged t l => XmlText t ∧ TagValue l
+  | .uri t => XmlText t
+  | .hex _ => True
+  | .base64 _ => True
+
+/-- The length of a written value: its characters, or its octets. -/
+def Written.Length : Written → ℕ → Prop
+  | .text t, m => TextLength t m
+  | .tagged t _, m => TextLength t m
+  | .uri t, m => TextLength t m
+  | .hex o, m => o.length = m
+  | .base64 o, m => o.length = m
+
+/-- The kinds whose datatypes a written value is in. -/
+def Written.In : Written → datatypes.Kind → Prop
+  | .text t, k => Rowl.Strings.TextIn k t
+  | .tagged _ _, k => k = .Plain
+  | .uri _, k => k = .AnyUri
+  | .hex _, k => k = .HexBinary
+  | .base64 _, k => k = .Base64Binary
+
+/-- The written value of a literal value with a length. -/
+def writtenOf : datatypes.DataValue → Option Written
+  | .Text t => some (.text t.val)
+  | .Tagged t l => some (.tagged t.val l.val)
+  | .Uri t => some (.uri t.val)
+  | .Hex o => some (.hex o.val)
+  | .Base64 o => some (.base64 o.val)
+  | _ => none
+
+/-- The written values of literal values. -/
+def literalWritten (values : List datatypes.DataValue) : Set Written := {x | ∃ w ∈ values, writtenOf w = some x}
+
+theorem literal_written_finite (values : List datatypes.DataValue) : (literalWritten values).Finite := by
+  apply (values.filterMap writtenOf).finite_toSet.subset
+  rintro x ⟨w, mem, h⟩
+  exact List.mem_filterMap.mpr ⟨w, mem, h⟩
+
+/-- A literal value's written value is it, as far as its datatypes, its
+    well-formedness and its length go. -/
+theorem written_of_some {w : datatypes.DataValue} {x : Written} (h : writtenOf w = some x) :
+    (∀ k, InKind w k ↔ x.In k) ∧ (Canonical w ↔ x.Ok) ∧
+      (∀ m, Rowl.LengthCounts.ValueLength w m ↔ x.Length m) := by
+  cases w <;> simp only [writtenOf, reduceCtorEq, Option.some.injEq] at h <;> subst h <;>
+    exact ⟨fun _ => Iff.rfl, Iff.rfl, fun _ => Iff.rfl⟩
+
+theorem written_has_length {x : Written} (ok : x.Ok) : ∃ m, x.Length m := by
+  cases x with
+  | text t => exact ⟨_, Rowl.LengthCounts.xml_text_length ok⟩
+  | tagged t l => exact ⟨_, Rowl.LengthCounts.xml_text_length ok.1⟩
+  | uri t => exact ⟨_, Rowl.LengthCounts.xml_text_length ok⟩
+  | hex o => exact ⟨_, rfl⟩
+  | base64 o => exact ⟨_, rfl⟩
+
+theorem written_length_unique {x : Written} {m m' : ℕ} (h : x.Length m) (h' : x.Length m') : m = m' := by
+  cases x with
+  | text t => exact Rowl.StringCounts.text_length_unique h h'
+  | tagged t l => exact Rowl.StringCounts.text_length_unique h h'
+  | uri t => exact Rowl.StringCounts.text_length_unique h h'
+  | hex o => exact h.symm.trans h'
+  | base64 o => exact h.symm.trans h'
+
+/-- The written values of a set that stand for values. -/
+def okSet (S : Set Written) : Set Written := S ∩ {x | x.Ok}
+
+/-- The written value of a set at an index. -/
+noncomputable def writtenAt (S : Set Written) (n : ℕ) : Written := pick (.text []) (okSet S) n
+
+theorem writtenAt_ok (S : Set Written) (n : ℕ) : (writtenAt S n).Ok := by
+  rcases pick_cases (.text []) (okSet S) n with mem | same
+  · exact mem.2
+  · unfold writtenAt; rw [same]; exact aText_xml 0
+
+/-- ASCII XML text is as long as its bytes. -/
+theorem ascii_text_length {t : List U8} (xt : XmlText t) (ascii : ∀ b ∈ t, b.val < 128) : TextLength t t.length := by
+  have len := Rowl.LengthCounts.xml_text_length xt
+  have starts : Rowl.LengthCounts.charStarts t = t.length := by
+    unfold Rowl.LengthCounts.charStarts
+    rw [List.filter_eq_self.mpr (fun b m => by simp [ascii b m])]
+  rwa [starts] at len
+
+theorem aText_length (n : ℕ) : TextLength (aText n) n := by
+  have := ascii_text_length (aText_xml n) (fun b m => by
+    simp only [aText, List.mem_replicate] at m
+    rw [m.2]
+    decide)
+  simpa [aText] using this
+
+theorem dashes_length (n : ℕ) : (Rowl.Strings.dashes n).length = 2 * n := by
+  induction n with
+  | zero => rfl
+  | succ n ih => simp [Rowl.Strings.dashes, ih]; omega
+
+theorem stringAt_length {ℓ : ℕ} (h : ℓ < 7) (n : ℕ) : n ≤ (Rowl.Strings.stringAt ℓ n).length := by
+  match ℓ, h with
+  | 0, _ | 1, _ | 2, _ | 3, _ | 4, _ | 5, _ => simp [Rowl.Strings.stringAt, Rowl.Strings.letters] <;> omega
+  | 6, _ => simp [Rowl.Strings.stringAt, dashes_length]; omega
+
+theorem stringAt_text_length {ℓ : ℕ} (h : ℓ < 7) (n : ℕ) :
+    TextLength (Rowl.Strings.stringAt ℓ n) (Rowl.Strings.stringAt ℓ n).length :=
+  ascii_text_length (Rowl.Strings.stringAt_xml h n) (fun b m => (Rowl.Strings.stringAt_ascii h n b m).2)
+
+theorem written_not_float (x : Written) (dbl : Bool) : ¬ x.In (floatKind dbl) := by
+  cases x <;> cases dbl <;> simp [Written.In, floatKind, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf]
+
+theorem chain_not_written (ℓ : ℕ) :
+    chainKind ℓ ≠ .Plain ∧ chainKind ℓ ≠ .AnyUri ∧ chainKind ℓ ≠ .HexBinary ∧ chainKind ℓ ≠ .Base64Binary := by
+  match ℓ with
+  | 0 | 1 | 2 | 3 | 4 | 5 => exact ⟨nofun, nofun, nofun, nofun⟩
+  | _ + 6 => exact ⟨nofun, nofun, nofun, nofun⟩
 
 /-- The moments of a set that are valid and on a line: with a time zone or
     without one. -/
@@ -410,18 +545,18 @@ theorem binaryAt_injective {dbl : Bool} {avoid : Set DatatypeMap.Binary} {lo hi 
   exact (List.Nodup.getElem_inj_iff (Finset.nodup_toList _)).mp same
 
 /-- The regions of values that data nodes get: the reals of a level in the
-    interval at a position of the cuts, strings of the letter a, tagged
-    strings, IRIs and octet sequences, the time instants of a slot of the time
-    line without or with a time zone, the values of a format in a slot of
-    places, and values outside every datatype. -/
+    interval at a position of the cuts, written values with a length, the time
+    instants of a slot of the time line without or with a time zone, the values
+    of a format in a slot of places, and values outside every datatype. -/
 inductive Region where
-  | number (position level : Nat) | string (level : Fin 7) | tagged | coded (s : Sequence)
+  | number (position level : Nat) | written (values : Set Written)
   | moment (stamped : Bool) (slot : Set DatatypeMap.Moment)
   | binary (double : Bool) (avoid : Set DatatypeMap.Binary) (lo hi : ℕ) | other
 
 /-- Which indices of a region have values of their own. -/
 def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
   | .number p ℓ, n => ℓ ≤ 3 ∧ ((regionSet cs lits p ℓ).Infinite ∨ n < (regionSet cs lits p ℓ).ncard)
+  | .written S, n => (okSet S).Infinite ∨ n < (okSet S).ncard
   | .moment st S, n => (lineSet st S).Infinite ∨ n < (lineSet st S).ncard
   | .binary dbl avoid lo hi, n => n < (slotSet dbl avoid lo hi).ncard
   | _, _ => True
@@ -429,6 +564,7 @@ def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
 /-- Whether a region has a value for every index. -/
 def RegionInfinite (cs : List regions.Cut) (lits : Set ℝ) : Region → Prop
   | .number p ℓ => ℓ ≤ 3 ∧ (regionSet cs lits p ℓ).Infinite
+  | .written S => (okSet S).Infinite
   | .moment st S => (lineSet st S).Infinite
   | .binary _ _ _ _ => False
   | _ => True
@@ -445,13 +581,19 @@ def formatValue (N : Normative D) : Bool → DatatypeMap.Binary → Native
   | true, b => N.double b
   | false, b => N.float b
 
+/-- The value of a written value. -/
+def writtenValue (N : Normative D) : Written → Native
+  | .text t => N.text t
+  | .tagged t l => N.tagged t l
+  | .uri t => N.coded (.uri t)
+  | .hex o => N.coded (.hex o)
+  | .base64 o => N.coded (.base64 o)
+
 /-- The values of a region. -/
 noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) :
     Region → ℕ → Values.{v,w} Native
   | .number p ℓ, n => embedValue (N.real (enumerate (regionSet cs lits p ℓ) n))
-  | .string ℓ, n => embedValue (N.text (Rowl.Strings.stringAt ℓ.val n))
-  | .tagged, n => embedValue (N.tagged (aText n) enTag)
-  | .coded s, n => embedValue (N.coded (codedAt s n))
+  | .written S, n => embedValue (writtenValue N (writtenAt S n))
   | .moment st S, n => embedValue (N.moment (momentIn st S n))
   | .binary dbl avoid lo hi, n => embedValue (formatValue N dbl (binaryAt dbl avoid lo hi n))
   | .other, n => ULift.up (.inr n)
@@ -500,6 +642,116 @@ theorem format_value_eq (N : Normative D) (dbl : Bool) (b : DatatypeMap.Binary) 
     formatValue N dbl b = Rowl.Datatypes.binaryValue N dbl b := by
   cases dbl <;> rfl
 
+theorem written_lit_value (N : Normative D) {w : datatypes.DataValue} {x : Written} (h : writtenOf w = some x) :
+    valueOf N w = writtenValue N x := by
+  cases w <;> simp only [writtenOf, reduceCtorEq, Option.some.injEq] at h <;> subst h <;> rfl
+
+theorem written_injective (N : Normative D) {x x' : Written} (ok : x.Ok) (ok' : x'.Ok)
+    (same : writtenValue N x = writtenValue N x') : x = x' := by
+  cases x <;> cases x' <;> simp only [writtenValue, Written.Ok] at same ok ok'
+  · rw [N.text_injective _ _ ok ok' same]
+  · exact absurd same (N.text_tagged _ _ _ ok ok'.1 ok'.2)
+  · exact absurd same (N.text_coded _ (.uri _) ok ok')
+  · exact absurd same (N.text_coded _ (.hex _) ok trivial)
+  · exact absurd same (N.text_coded _ (.base64 _) ok trivial)
+  · exact absurd same.symm (N.text_tagged _ _ _ ok' ok.1 ok.2)
+  · obtain ⟨rfl, rfl⟩ := N.tagged_injective _ _ _ _ ok.1 ok'.1 ok.2 ok'.2 same; rfl
+  · exact absurd same (N.tagged_coded _ _ (.uri _) ok.1 ok.2 ok')
+  · exact absurd same (N.tagged_coded _ _ (.hex _) ok.1 ok.2 trivial)
+  · exact absurd same (N.tagged_coded _ _ (.base64 _) ok.1 ok.2 trivial)
+  · exact absurd same.symm (N.text_coded _ (.uri _) ok' ok)
+  · exact absurd same.symm (N.tagged_coded _ _ (.uri _) ok'.1 ok'.2 ok)
+  · have := N.coded_injective (.uri _) (.uri _) ok ok' same; cases this; rfl
+  · have := N.coded_injective (.uri _) (.hex _) ok trivial same; cases this
+  · have := N.coded_injective (.uri _) (.base64 _) ok trivial same; cases this
+  · exact absurd same.symm (N.text_coded _ (.hex _) ok' trivial)
+  · exact absurd same.symm (N.tagged_coded _ _ (.hex _) ok'.1 ok'.2 trivial)
+  · have := N.coded_injective (.hex _) (.uri _) trivial ok' same; cases this
+  · have := N.coded_injective (.hex _) (.hex _) trivial trivial same; cases this; rfl
+  · have := N.coded_injective (.hex _) (.base64 _) trivial trivial same; cases this
+  · exact absurd same.symm (N.text_coded _ (.base64 _) ok' trivial)
+  · exact absurd same.symm (N.tagged_coded _ _ (.base64 _) ok'.1 ok'.2 trivial)
+  · have := N.coded_injective (.base64 _) (.uri _) trivial ok' same; cases this
+  · have := N.coded_injective (.base64 _) (.hex _) trivial trivial same; cases this
+  · have := N.coded_injective (.base64 _) (.base64 _) trivial trivial same; cases this; rfl
+
+/-- A written value is no real. -/
+theorem real_written (N : Normative D) (r : ℝ) {x : Written} (ok : x.Ok) : N.real r ≠ writtenValue N x := by
+  cases x with
+  | text t => exact N.real_text r t ok
+  | tagged t l => exact N.real_tagged r t l ok.1 ok.2
+  | uri t => exact N.real_coded r (.uri t) ok
+  | hex o => exact N.real_coded r (.hex o) trivial
+  | base64 o => exact N.real_coded r (.base64 o) trivial
+
+/-- A written value is no time instant. -/
+theorem written_moment (N : Normative D) {x : Written} (ok : x.Ok) {m : DatatypeMap.Moment} (vm : m.Valid) :
+    writtenValue N x ≠ N.moment m := by
+  cases x with
+  | text t => exact N.text_moment t m ok vm
+  | tagged t l => exact N.tagged_moment t l m ok.1 ok.2 vm
+  | uri t => exact N.coded_moment (.uri t) m ok vm
+  | hex o => exact N.coded_moment (.hex o) m trivial vm
+  | base64 o => exact N.coded_moment (.base64 o) m trivial vm
+
+/-- A written value is no floating-point number. -/
+theorem written_format (N : Normative D) {x : Written} (ok : x.Ok) (dbl : Bool) {b : DatatypeMap.Binary}
+    (vb : b.Valid (Rowl.Floats.fmt dbl)) : writtenValue N x ≠ formatValue N dbl b := by
+  cases x with
+  | text t => exact text_format N t ok dbl vb
+  | tagged t l => exact tagged_format N t l ok.1 ok.2 dbl vb
+  | uri t => exact coded_format N (.uri t) ok dbl vb
+  | hex o => exact coded_format N (.hex o) trivial dbl vb
+  | base64 o => exact coded_format N (.base64 o) trivial dbl vb
+
+/-- The length of a written value's value is its own. -/
+theorem written_length (N : Normative D) {x : Written} (ok : x.Ok) (m : ℕ) :
+    NativeLength N (writtenValue N x) m ↔ x.Length m := by
+  cases x with
+  | text t => exact ⟨text_length_of N ok, fun h => .inl ⟨t, h, rfl⟩⟩
+  | tagged t l => exact ⟨tagged_length_of N ok.1 ok.2, fun h => .inr (.inl ⟨t, l, h, ok.2, rfl⟩)⟩
+  | uri t => exact ⟨uri_length_of N ok, fun h => .inr (.inr (.inl ⟨t, h, rfl⟩))⟩
+  | hex o => exact ⟨hex_length_of N, fun h => .inr (.inr (.inr ⟨o, h, .inl rfl⟩))⟩
+  | base64 o => exact ⟨base64_length_of N, fun h => .inr (.inr (.inr ⟨o, h, .inr rfl⟩))⟩
+
+/-- A value with a length is a written value's. -/
+theorem written_of_native (N : Normative D) {y : Native} {m : ℕ} (h : NativeLength N y m) :
+    ∃ x : Written, x.Ok ∧ x.Length m ∧ writtenValue N x = y := by
+  rcases h with ⟨s, len, rfl⟩ | ⟨s, l, len, tl, rfl⟩ | ⟨s, len, rfl⟩ | ⟨o, len, rfl | rfl⟩
+  · exact ⟨.text s, text_length_xml len, len, rfl⟩
+  · exact ⟨.tagged s l, ⟨text_length_xml len, tl⟩, len, rfl⟩
+  · exact ⟨.uri s, text_length_xml len, len, rfl⟩
+  · exact ⟨.hex o, trivial, len, rfl⟩
+  · exact ⟨.base64 o, trivial, len, rfl⟩
+
+/-- A written value whose value is a literal value's is that literal value's
+    written value. -/
+theorem written_lit (N : Normative D) {w : datatypes.DataValue} (cw : Canonical w) {x : Written} (ok : x.Ok)
+    (same : writtenValue N x = valueOf N w) : writtenOf w = some x := by
+  obtain ⟨m, hm⟩ := written_has_length ok
+  have len : Rowl.LengthCounts.ValueLength w m := (native_lit N cw m).mp (same ▸ (written_length N ok m).mpr hm)
+  cases w with
+  | Text t => rw [written_injective N ok (x' := .text t.val) cw same]; rfl
+  | Tagged t l => rw [written_injective N ok (x' := .tagged t.val l.val) cw same]; rfl
+  | Uri t => rw [written_injective N ok (x' := .uri t.val) cw same]; rfl
+  | Hex o => rw [written_injective N ok (x' := .hex o.val) trivial same]; rfl
+  | Base64 o => rw [written_injective N ok (x' := .base64 o.val) trivial same]; rfl
+  | _ => exact absurd len (by simp [Rowl.LengthCounts.ValueLength])
+
+theorem real_no_length (N : Normative D) (r : ℝ) (m : ℕ) : ¬ NativeLength N (N.real r) m := fun h => by
+  obtain ⟨x, ok, _, same⟩ := written_of_native N h
+  exact real_written N r ok same.symm
+
+theorem moment_no_length (N : Normative D) {a : DatatypeMap.Moment} (va : a.Valid) (m : ℕ) :
+    ¬ NativeLength N (N.moment a) m := fun h => by
+  obtain ⟨x, ok, _, same⟩ := written_of_native N h
+  exact written_moment N ok va same
+
+theorem format_no_length (N : Normative D) (dbl : Bool) {b : DatatypeMap.Binary}
+    (vb : b.Valid (Rowl.Floats.fmt dbl)) (m : ℕ) : ¬ NativeLength N (formatValue N dbl b) m := fun h => by
+  obtain ⟨x, ok, _, same⟩ := written_of_native N h
+  exact written_format N ok dbl vb same
+
 theorem level_unique {ℓ ℓ' : Nat} (h : ℓ ≤ 3) (h' : ℓ' ≤ 3) {r : ℝ} (a : AtLevel ℓ r) (a' : AtLevel ℓ' r) :
     ℓ = ℓ' := by
   have id := @Rowl.DataReals.integer_decimal
@@ -532,8 +784,8 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       ∀ b, b ∈ slotSet dbl A lo hi → b ∈ slotSet dbl A' lo' hi' → A = A' ∧ lo = lo' ∧ hi = hi')
     (momentCoherent : ∀ st S st' S', r = .moment st S → r' = .moment st' S' →
       ∀ m, m ∈ lineSet st S → m ∈ lineSet st' S' → st = st' ∧ S = S')
+    (writtenCoherent : ∀ S S', r = .written S → r' = .written S' → ∀ x, x ∈ okSet S → x ∈ okSet S' → S = S')
     (same : regionValue.{v,w} N cs lits r n = regionValue N cs lits r' n') : r = r' ∧ n = n' := by
-  have tag := enTag_value
   cases r with
   | number p ℓ =>
     cases r' with
@@ -547,15 +799,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       have positions := interval_unique sorted (bounded p ℓ rfl) (bounded' p' ℓ' rfl) m.1 m'.1
       subst levels positions
       exact ⟨rfl, enumerate_injective _ vr.2 vr'.2 values⟩
-    | string ℓ' =>
+    | written S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.real_text _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n'))
-    | tagged =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.real_tagged _ _ _ (aText_xml n') tag)
-    | coded s' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.real_coded _ _ (sequence_valid s' n'))
+      exact absurd same (real_written N _ (writtenAt_ok S' n'))
     | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.real_moment _ _ (momentIn_valid st' S' n').1)
@@ -563,71 +809,26 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (real_format N _ dbl' (binaryAt_valid dbl' A' lo' hi' n'))
     | other => simp [regionValue, embedValue] at same
-  | string ℓ =>
+  | written S =>
+    have ok := writtenAt_ok S n
     cases r' with
     | number p' ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.real_text _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n))
-    | string ℓ' =>
+      exact absurd same.symm (real_written N _ ok)
+    | written S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      obtain ⟨levels, counts⟩ := Rowl.Strings.stringAt_injective ℓ.isLt ℓ'.isLt
-        (N.text_injective _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (Rowl.Strings.stringAt_xml ℓ'.isLt n') same)
-      exact ⟨by rw [Fin.ext levels], counts⟩
-    | tagged =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.text_tagged _ _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (aText_xml n') tag)
-    | coded s' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.text_coded _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (sequence_valid s' n'))
+      have values := written_injective N ok (writtenAt_ok S' n') same
+      have member : writtenAt S n ∈ okSet S := pick_mem _ _ _ vr
+      have member' : writtenAt S' n' ∈ okSet S' := pick_mem _ _ _ vr'
+      rw [values] at member
+      obtain rfl := writtenCoherent S S' rfl rfl _ member member'
+      exact ⟨rfl, pick_injective _ _ vr vr' values⟩
     | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (momentIn_valid st' S' n').1)
+      exact absurd same (written_moment N ok (momentIn_valid st' S' n').1)
     | binary dbl' A' lo' hi' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (text_format N _ (Rowl.Strings.stringAt_xml ℓ.isLt n) dbl' (binaryAt_valid dbl' A' lo' hi' n'))
-    | other => simp [regionValue, embedValue] at same
-  | tagged =>
-    cases r' with
-    | number p' ℓ' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.real_tagged _ _ _ (aText_xml n) tag)
-    | string ℓ' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.text_tagged _ _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') (aText_xml n) tag)
-    | tagged =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact ⟨rfl, aText_injective (N.tagged_injective _ _ _ _ (aText_xml n) (aText_xml n') tag tag same).1⟩
-    | coded s' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.tagged_coded _ _ _ (aText_xml n) tag (sequence_valid s' n'))
-    | moment st' S' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.tagged_moment _ _ _ (aText_xml n) tag (momentIn_valid st' S' n').1)
-    | binary dbl' A' lo' hi' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (tagged_format N _ _ (aText_xml n) tag dbl' (binaryAt_valid dbl' A' lo' hi' n'))
-    | other => simp [regionValue, embedValue] at same
-  | coded s =>
-    cases r' with
-    | number p' ℓ' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.real_coded _ _ (sequence_valid s n))
-    | string ℓ' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.text_coded _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') (sequence_valid s n))
-    | tagged =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.tagged_coded _ _ _ (aText_xml n') tag (sequence_valid s n))
-    | coded s' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      obtain ⟨rfl, rfl⟩ := sequence_injective (N.coded_injective _ _ (sequence_valid s n) (sequence_valid s' n') same)
-      exact ⟨rfl, rfl⟩
-    | moment st' S' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.coded_moment _ _ (sequence_valid s n) (momentIn_valid st' S' n').1)
-    | binary dbl' A' lo' hi' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (coded_format N _ (sequence_valid s n) dbl' (binaryAt_valid dbl' A' lo' hi' n'))
+      exact absurd same (written_format N ok dbl' (binaryAt_valid dbl' A' lo' hi' n'))
     | other => simp [regionValue, embedValue] at same
   | moment st S =>
     have vm := (momentIn_valid st S n).1
@@ -635,15 +836,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | number p' ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same.symm (N.real_moment _ _ vm)
-    | string ℓ' =>
+    | written S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') vm)
-    | tagged =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.tagged_moment _ _ _ (aText_xml n') tag vm)
-    | coded s' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.coded_moment _ _ (sequence_valid s' n') vm)
+      exact absurd same.symm (written_moment N (writtenAt_ok S' n') vm)
     | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       have values := N.moment_injective _ _ vm (momentIn_valid st' S' n').1 same
@@ -662,15 +857,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | number p' ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same.symm (real_format N _ dbl vb)
-    | string ℓ' =>
+    | written S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (text_format N _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') dbl vb)
-    | tagged =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (tagged_format N _ _ (aText_xml n') tag dbl vb)
-    | coded s' =>
-      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (coded_format N _ (sequence_valid s' n') dbl vb)
+      exact absurd same.symm (written_format N (writtenAt_ok S' n') dbl vb)
     | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same.symm (moment_format N _ (momentIn_valid st' S' n').1 dbl vb)
@@ -685,9 +874,7 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
   | other =>
     cases r' with
     | number p' ℓ' => simp [regionValue, embedValue] at same
-    | string ℓ' => simp [regionValue, embedValue] at same
-    | tagged => simp [regionValue, embedValue] at same
-    | coded s' => simp [regionValue, embedValue] at same
+    | written S' => simp [regionValue, embedValue] at same
     | moment st' S' => simp [regionValue, embedValue] at same
     | binary dbl' A' lo' hi' => simp [regionValue, embedValue] at same
     | other =>
@@ -702,16 +889,10 @@ theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {lits : Set �
   | number p ℓ =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact enumerate_injective _ (.inl infinite.2) (.inl infinite.2) (N.real_injective same)
-  | string ℓ =>
+  | written S =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-    exact (Rowl.Strings.stringAt_injective ℓ.isLt ℓ.isLt
-      (N.text_injective _ _ (Rowl.Strings.stringAt_xml ℓ.isLt a) (Rowl.Strings.stringAt_xml ℓ.isLt b) same)).2
-  | tagged =>
-    simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-    exact aText_injective (N.tagged_injective _ _ _ _ (aText_xml a) (aText_xml b) enTag_value enTag_value same).1
-  | coded s =>
-    simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-    exact (sequence_injective (N.coded_injective _ _ (sequence_valid s a) (sequence_valid s b) same)).2
+    exact pick_injective _ _ (.inl infinite) (.inl infinite)
+      (written_injective N (writtenAt_ok S a) (writtenAt_ok S b) same)
   | moment st S =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact pick_injective _ _ (.inl infinite) (.inl infinite)
@@ -744,9 +925,7 @@ def formatKind : Bool → datatypes.Kind
 /-- The kinds whose datatypes a region's value at an index is in. -/
 def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datatypes.Kind → Prop
   | .number p ℓ, n, k => Rowl.Datatypes.IsNumeric k ∧ RealIn k (enumerate (regionSet cs lits p ℓ) n)
-  | .string ℓ, n, k => Rowl.Strings.TextIn k (Rowl.Strings.stringAt ℓ.val n)
-  | .tagged, _, k => k = .Plain
-  | .coded s, _, k => k = sequenceKind s
+  | .written S, n, k => (writtenAt S n).In k
   | .moment st _, _, k => k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true)
   | .binary dbl _ _ _, _, k => k = formatKind dbl
   | .other, _, _ => False
@@ -891,25 +1070,35 @@ theorem tagged_space (N : Normative D) (t l : List U8) (xs : XmlText t) (tl : Ta
       exact fun b e => N.tagged_truth t l b xs tl e
 
 /-- An IRI or octet sequence is in the datatype of its own kind only. -/
-theorem coded_space (N : Normative D) (s : Sequence) (n : ℕ) (k : datatypes.Kind) :
-    D.valueSpace (typeOf k) (N.coded (codedAt s n)) ↔ k = sequenceKind s := by
+theorem coded_kind_space (N : Normative D) (c : DatatypeMap.Coded) (valid : c.Valid) (k : datatypes.Kind) :
+    D.valueSpace (typeOf k) (N.coded c) ↔ k = codedKind c := by
   by_cases ck : IsCoded k
   · constructor
     · intro inside
-      obtain ⟨c, valid, kindIs, same⟩ := coded_of_kind N ck inside
-      have := N.coded_injective _ _ (sequence_valid s n) valid same
+      obtain ⟨c', valid', kindIs, same⟩ := coded_of_kind N ck inside
+      have := N.coded_injective _ _ valid valid' same
       subst this
-      rw [← kindIs, sequence_kind]
+      exact kindIs.symm
     · rintro rfl
-      cases s
-      · exact (N.uri_space _).mpr ⟨_, aText_xml n, rfl⟩
-      · exact (N.hex_space _).mpr ⟨_, rfl⟩
-      · exact (N.base64_space _).mpr ⟨_, rfl⟩
+      cases c with
+      | uri s => exact (N.uri_space _).mpr ⟨_, valid, rfl⟩
+      | hex o => exact (N.hex_space _).mpr ⟨_, rfl⟩
+      | base64 o => exact (N.base64_space _).mpr ⟨_, rfl⟩
   · constructor
     · intro inside
-      exact absurd rfl (not_coded N ck inside _ (sequence_valid s n))
+      exact absurd rfl (not_coded N ck inside c valid)
     · rintro rfl
-      exact absurd (by cases s <;> trivial) ck
+      exact absurd (by cases c <;> trivial) ck
+
+/-- The datatypes a written value is in. -/
+theorem written_space (N : Normative D) {x : Written} (ok : x.Ok) (k : datatypes.Kind) :
+    D.valueSpace (typeOf k) (writtenValue N x) ↔ x.In k := by
+  cases x with
+  | text t => exact text_space N t ok k
+  | tagged t l => exact tagged_space N t l ok.1 ok.2 k
+  | uri t => exact coded_kind_space N (.uri t) ok k
+  | hex o => exact coded_kind_space N (.hex o) trivial k
+  | base64 o => exact coded_kind_space N (.base64 o) trivial k
 
 /-- A time instant of a region is in `xsd:dateTime`, and in
     `xsd:dateTimeStamp` when it has a time zone. -/
@@ -957,9 +1146,7 @@ theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) 
     (∃ y, D.valueSpace (typeOf k) y ∧ embedValue.{v,w} y = regionValue N cs lits r n) ↔ RegionIn cs lits r n k := by
   cases r with
   | number p ℓ => rw [regionValue, embedded_space, real_space N]; rfl
-  | string ℓ => rw [regionValue, embedded_space, text_space N _ (Rowl.Strings.stringAt_xml ℓ.isLt n)]; rfl
-  | tagged => rw [regionValue, embedded_space, tagged_space N _ _ (aText_xml n) enTag_value]; rfl
-  | coded s => rw [regionValue, embedded_space, coded_space N s n]; rfl
+  | written S => rw [regionValue, embedded_space, written_space N (writtenAt_ok S n)]; rfl
   | moment st S => rw [regionValue, embedded_space, moment_space N st S n]; rfl
   | binary dbl A lo hi => rw [regionValue, embedded_space, binary_space N dbl (binaryAt_valid dbl A lo hi n)]; rfl
   | other =>
@@ -1039,14 +1226,43 @@ def timeSlot (stamped : Bool) (d : Object') : Set DatatypeMap.Moment :=
     (J.classes (timeClass i) d ↔ InTimeCut (context.times.val[i.val]'h) m)) ∧
     m ∉ Rowl.DataTimes.literalMoments context.values.val}
 
+/-- The lengths that a node's classes of the lengths allow. -/
+def LengthSlot (d : Object') : Set ℕ :=
+  {m | ∀ (i : Usize) (h : i.val < context.lengths.val.length),
+    J.classes (lengthClass i) d ↔ (context.lengths.val[i.val]'h).val ≤ m}
+
+/-- A node in the class of a kind in use with the length facets. -/
+def WrittenNode (d : Object') : Prop :=
+  InUse context J .String d ∨ InUse context J .Plain d ∨ InUse context J .AnyUri d ∨
+    InUse context J .HexBinary d ∨ InUse context J .Base64Binary d
+
+/-- The written values that a node's classes allow: in exactly the kinds in
+    use whose classes hold there, with a length that its classes of the lengths
+    allow, and no literal value's. -/
+def writtenSet (d : Object') : Set Written :=
+  {x | x.Ok ∧ (∀ k, Used context.kinds k = true → (J.classes (kindClass k) d ↔ x.In k)) ∧
+    (∃ m ∈ LengthSlot context J d, x.Length m) ∧ x ∉ literalWritten context.values.val}
+
+/-- The written values of a node's kinds: at a node of `xsd:string`, the
+    strings of a rank from its level on and before the next rank in use;
+    strings with a language tag at another node of `rdf:PlainLiteral`; and the
+    IRIs, the octets of `xsd:hexBinary` and those of `xsd:base64Binary` at the
+    other nodes of those kinds. -/
+def InFamily (d : Object') : Written → Prop
+  | .text t => InUse context J .String d ∧ Rowl.Strings.ChainForm (stringLevel context J d).val t ∧
+      (Rowl.DataLengths.nextRank context.kinds ((stringLevel context J d).val + 1) < 7 →
+        ¬ Rowl.Strings.ChainForm (Rowl.DataLengths.nextRank context.kinds ((stringLevel context J d).val + 1)) t)
+  | .tagged _ _ => ¬ InUse context J .String d ∧ InUse context J .Plain d
+  | .uri _ => ¬ InUse context J .String d ∧ ¬ InUse context J .Plain d ∧ InUse context J .AnyUri d
+  | .hex _ => ¬ InUse context J .String d ∧ ¬ InUse context J .Plain d ∧ ¬ InUse context J .AnyUri d ∧
+      InUse context J .HexBinary d
+  | .base64 _ => ¬ InUse context J .String d ∧ ¬ InUse context J .Plain d ∧ ¬ InUse context J .AnyUri d ∧
+      ¬ InUse context J .HexBinary d ∧ InUse context J .Base64Binary d
+
 /-- The region of a node's values. -/
 noncomputable def regionOf (d : Object') : Region :=
   if NumericNode context J d then .number (positionOf context J order d) (levelOf context J d)
-  else if InUse context J .String d then .string (stringLevel context J d)
-  else if InUse context J .Plain d then .tagged
-  else if InUse context J .AnyUri d then .coded .uri
-  else if InUse context J .HexBinary d then .coded .hex
-  else if InUse context J .Base64Binary d then .coded .base64
+  else if WrittenNode context J d then .written (writtenSet context J d)
   else if InUse context J .DateTime d then
     .moment (decide (InUse context J .DateTimeStamp d)) (timeSlot context J (decide (InUse context J .DateTimeStamp d)) d)
   else if InUse context J .Double d then
@@ -1443,7 +1659,8 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
 /-- A node that is no number has the classes of the strings, the plain
     literals and the values outside every datatype as its region says. -/
 theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : ¬ NumericNode context J d)
-    (notBool : ¬ InUse context J .Boolean d) (cs : List regions.Cut) (lits : Set ℝ) (n : ℕ) (k : datatypes.Kind)
+    (notBool : ¬ InUse context J .Boolean d) (cs : List regions.Cut) (lits : Set ℝ) (n : ℕ)
+    (valid : Valid cs lits (regionOf context J order d) n) (k : datatypes.Kind)
     (used : Used context.kinds k = true) :
     J.classes (kindClass k) d ↔ RegionIn cs lits (regionOf context J order d) n k := by
   have notIn : ∀ k', ¬ InUse context J k' d → Used context.kinds k' = true → ¬ J.classes (kindClass k') d :=
@@ -1452,19 +1669,133 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
   have nd : ¬ InUse context J .Decimal d := fun h => notNumeric (.inr (.inl h))
   have nq : ¬ InUse context J .Rational d := fun h => notNumeric (.inr (.inr (.inl h)))
   have nr : ¬ InUse context J .Real d := fun h => notNumeric (.inr (.inr (.inr h)))
-  unfold regionOf
-  simp only [notNumeric, ↓reduceIte]
-  by_cases hs : InUse context J .String d
-  · simp only [hs, ↓reduceIte, RegionIn]
-    have string := hs
-    obtain ⟨us, ast⟩ := hs
-    have level := (stringLevel context J d).isLt
+  unfold regionOf at valid ⊢
+  simp only [notNumeric, ↓reduceIte] at valid ⊢
+  by_cases hw : WrittenNode context J d
+  · simp only [hw, ↓reduceIte, RegionIn] at valid ⊢
+    have member : writtenAt (writtenSet context J d) n ∈ okSet (writtenSet context J d) := pick_mem _ _ _ valid
+    exact member.1.2.1 k used
+  have hs : ¬ InUse context J .String d := fun h => hw (.inl h)
+  have hp : ¬ InUse context J .Plain d := fun h => hw (.inr (.inl h))
+  have hu : ¬ InUse context J .AnyUri d := fun h => hw (.inr (.inr (.inl h)))
+  have hh : ¬ InUse context J .HexBinary d := fun h => hw (.inr (.inr (.inr (.inl h))))
+  have hb : ¬ InUse context J .Base64Binary d := fun h => hw (.inr (.inr (.inr (.inr h))))
+  have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
+      Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
+    fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
+  by_cases hm : InUse context J .DateTime d
+  · simp only [hw, hm, ↓reduceIte, RegionIn, decide_eq_true_eq]
+    obtain ⟨um, am⟩ := hm
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, eq_self_iff_true, iff_false, iff_true, false_or, or_false, false_and, true_and,
+        true_or]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
+    case DateTime => exact am
+    case DateTimeStamp => exact ⟨fun h => ⟨used, h⟩, fun h => h.2⟩
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used um h am
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used um h am
+    all_goals exact fun h => notSub h rfl used
+  by_cases hdb : InUse context J .Double d
+  · simp only [hw, hm, hdb, ↓reduceIte, RegionIn, formatKind]
+    obtain ⟨udb, adb⟩ := hdb
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, iff_false, iff_true]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
+    case DateTime => exact notIn _ hm used
+    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
+    case Double => exact adb
+    case Float => exact float_alone kinds (k := .Double) (k' := .Float) (.inl rfl) (fun e => by cases e) udb used adb
+    all_goals exact fun h => notSub h rfl used
+  by_cases hfl : InUse context J .Float d
+  · simp only [hw, hm, hdb, hfl, ↓reduceIte, RegionIn, formatKind]
+    obtain ⟨ufl, afl⟩ := hfl
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, iff_false, iff_true]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
+    case DateTime => exact notIn _ hm used
+    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
+    case Double => exact notIn _ hdb used
+    case Float => exact afl
+    all_goals exact fun h => notSub h rfl used
+  · simp only [hw, hm, hdb, hfl, ↓reduceIte, RegionIn, iff_false]
+    cases k <;> simp only [Used, Bool.false_eq_true] at used
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
+    case DateTime => exact notIn _ hm used
+    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
+    case Double => exact notIn _ hdb used
+    case Float => exact notIn _ hfl used
+    all_goals exact fun h => notSub h rfl used
+
+
+/-- At a node with the length facets, the classes of the kinds in use hold
+    as at the written values of the node's kinds. -/
+theorem family_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : ¬ NumericNode context J d)
+    (notBool : ¬ InUse context J .Boolean d) {x : Written} (fam : InFamily context J d x) (k : datatypes.Kind)
+    (used : Used context.kinds k = true) : J.classes (kindClass k) d ↔ x.In k := by
+  have notIn : ∀ k', ¬ InUse context J k' d → Used context.kinds k' = true → ¬ J.classes (kindClass k') d :=
+    fun k' h u c => h ⟨u, c⟩
+  have ni : ¬ InUse context J .Integer d := fun h => notNumeric (.inl h)
+  have nd : ¬ InUse context J .Decimal d := fun h => notNumeric (.inr (.inl h))
+  have nq : ¬ InUse context J .Rational d := fun h => notNumeric (.inr (.inr (.inl h)))
+  have nr : ¬ InUse context J .Real d := fun h => notNumeric (.inr (.inr (.inr h)))
+  cases x with
+  | text t =>
+    obtain ⟨string, form, notNext⟩ := fam
+    show J.classes (kindClass k) d ↔ Rowl.Strings.TextIn k t
+    obtain ⟨us, ast⟩ := string
     by_cases sub : ∃ s, Rowl.Strings.subtypeOf k = some s
     · obtain ⟨s, hsub⟩ := sub
       obtain ⟨r, rfl, lo, hi⟩ := chain_rank hsub
-      rw [chain_profile kinds string hi used, chain_textIn lo hi, Rowl.Strings.stringAt_form level hi]
-    have classic : ∀ t, Rowl.Strings.TextIn k t ↔ k = .String ∨ k = .Plain := by
-      intro t
+      rw [chain_profile kinds ⟨us, ast⟩ hi used, chain_textIn lo hi]
+      constructor
+      · intro le
+        exact Rowl.Strings.chain_form_mono le form
+      · intro f
+        by_contra above
+        have skip : Rowl.DataLengths.nextRank context.kinds ((stringLevel context J d).val + 1) ≤ r := by
+          by_contra lt
+          have := Rowl.DataLengths.nextRank_skips context.kinds ((stringLevel context J d).val + 1) r (by omega)
+            (by omega)
+          rw [rank_kind_chain, used] at this
+          exact absurd this (by decide)
+        exact notNext (by omega) (Rowl.Strings.chain_form_mono skip f)
+    have classic : Rowl.Strings.TextIn k t ↔ k = .String ∨ k = .Plain := by
       simp only [Rowl.Strings.TextIn]
       constructor
       · rintro (h | h | ⟨s, hs, _⟩)
@@ -1489,11 +1820,12 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used us h ast
     · exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used us h ast
     · exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used us h ast
-  have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
-      Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
-    fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
-  by_cases hp : InUse context J .Plain d
-  · simp only [hs, hp, ↓reduceIte, RegionIn]
+  | tagged t l =>
+    obtain ⟨hs, hp⟩ := fam
+    show J.classes (kindClass k) d ↔ k = .Plain
+    have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
+        Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
+      fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
     obtain ⟨up, ap⟩ := hp
     cases k <;> simp only [Used, Bool.false_eq_true] at used <;> simp only [reduceCtorEq, iff_true, iff_false]
     · exact notIn _ ni used
@@ -1512,8 +1844,12 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used up h ap
     case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used up h ap
     all_goals exact fun h => notSub h rfl used
-  by_cases hu : InUse context J .AnyUri d
-  · simp only [hs, hp, hu, ↓reduceIte, RegionIn, sequenceKind]
+  | uri t =>
+    obtain ⟨hs, hp, hu⟩ := fam
+    show J.classes (kindClass k) d ↔ k = .AnyUri
+    have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
+        Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
+      fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
     obtain ⟨uu, au⟩ := hu
     cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
       simp only [reduceCtorEq, iff_false, iff_true]
@@ -1533,8 +1869,12 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used uu h au
     case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used uu h au
     all_goals exact fun h => notSub h rfl used
-  by_cases hh : InUse context J .HexBinary d
-  · simp only [hs, hp, hu, hh, ↓reduceIte, RegionIn, sequenceKind]
+  | hex o =>
+    obtain ⟨hs, hp, hu, hh⟩ := fam
+    show J.classes (kindClass k) d ↔ k = .HexBinary
+    have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
+        Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
+      fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
     obtain ⟨uh, ah⟩ := hh
     cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
       simp only [reduceCtorEq, iff_false, iff_true]
@@ -1554,8 +1894,12 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used uh h ah
     case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used uh h ah
     all_goals exact fun h => notSub h rfl used
-  by_cases hb : InUse context J .Base64Binary d
-  · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, sequenceKind]
+  | base64 o =>
+    obtain ⟨hs, hp, hu, hh, hb⟩ := fam
+    show J.classes (kindClass k) d ↔ k = .Base64Binary
+    have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
+        Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
+      fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
     obtain ⟨ub, ab⟩ := hb
     cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
       simp only [reduceCtorEq, iff_false, iff_true]
@@ -1574,84 +1918,6 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ub h ab
     case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used ub h ab
     case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used ub h ab
-    all_goals exact fun h => notSub h rfl used
-  by_cases hm : InUse context J .DateTime d
-  · simp only [hs, hp, hu, hh, hb, hm, ↓reduceIte, RegionIn, decide_eq_true_eq]
-    obtain ⟨um, am⟩ := hm
-    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
-      simp only [reduceCtorEq, eq_self_iff_true, iff_false, iff_true, false_or, or_false, false_and, true_and,
-        true_or]
-    · exact notIn _ ni used
-    · exact notIn _ nd used
-    · exact notIn _ hs used
-    · exact notIn _ hp used
-    · exact notIn _ notBool used
-    · exact notIn _ nr used
-    · exact notIn _ nq used
-    · exact notIn _ hu used
-    · exact notIn _ hh used
-    · exact notIn _ hb used
-    case DateTime => exact am
-    case DateTimeStamp => exact ⟨fun h => ⟨used, h⟩, fun h => h.2⟩
-    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used um h am
-    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used um h am
-    all_goals exact fun h => notSub h rfl used
-  by_cases hdb : InUse context J .Double d
-  · simp only [hs, hp, hu, hh, hb, hm, hdb, ↓reduceIte, RegionIn, formatKind]
-    obtain ⟨udb, adb⟩ := hdb
-    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
-      simp only [reduceCtorEq, iff_false, iff_true]
-    · exact notIn _ ni used
-    · exact notIn _ nd used
-    · exact notIn _ hs used
-    · exact notIn _ hp used
-    · exact notIn _ notBool used
-    · exact notIn _ nr used
-    · exact notIn _ nq used
-    · exact notIn _ hu used
-    · exact notIn _ hh used
-    · exact notIn _ hb used
-    case DateTime => exact notIn _ hm used
-    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
-    case Double => exact adb
-    case Float => exact float_alone kinds (k := .Double) (k' := .Float) (.inl rfl) (fun e => by cases e) udb used adb
-    all_goals exact fun h => notSub h rfl used
-  by_cases hfl : InUse context J .Float d
-  · simp only [hs, hp, hu, hh, hb, hm, hdb, hfl, ↓reduceIte, RegionIn, formatKind]
-    obtain ⟨ufl, afl⟩ := hfl
-    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
-      simp only [reduceCtorEq, iff_false, iff_true]
-    · exact notIn _ ni used
-    · exact notIn _ nd used
-    · exact notIn _ hs used
-    · exact notIn _ hp used
-    · exact notIn _ notBool used
-    · exact notIn _ nr used
-    · exact notIn _ nq used
-    · exact notIn _ hu used
-    · exact notIn _ hh used
-    · exact notIn _ hb used
-    case DateTime => exact notIn _ hm used
-    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
-    case Double => exact notIn _ hdb used
-    case Float => exact afl
-    all_goals exact fun h => notSub h rfl used
-  · simp only [hs, hp, hu, hh, hb, hm, hdb, hfl, ↓reduceIte, RegionIn, iff_false]
-    cases k <;> simp only [Used, Bool.false_eq_true] at used
-    · exact notIn _ ni used
-    · exact notIn _ nd used
-    · exact notIn _ hs used
-    · exact notIn _ hp used
-    · exact notIn _ notBool used
-    · exact notIn _ nr used
-    · exact notIn _ nq used
-    · exact notIn _ hu used
-    · exact notIn _ hh used
-    · exact notIn _ hb used
-    case DateTime => exact notIn _ hm used
-    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
-    case Double => exact notIn _ hdb used
-    case Float => exact notIn _ hfl used
     all_goals exact fun h => notSub h rfl used
 
 end Profile
@@ -1863,6 +2129,201 @@ theorem not_point (setting : Setting context capacity bits order J) (ordered : c
 
 end Order
 
+/-! ### The lengths at a model of the encoding -/
+
+section Lengths
+variable {Object' : Type u} {Value' : Type x} {context : data_ontology.Context} {capacity : Nat} {bits : Usize}
+  {order : List Usize} {J : Interpretation Object' Value'}
+
+/-- The lengths of the context whose classes hold at a node. -/
+noncomputable def heldLengths (context : data_ontology.Context) (J : Interpretation Object' Value') (d : Object') :
+    Finset ℕ :=
+  (context.lengths.val.map (·.val)).toFinset.filter fun t => ∃ (i : Usize) (h : i.val < context.lengths.val.length),
+    (context.lengths.val[i.val]'h).val = t ∧ J.classes (lengthClass i) d
+
+/-- The lengths of the context whose classes do not hold at a node. -/
+noncomputable def failedLengths (context : data_ontology.Context) (J : Interpretation Object' Value')
+    (d : Object') : Finset ℕ :=
+  (context.lengths.val.map (·.val)).toFinset.filter fun t => ∃ (i : Usize) (h : i.val < context.lengths.val.length),
+    (context.lengths.val[i.val]'h).val = t ∧ ¬ J.classes (lengthClass i) d
+
+theorem mem_held {d : Object'} {t : ℕ} : t ∈ heldLengths context J d ↔
+    ∃ (i : Usize) (h : i.val < context.lengths.val.length), (context.lengths.val[i.val]'h).val = t ∧
+      J.classes (lengthClass i) d := by
+  simp only [heldLengths, Finset.mem_filter, List.mem_toFinset, List.mem_map, and_iff_right_iff_imp]
+  rintro ⟨i, h, rfl, _⟩
+  exact ⟨_, List.getElem_mem h, rfl⟩
+
+theorem mem_failed {d : Object'} {t : ℕ} : t ∈ failedLengths context J d ↔
+    ∃ (i : Usize) (h : i.val < context.lengths.val.length), (context.lengths.val[i.val]'h).val = t ∧
+      ¬ J.classes (lengthClass i) d := by
+  simp only [failedLengths, Finset.mem_filter, List.mem_toFinset, List.mem_map, and_iff_right_iff_imp]
+  rintro ⟨i, h, rfl, _⟩
+  exact ⟨_, List.getElem_mem h, rfl⟩
+
+/-- The class of a length holds at the nodes in the class of a longer one. -/
+theorem length_down (setting : Setting context capacity bits order J) {d : Object'} {i j : Usize}
+    (hi : i.val < context.lengths.val.length) (hj : j.val < context.lengths.val.length)
+    (lt : (context.lengths.val[j.val]'hj).val < (context.lengths.val[i.val]'hi).val)
+    (held : J.classes (lengthClass i) d) : J.classes (lengthClass j) d :=
+  ((setting.frame.lengths i hi).1 j hj).1 hi hj lt d held
+
+/-- A length of the context is at one index only. -/
+theorem length_index_unique (setting : Setting context capacity bits order J) {i j : Usize}
+    (hi : i.val < context.lengths.val.length) (hj : j.val < context.lengths.val.length)
+    (same : (context.lengths.val[i.val]'hi).val = (context.lengths.val[j.val]'hj).val) : i = j :=
+  UScalar.eq_of_val_eq ((List.Nodup.getElem_inj_iff setting.good.2.2.2.2.2.2.2.2.1).mp (UScalar.eq_of_val_eq same))
+
+/-- A node's classes of the lengths place it in a slot of lengths: from the
+    longest length whose class holds there, if any, and before the shortest
+    whose class does not, if any, with the axioms on that slot when it ends. -/
+theorem node_lengths (setting : Setting context capacity bits order J) (d : Object') :
+    ∃ (low high : Option Usize) (lo hi : ℕ),
+      (∀ i, low = some i → ∃ h : i.val < context.lengths.val.length, (context.lengths.val[i.val]'h).val = lo) ∧
+      (low = none → lo = 0) ∧
+      (∀ j, high = some j → ∃ h : j.val < context.lengths.val.length, (context.lengths.val[j.val]'h).val = hi) ∧
+      (∀ i, low = some i → J.classes (lengthClass i) d) ∧ (∀ j, high = some j → ¬ J.classes (lengthClass j) d) ∧
+      (∀ m, m ∈ LengthSlot context J d ↔ lo ≤ m ∧ (high ≠ none → m < hi)) ∧
+      (high ≠ none → lo < hi ∧ Rowl.DataLengths.SlotFacts context capacity J low high lo hi) := by
+  have apart : ∀ t ∈ heldLengths context J d, ∀ u ∈ failedLengths context J d, t < u := by
+    intro t ht u hu
+    obtain ⟨i, hi, rfl, heldI⟩ := mem_held.mp ht
+    obtain ⟨j, hj, rfl, failedJ⟩ := mem_failed.mp hu
+    by_contra ge
+    rcases Nat.lt_or_eq_of_le (Nat.le_of_not_lt ge) with lt | eq
+    · exact failedJ (length_down setting hi hj lt heldI)
+    · have := length_index_unique setting hj hi eq
+      subst this
+      exact failedJ heldI
+  obtain ⟨low, lo, lowIs, lowNone, lowHeld, loMax, heldNone⟩ : ∃ (low : Option Usize) (lo : ℕ),
+      (∀ i, low = some i → ∃ h : i.val < context.lengths.val.length, (context.lengths.val[i.val]'h).val = lo) ∧
+      (low = none → lo = 0) ∧ (∀ i, low = some i → J.classes (lengthClass i) d) ∧
+      (∀ t ∈ heldLengths context J d, t ≤ lo) ∧ (low = none → heldLengths context J d = ∅) := by
+    by_cases ne : (heldLengths context J d).Nonempty
+    · obtain ⟨i, hi, at_i, heldI⟩ := mem_held.mp ((heldLengths context J d).max'_mem ne)
+      exact ⟨some i, _, (fun i' e => by cases e; exact ⟨hi, at_i⟩), (fun e => nomatch e),
+        (fun i' e => by cases e; exact heldI), (fun t ht => (heldLengths context J d).le_max' t ht),
+        (fun e => nomatch e)⟩
+    · exact ⟨none, 0, (fun i e => nomatch e), (fun _ => rfl), (fun i e => nomatch e),
+        (fun t ht => absurd ⟨t, ht⟩ ne), (fun _ => Finset.not_nonempty_iff_eq_empty.mp ne)⟩
+  obtain ⟨high, hi, highIs, highFailed, hiMin, failedNone⟩ : ∃ (high : Option Usize) (hi : ℕ),
+      (∀ j, high = some j → ∃ h : j.val < context.lengths.val.length, (context.lengths.val[j.val]'h).val = hi) ∧
+      (∀ j, high = some j → ¬ J.classes (lengthClass j) d) ∧
+      (∀ u ∈ failedLengths context J d, hi ≤ u) ∧ (high = none → failedLengths context J d = ∅) := by
+    by_cases ne : (failedLengths context J d).Nonempty
+    · obtain ⟨j, hj, at_j, failedJ⟩ := mem_failed.mp ((failedLengths context J d).min'_mem ne)
+      exact ⟨some j, _, (fun j' e => by cases e; exact ⟨hj, at_j⟩), (fun j' e => by cases e; exact failedJ),
+        (fun u hu => (failedLengths context J d).min'_le u hu), (fun e => nomatch e)⟩
+    · exact ⟨none, 0, (fun j e => nomatch e), (fun j e => nomatch e), (fun u hu => absurd ⟨u, hu⟩ ne),
+        (fun _ => Finset.not_nonempty_iff_eq_empty.mp ne)⟩
+  -- every length is at most the slot's start when its class holds, and from its end on otherwise
+  have sorted : ∀ (k : Usize) (hk : k.val < context.lengths.val.length),
+      (J.classes (lengthClass k) d → (context.lengths.val[k.val]'hk).val ≤ lo) ∧
+      (¬ J.classes (lengthClass k) d → high ≠ none ∧ hi ≤ (context.lengths.val[k.val]'hk).val) := by
+    intro k hk
+    refine ⟨fun held => loMax _ (mem_held.mpr ⟨k, hk, rfl, held⟩), fun failed => ?_⟩
+    have mem : (context.lengths.val[k.val]'hk).val ∈ failedLengths context J d :=
+      mem_failed.mpr ⟨k, hk, rfl, failed⟩
+    exact ⟨fun e => by rw [failedNone e] at mem; simp at mem, hiMin _ mem⟩
+  have slotIff : ∀ m, m ∈ LengthSlot context J d ↔ lo ≤ m ∧ (high ≠ none → m < hi) := by
+    intro m
+    simp only [LengthSlot, Set.mem_setOf_eq]
+    constructor
+    · intro slot
+      refine ⟨?_, fun ne => ?_⟩
+      · cases hl : low with
+        | none => rw [lowNone hl]; exact Nat.zero_le _
+        | some i =>
+          obtain ⟨h, at_i⟩ := lowIs i hl
+          rw [← at_i]
+          exact (slot i h).mp (lowHeld i hl)
+      · cases hh : high with
+        | none => exact absurd hh ne
+        | some j =>
+          obtain ⟨h, at_j⟩ := highIs j hh
+          rw [← at_j]
+          exact Nat.lt_of_not_le fun le => highFailed j hh ((slot j h).mpr le)
+    · rintro ⟨lom, him⟩ i h
+      refine ⟨fun held => le_trans ((sorted i h).1 held) lom, fun le => ?_⟩
+      by_contra failed
+      obtain ⟨ne, le'⟩ := (sorted i h).2 failed
+      have := him ne
+      omega
+  refine ⟨low, high, lo, hi, lowIs, lowNone, highIs, lowHeld, highFailed, slotIff, fun ne => ?_⟩
+  obtain ⟨j, hj⟩ := Option.ne_none_iff_exists'.mp ne
+  obtain ⟨h2, at_j⟩ := highIs j hj
+  have hiF : hi ∈ failedLengths context J d := mem_failed.mpr ⟨j, h2, at_j, highFailed j hj⟩
+  cases hl : low with
+  | none =>
+    have lo0 := lowNone hl
+    have empty := heldNone hl
+    have pos : 0 < hi := at_j ▸ setting.good.2.2.2.2.2.2.2.2.2 _ (List.getElem_mem h2)
+    refine ⟨by omega, ?_⟩
+    have below : ¬ ∃ t ∈ context.lengths.val, t.val < (context.lengths.val[j.val]'h2).val := by
+      rintro ⟨t, mem, lt⟩
+      obtain ⟨k, hk, at_k⟩ := List.getElem_of_mem mem
+      obtain ⟨kk, rfl⟩ := usize_index context.lengths k hk
+      by_cases heldK : J.classes (lengthClass kk) d
+      · have := mem_held.mpr ⟨kk, hk, rfl, heldK⟩
+        rw [empty] at this
+        simp at this
+      · have := ((sorted kk hk).2 heldK).2
+        rw [at_k] at this
+        omega
+    have lowest := (setting.frame.lengths j h2).2 h2 (by rw [at_j]; exact pos) below
+    rw [hj, lo0, ← at_j]
+    exact lowest
+  | some i =>
+    obtain ⟨h1, at_i⟩ := lowIs i hl
+    have loH : lo ∈ heldLengths context J d := mem_held.mpr ⟨i, h1, at_i, lowHeld i hl⟩
+    have lt := apart lo loH hi hiF
+    refine ⟨lt, ?_⟩
+    have between : ¬ ∃ t ∈ context.lengths.val, (context.lengths.val[i.val]'h1).val < t.val ∧
+        t.val < (context.lengths.val[j.val]'h2).val := by
+      rintro ⟨t, mem, lt1, lt2⟩
+      obtain ⟨k, hk, at_k⟩ := List.getElem_of_mem mem
+      obtain ⟨kk, rfl⟩ := usize_index context.lengths k hk
+      by_cases heldK : J.classes (lengthClass kk) d
+      · have := (sorted kk hk).1 heldK
+        rw [at_k] at this
+        omega
+      · have := ((sorted kk hk).2 heldK).2
+        rw [at_k] at this
+        omega
+    have neighbour := ((setting.frame.lengths i h1).1 j h2).2 h1 h2 (by rw [at_i, at_j]; exact lt) between
+    rw [hj, ← at_i, ← at_j]
+    exact neighbour
+
+/-- A written value in the sets of two nodes puts them in the same classes of
+    the kinds in use and of the lengths. -/
+theorem written_classes {d d' : Object'} {x : Written} (h : x ∈ writtenSet context J d)
+    (h' : x ∈ writtenSet context J d') :
+    (∀ k, Used context.kinds k = true → (J.classes (kindClass k) d ↔ J.classes (kindClass k) d')) ∧
+      ∀ (i : Usize) (_ : i.val < context.lengths.val.length),
+        (J.classes (lengthClass i) d ↔ J.classes (lengthClass i) d') := by
+  obtain ⟨_, kinds, ⟨m, slot, len⟩, _⟩ := h
+  obtain ⟨_, kinds', ⟨m', slot', len'⟩, _⟩ := h'
+  have := written_length_unique len len'
+  subst this
+  exact ⟨fun k used => (kinds k used).trans (kinds' k used).symm, fun i hi => (slot i hi).trans (slot' i hi).symm⟩
+
+/-- The class of a kind and a slot of lengths holds at a node with the same
+    written value as one where it holds. -/
+theorem sized_transfer {d e : Object'} {kind : datatypes.Kind} {below : Option datatypes.Kind}
+    {low high : Option Usize} (usedKind : Used context.kinds kind = true)
+    (usedBelow : ∀ b, below = some b → Used context.kinds b = true)
+    (lowIn : ∀ i, low = some i → i.val < context.lengths.val.length)
+    (highIn : ∀ j, high = some j → j.val < context.lengths.val.length) {x : Written}
+    (hd : x ∈ writtenSet context J d) (he : x ∈ writtenSet context J e)
+    (sized : Rowl.DataLengths.InSized J kind below low high d) : Rowl.DataLengths.InSized J kind below low high e := by
+  obtain ⟨kinds, lengths⟩ := written_classes hd he
+  obtain ⟨inK, outB, inLow, outHigh⟩ := sized
+  exact ⟨(kinds kind usedKind).mp inK, fun b hb h => outB b hb ((kinds b (usedBelow b hb)).mpr h),
+    fun i hi => (lengths i (lowIn i hi)).mp (inLow i hi), fun j hj h => outHigh j hj ((lengths j (highIn j hj)).mpr h)⟩
+
+end Lengths
+
+
 /-! ### Which regions are infinite -/
 
 section Sizes
@@ -1978,6 +2439,9 @@ noncomputable def realValue (r : ℝ) : Values.{v,w} Native := embedValue (N.rea
 /-- The value of a time instant. -/
 noncomputable def momentValue (m : DatatypeMap.Moment) : Values.{v,w} Native := embedValue (N.moment m)
 
+/-- The lengths of values: those of the datatype map's values with a length. -/
+def soundSize (x : Values.{v,w} Native) (m : ℕ) : Prop := ∃ y, NativeLength N y m ∧ embedValue y = x
+
 /-- Some data nodes that witness an element's data restriction, when it has
     enough of them. -/
 noncomputable def witnesses (z : Object') (atom : DataProperty × Option DataRange × Nat) : List Object' :=
@@ -2090,7 +2554,7 @@ variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap
     instants at an instant keep their room. -/
 def ShiftOk (context : data_ontology.Context) (shift : Object' → ℕ) : Prop :=
   (context.kinds.ordered = true ∨ context.kinds.double = true ∨ context.kinds.float = true ∨
-    context.times.val ≠ []) → ∀ z, shift z = 0
+    context.times.val ≠ [] ∨ context.lengths.val ≠ []) → ∀ z, shift z = 0
 
 theorem typeOf_not_literal (N : Normative D) (k : datatypes.Kind) : typeOf k ≠ literalDatatype := by
   intro same
@@ -2200,6 +2664,34 @@ theorem moment_coherent {d d' : Object'} :
     exact ⟨fun i hi z => (agree i hi z).symm.trans (cuts i hi z), lit⟩
   · rintro ⟨cuts, lit⟩
     exact ⟨fun i hi z => (agree i hi z).trans (cuts i hi z), lit⟩
+
+/-! ### The written values of a node -/
+
+theorem region_written {d : Object'} {S : Set Written} (h : regionOf context J order d = .written S) :
+    ¬ NumericNode context J d ∧ WrittenNode context J d ∧ S = writtenSet context J d := by
+  unfold regionOf at h
+  split_ifs at h
+  simp only [Region.written.injEq] at h
+  exact ⟨by assumption, by assumption, h.symm⟩
+
+/-- Two nodes whose written values share one have one region. -/
+theorem written_coherent {d d' : Object'} :
+    ∀ S S', regionOf context J order d = .written S → regionOf context J order d' = .written S' →
+      ∀ x, x ∈ okSet S → x ∈ okSet S' → S = S' := by
+  intro S S' h h' x inS inS'
+  obtain ⟨_, _, rfl⟩ := region_written h
+  obtain ⟨_, _, rfl⟩ := region_written h'
+  obtain ⟨kinds, lengths⟩ := written_classes inS.1 inS'.1
+  have slots : LengthSlot context J d = LengthSlot context J d' := by
+    ext m
+    exact ⟨fun inM i hi => (lengths i hi).symm.trans (inM i hi), fun inM i hi => (lengths i hi).trans (inM i hi)⟩
+  ext y
+  simp only [writtenSet, Set.mem_setOf_eq, slots]
+  constructor
+  · rintro ⟨ok, profile, len, lit⟩
+    exact ⟨ok, fun k used => (kinds k used).symm.trans (profile k used), len, lit⟩
+  · rintro ⟨ok, profile, len, lit⟩
+    exact ⟨ok, fun k used => (kinds k used).trans (profile k used), len, lit⟩
 
 /-- The place of a time cut on the time line: its instant's place, past the
     instant itself when it is open. -/
@@ -2477,10 +2969,10 @@ theorem float_used {dbl : Bool} {d : Object'} (h : InUse context J (floatKind db
 
 theorem float_blocked {dbl : Bool} {d : Object'} (h : InUse context J (floatKind dbl) d) :
     context.kinds.ordered = true ∨ context.kinds.double = true ∨ context.kinds.float = true ∨
-      context.times.val ≠ [] :=
+      context.times.val ≠ [] ∨ context.lengths.val ≠ [] :=
   (float_used h).elim (fun e => .inr (.inl e)) (fun e => .inr (.inr (.inl e)))
 
-theorem float_runs {dbl : Bool} {d : Object'} (h : InUse context J (floatKind dbl) d) : BoundsRuns context.kinds :=
+theorem float_runs {dbl : Bool} {d : Object'} (h : InUse context J (floatKind dbl) d) : BoundsRuns context :=
   (float_used h).elim (fun e => .inr (.inl e)) (fun e => .inr (.inr (.inl e)))
 
 theorem level_zero {d : Object'} (zero : levelOf context J d = 0) : InUse context J .Integer d := by
@@ -2522,25 +3014,22 @@ theorem finite_run (setting : Setting context capacity bits order J) {d : Object
       · exact notInf inf
       · rw [empty] at inside; simp at inside
 
-/-- The region of a node that is no number: values for every index, or the
-    values of a format in use in the node's slot, without the literal
-    values, or the time instants of the node's slot. -/
+/-- The region of a node that is no number: values for every index, the
+    values of a format in use in the node's slot, without the literal values,
+    the time instants of the node's slot, or the node's written values. -/
 theorem other_region {d : Object'} (numeric : ¬ NumericNode context J d) :
     RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d) ∨
       (∃ dbl, regionOf context J order d = .binary dbl (literalBinaries context.values.val dbl)
         (slotLow context J dbl d) (slotHigh context J dbl d) ∧ InUse context J (floatKind dbl) d) ∨
-      ∃ st, regionOf context J order d = .moment st (timeSlot context J st d) := by
+      (∃ st, regionOf context J order d = .moment st (timeSlot context J st d)) ∨
+      (WrittenNode context J d ∧ regionOf context J order d = .written (writtenSet context J d)) := by
   unfold regionOf
   simp only [numeric, ↓reduceIte]
-  split_ifs with h1 h2 h3 h4 h5 h6 h7 h8
-  · exact .inl trivial
-  · exact .inl trivial
-  · exact .inl trivial
-  · exact .inl trivial
-  · exact .inl trivial
-  · exact .inr (.inr ⟨_, rfl⟩)
-  · exact .inr (.inl ⟨true, rfl, h7⟩)
-  · exact .inr (.inl ⟨false, rfl, h8⟩)
+  split_ifs with h1 h2 h3 h4
+  · exact .inr (.inr (.inr ⟨h1, rfl⟩))
+  · exact .inr (.inr (.inl ⟨_, rfl⟩))
+  · exact .inr (.inl ⟨true, rfl, h3⟩)
+  · exact .inr (.inl ⟨false, rfl, h4⟩)
   · exact .inl trivial
 
 /-- The cuts around a run, among the context's cuts. -/
@@ -2589,7 +3078,7 @@ theorem run_member (setting : Setting context capacity bits order J) (ordered : 
 
 /-- Every successor of an element along a data property's role is one along
     `U`, when the encoding bounds the data nodes along it. -/
-theorem successor_super (setting : Setting context capacity bits order J) (runs : BoundsRuns context.kinds)
+theorem successor_super (setting : Setting context capacity bits order J) (runs : BoundsRuns context)
     {z e : Object'} (succ : Successor context J z e) : J.objectProperties dataSuper z e := by
   obtain ⟨p, role, run, rel⟩ := succ
   obtain ⟨res, run', facts⟩ := data_role_correct context p
@@ -2878,7 +3367,7 @@ theorem moment_peers_bound (setting : Setting context capacity bits order J) (co
   have pos := moment_free_pos setting notLiteral region finite
   obtain ⟨m, inS⟩ := Set.nonempty_of_ncard_ne_zero (ne_of_gt pos)
   obtain ⟨i, j, hi, hj, zi, zj, inPoint, fact, eq, nonempty⟩ := moment_point setting region finite
-  have stamp : context.kinds.stamp = true := setting.good.2.2.2.2.2.2 nonempty
+  have stamp : context.kinds.stamp = true := setting.good.2.2.2.2.2.2.1 nonempty
   rw [eq, point_slot_card setting st hi] at pos ⊢
   obtain ⟨_, _, rfl⟩ := region_moment region
   have each : ∀ e ∈ peers context J order atoms z d, J.objectProperties dataSuper z e ∧
@@ -2892,7 +3381,7 @@ theorem moment_peers_bound (setting : Setting context capacity bits order J) (co
     have agree : ∀ (k : Usize) (hk : k.val < context.times.val.length), (context.times.val[k.val]'hk).zoned = st →
         (J.classes (timeClass k) e ↔ J.classes (timeClass k) d) := fun k hk zk =>
       (inSE.1 k hk zk).trans (inS.1.1 k hk zk).symm
-    exact ⟨successor_super setting (.inr (.inr (.inr stamp))) succ,
+    exact ⟨successor_super setting (.inr (.inr (.inr (.inl stamp)))) succ,
       ⟨(agree i hi zi).mpr inPoint.1, fun h => inPoint.2 ((agree j hj zj).mp h)⟩,
       fun named => notLit (point_named_literal named)⟩
   by_cases small : Rowl.DataTimes.pointFree context st (context.times.val[i.val]'hi).instant < capacity
@@ -2900,6 +3389,265 @@ theorem moment_peers_bound (setting : Setting context capacity bits order J) (co
   · have := peers_length (context := context) (J := J) (order := order) (atoms := atoms) z d
     have := witness_list_length (context := context) (J := J) (atoms := atoms) z
     omega
+
+theorem written_set_ok (d : Object') : okSet (writtenSet context J d) = writtenSet context J d :=
+  Set.inter_eq_left.mpr fun _ mem => mem.1
+
+/-- A written value of a node's kinds with a length in its slot that is no
+    literal value's is one of the node's own. -/
+theorem family_written (setting : Setting context capacity bits order J) {d : Object'}
+    (numeric : ¬ NumericNode context J d) (notBool : ¬ InUse context J .Boolean d) {x : Written} (ok : x.Ok)
+    (fam : InFamily context J d x) {m : ℕ} (len : x.Length m) (slot : m ∈ LengthSlot context J d)
+    (notLit : x ∉ literalWritten context.values.val) : x ∈ writtenSet context J d :=
+  ⟨ok, fun k used => family_profile setting.frame.kinds numeric notBool fam k used, ⟨m, slot, len⟩, notLit⟩
+
+/-- Infinitely many written values of a node's kinds with lengths in its slot
+    make its region infinite. -/
+theorem written_infinite (setting : Setting context capacity bits order J) {d : Object'}
+    (numeric : ¬ NumericNode context J d) (notBool : ¬ InUse context J .Boolean d) {f : ℕ → Written}
+    (inj : Function.Injective f)
+    (each : ∀ n, (f n).Ok ∧ InFamily context J d (f n) ∧ ∃ m ∈ LengthSlot context J d, (f n).Length m) :
+    (okSet (writtenSet context J d)).Infinite := by
+  rw [written_set_ok]
+  refine Set.Infinite.mono ?_
+    ((Set.infinite_range_of_injective inj).sdiff (literal_written_finite context.values.val))
+  rintro x ⟨⟨n, rfl⟩, notLit⟩
+  obtain ⟨ok, fam, m, slot, len⟩ := each n
+  exact family_written setting numeric notBool ok fam len slot notLit
+
+/-- The written values of a node in a bounded slot of lengths are, as values,
+    those of its kind and slot that are no literal values, as many as the
+    kernel counts. -/
+theorem written_card (N : Normative D) (setting : Setting context capacity bits order J) {d : Object'}
+    (numeric : ¬ NumericNode context J d) (notBool : ¬ InUse context J .Boolean d)
+    {kind : datatypes.Kind} {below : Option datatypes.Kind} {octets : Bool} {first last lo hi : ℕ}
+    (counted : FamilyCounted N kind below octets first last lo hi)
+    (nodeKind : Used context.kinds kind = true ∧ J.classes (kindClass kind) d)
+    (nodeBelow : ∀ b, below = some b → Used context.kinds b = true ∧ ¬ J.classes (kindClass b) d)
+    (family : ∀ x : Written, x.Ok → x.In kind → (∀ b, below = some b → ¬ x.In b) → InFamily context J d x)
+    (slotIs : ∀ m, m ∈ LengthSlot context J d ↔ lo ≤ m ∧ m < hi) :
+    (writtenSet context J d).Finite ∧
+      (writtenSet context J d).ncard = Rowl.DataLengths.sizedFree context kind below octets first last lo hi := by
+  have image : writtenValue N '' writtenSet context J d =
+      FamilySet N kind below lo hi \ familyLits N context.values.val kind below lo hi := by
+    ext y
+    constructor
+    · rintro ⟨x, ⟨ok, profile, ⟨m, slot, len⟩, notLit⟩, rfl⟩
+      obtain ⟨lom, mhi⟩ := (slotIs m).mp slot
+      refine ⟨⟨(written_space N ok kind).mpr ((profile kind nodeKind.1).mp nodeKind.2),
+        fun b hb inB => (nodeBelow b hb).2 ((profile b (nodeBelow b hb).1).mpr ((written_space N ok b).mp inB)),
+        m, (written_length N ok m).mpr len, lom, mhi⟩, ?_⟩
+      rintro ⟨w, mem, _, same⟩
+      exact notLit ⟨w, mem, written_lit N (setting.good.1.1 w mem) ok same⟩
+    · rintro ⟨⟨inK, outB, m, hm, lom, mhi⟩, notLit⟩
+      obtain ⟨x, ok, len, rfl⟩ := written_of_native N hm
+      have inK' := (written_space N ok kind).mp inK
+      have outB' : ∀ b, below = some b → ¬ x.In b := fun b hb h => outB b hb ((written_space N ok b).mpr h)
+      refine ⟨x, family_written setting numeric notBool ok (family x ok inK' outB') len ((slotIs m).mpr ⟨lom, mhi⟩)
+        ?_, rfl⟩
+      rintro ⟨w, mem, hw⟩
+      obtain ⟨kinds, _, lengths⟩ := written_of_some hw
+      exact notLit ⟨w, mem, ⟨m, (lengths m).mpr len, (kinds kind).mpr inK',
+        fun b hb h => outB' b hb ((kinds b).mp h), lom, mhi⟩, (written_lit_value N hw).symm⟩
+  have inj : Set.InjOn (writtenValue N) (writtenSet context J d) :=
+    fun a ha b hb same => written_injective N ha.1 hb.1 same
+  obtain ⟨finite, card⟩ := counted
+  obtain ⟨litsFinite, litsCard⟩ := family_lits_card N setting.good.1 kind below lo hi
+  have sub := family_lits_sub N setting.good.1 kind below lo hi
+  have freeFinite : (FamilySet N kind below lo hi \ familyLits N context.values.val kind below lo hi).Finite :=
+    finite.subset Set.sdiff_subset
+  refine ⟨Set.Finite.of_finite_image (by rw [image]; exact freeFinite) inj, ?_⟩
+  rw [← inj.ncard_image, image, Set.ncard_sdiff sub litsFinite, card, litsCard]
+  rfl
+
+/-- A node in a bounded slot of lengths that is no literal value's individual
+    has values of its own there, enough for its peers: by the axiom on its kind
+    and slot when there are at most the capacity of them, and otherwise because
+    the witnesses are at most the capacity. -/
+theorem bounded_room (N : Normative D) (setting : Setting context capacity bits order J)
+    (count : atomCount atoms ≤ capacity) {d : Object'} (notLiteral : ¬ LiteralNode context J d)
+    (numeric : ¬ NumericNode context J d) (notBool : ¬ InUse context J .Boolean d)
+    (region : regionOf context J order d = .written (writtenSet context J d))
+    {kind : datatypes.Kind} {below : Option datatypes.Kind} {octets : Bool} {first last : ℕ}
+    {low high : Option Usize} {lo hi : ℕ}
+    (lowIn : ∀ i, low = some i → i.val < context.lengths.val.length)
+    (highIn : ∀ j, high = some j → j.val < context.lengths.val.length)
+    (lowHeld : ∀ i, low = some i → J.classes (lengthClass i) d)
+    (highFailed : ∀ j, high = some j → ¬ J.classes (lengthClass j) d)
+    (slotIs : ∀ m, m ∈ LengthSlot context J d ↔ lo ≤ m ∧ m < hi)
+    (counted : FamilyCounted N kind below octets first last lo hi)
+    (nodeKind : Used context.kinds kind = true ∧ J.classes (kindClass kind) d)
+    (nodeBelow : ∀ b, below = some b → Used context.kinds b = true ∧ ¬ J.classes (kindClass b) d)
+    (family : ∀ x : Written, x.Ok → x.In kind → (∀ b, below = some b → ¬ x.In b) → InFamily context J d x)
+    (fact : Rowl.DataLengths.SizedFact context capacity J kind below octets first last low high lo hi)
+    (runs : BoundsRuns context) :
+    0 < (okSet (writtenSet context J d)).ncard ∧
+      ∀ z, (peers context J order atoms z d).length ≤ (okSet (writtenSet context J d)).ncard := by
+  obtain ⟨finite, card⟩ := written_card N setting numeric notBool counted nodeKind nodeBelow family slotIs
+  rw [written_set_ok, card]
+  have inSized : Rowl.DataLengths.InSized J kind below low high d :=
+    ⟨nodeKind.2, fun b hb => (nodeBelow b hb).2, lowHeld, highFailed⟩
+  have literal : ∀ e, Rowl.DataLengths.SizedNamed context J kind below lo hi e → LiteralNode context J e :=
+    fun e ⟨i, hi, _, same⟩ => ⟨i, hi, same⟩
+  by_cases small : Rowl.DataLengths.sizedTotal octets first last lo hi ≤
+      capacity + Rowl.DataLengths.sizedNamedCount context.values.val kind below lo hi
+  · have pos : 0 < Rowl.DataLengths.sizedFree context kind below octets first last lo hi := by
+      by_contra zero
+      exact notLiteral (literal d ((fact small).1 (by omega) d inSized))
+    refine ⟨pos, fun z => ?_⟩
+    obtain ⟨x, hx⟩ : (writtenSet context J d).Nonempty := by
+      rw [← Set.ncard_pos finite, card]
+      exact pos
+    have each : ∀ e ∈ peers context J order atoms z d, J.objectProperties dataSuper z e ∧
+        Rowl.DataLengths.InSized J kind below low high e ∧ ¬ Rowl.DataLengths.SizedNamed context J kind below lo hi e := by
+      intro e mem
+      obtain ⟨_, succ, notLit, regionE⟩ := mem_peers.mp mem
+      rw [region] at regionE
+      obtain ⟨_, _, same⟩ := region_written regionE
+      exact ⟨successor_super setting runs succ,
+        sized_transfer nodeKind.1 (fun b hb => (nodeBelow b hb).1) lowIn highIn hx (same ▸ hx) inSized,
+        fun named => notLit (literal e named)⟩
+    exact atMost_length ((fact small).2 pos z (setting.thing z)) (List.nodup_dedup _) each
+  · refine ⟨by unfold Rowl.DataLengths.sizedFree; omega, fun z => ?_⟩
+    have := peers_length (context := context) (J := J) (order := order) (atoms := atoms) z d
+    have := witness_list_length (context := context) (J := J) (atoms := atoms) z
+    unfold Rowl.DataLengths.sizedFree
+    omega
+
+/-- A node with the length facets that is no literal value's individual has
+    values of its own, enough for its peers: infinitely many, or, in a bounded
+    slot of lengths, as many as the axiom on its kind and slot allows. -/
+theorem written_room (N : Normative D) (setting : Setting context capacity bits order J)
+    (count : atomCount atoms ≤ capacity) {d : Object'} (notLiteral : ¬ LiteralNode context J d)
+    (numeric : ¬ NumericNode context J d) (written : WrittenNode context J d)
+    (region : regionOf context J order d = .written (writtenSet context J d)) :
+    (okSet (writtenSet context J d)).Infinite ∨
+      (context.lengths.val ≠ [] ∧ 0 < (okSet (writtenSet context J d)).ncard ∧
+        ∀ z, (peers context J order atoms z d).length ≤ (okSet (writtenSet context J d)).ncard) := by
+  have notBool := not_boolean_region setting notLiteral
+  obtain ⟨low, high, lo, hi, lowIs, lowNone, highIs, lowHeld, highFailed, slotIff, facts⟩ := node_lengths setting d
+  have loIn : lo ∈ LengthSlot context J d := (slotIff lo).mpr ⟨le_rfl, fun ne => (facts ne).1⟩
+  by_cases plain : ¬ InUse context J .String d ∧ InUse context J .Plain d
+  · exact .inl (written_infinite setting numeric notBool (f := fun n => .tagged (aText lo) (privateTag n))
+      (fun a b same => privateTag_injective (by simpa using same))
+      (fun n => ⟨⟨aText_xml lo, privateTag_value n⟩, plain, lo, loIn, aText_length lo⟩))
+  have lowIn : ∀ i, low = some i → i.val < context.lengths.val.length := fun i hi => (lowIs i hi).1
+  have highIn : ∀ j, high = some j → j.val < context.lengths.val.length := fun j hj => (highIs j hj).1
+  by_cases top : high = none
+  · left
+    have slotTop : ∀ m, lo ≤ m → m ∈ LengthSlot context J d := fun m le =>
+      (slotIff m).mpr ⟨le, fun ne => absurd top ne⟩
+    by_cases hs : InUse context J .String d
+    · have level := (stringLevel context J d).isLt
+      refine written_infinite setting numeric notBool
+        (f := fun n => .text (Rowl.Strings.stringAt (stringLevel context J d).val (lo + n))) (fun a b same => ?_)
+        (fun n => ⟨Rowl.Strings.stringAt_xml level _, ⟨hs, Rowl.Strings.stringAt_in level _, fun lt form => ?_⟩, _,
+          slotTop _ (le_trans (by omega) (stringAt_length level (lo + n))), stringAt_text_length level _⟩)
+      · simp only [Written.text.injEq] at same
+        have := (Rowl.Strings.stringAt_injective level level same).2
+        omega
+      · have := (Rowl.Strings.stringAt_form level lt _).mp form
+        have ge := Rowl.DataLengths.nextRank_ge context.kinds ((stringLevel context J d).val + 1)
+        omega
+    have hp : ¬ InUse context J .Plain d := fun h => plain ⟨hs, h⟩
+    by_cases hu : InUse context J .AnyUri d
+    · refine written_infinite setting numeric notBool (f := fun n => .uri (aText (lo + n))) (fun a b same => ?_)
+        (fun n => ⟨aText_xml _, ⟨hs, hp, hu⟩, _, slotTop _ (by omega), aText_length _⟩)
+      simp only [Written.uri.injEq] at same
+      have := aText_injective same
+      omega
+    by_cases hh : InUse context J .HexBinary d
+    · refine written_infinite setting numeric notBool (f := fun n => .hex (List.replicate (lo + n) 0#u8))
+        (fun a b same => ?_) (fun n => ⟨trivial, ⟨hs, hp, hu, hh⟩, _, slotTop (lo + n) (by omega), by
+          simp [Written.Length]⟩)
+      simp only [Written.hex.injEq] at same
+      have := congrArg List.length same
+      simp at this
+      omega
+    have hb : InUse context J .Base64Binary d := by
+      rcases written with h | h | h | h | h
+      exacts [absurd h hs, absurd h hp, absurd h hu, absurd h hh, h]
+    refine written_infinite setting numeric notBool (f := fun n => .base64 (List.replicate (lo + n) 0#u8))
+      (fun a b same => ?_) (fun n => ⟨trivial, ⟨hs, hp, hu, hh, hb⟩, _, slotTop (lo + n) (by omega), by
+        simp [Written.Length]⟩)
+    simp only [Written.base64.injEq] at same
+    have := congrArg List.length same
+    simp at this
+    omega
+  · right
+    obtain ⟨_, slots⟩ := facts top
+    have slotIs : ∀ m, m ∈ LengthSlot context J d ↔ lo ≤ m ∧ m < hi := fun m =>
+      (slotIff m).trans ⟨fun ⟨a, b⟩ => ⟨a, b top⟩, fun ⟨a, b⟩ => ⟨a, fun _ => b⟩⟩
+    have nonempty : context.lengths.val ≠ [] := by
+      obtain ⟨j, hj⟩ := Option.ne_none_iff_exists'.mp top
+      have := highIn j hj
+      intro e
+      rw [e] at this
+      simp at this
+    have runs : BoundsRuns context := .inr (.inr (.inr (.inr nonempty)))
+    refine ⟨nonempty, ?_⟩
+    by_cases hs : InUse context J .String d
+    · have level := (stringLevel context J d).isLt
+      obtain ⟨usedL, holdsL⟩ := stringLevel_holds hs
+      have usedR : Used context.kinds (Rowl.DataLengths.rankKind (stringLevel context J d).val) = true := by
+        rw [rank_kind_chain]; exact usedL
+      refine bounded_room N setting count notLiteral numeric notBool region lowIn highIn lowHeld highFailed slotIs
+        (ranked_counted N context.kinds level lo hi) ⟨usedR, by rw [rank_kind_chain]; exact holdsL⟩
+        (fun b hb => ?_) (fun x ok inK outB => ?_) (slots.1 _ (Nat.zero_le _) level usedR) runs
+      · unfold Rowl.DataLengths.belowKind at hb
+        split_ifs at hb with lt7
+        cases hb
+        have usedN := Rowl.DataLengths.nextRank_used context.kinds ((stringLevel context J d).val + 1) lt7
+        rw [rank_kind_chain] at usedN ⊢
+        refine ⟨usedN, fun h => ?_⟩
+        have := (chain_profile setting.frame.kinds hs lt7 usedN).mp h
+        have ge := Rowl.DataLengths.nextRank_ge context.kinds ((stringLevel context J d).val + 1)
+        omega
+      · rw [rank_kind_chain] at inK
+        have notW := chain_not_written (stringLevel context J d).val
+        cases x with
+        | text t =>
+          refine ⟨hs, ?_, fun lt7 form => ?_⟩
+          · rcases Nat.eq_zero_or_pos (stringLevel context J d).val with zero | pos
+            · rw [zero]; exact ok
+            · exact (chain_textIn pos level t).mp inK
+          · apply outB (Rowl.DataLengths.rankKind
+              (Rowl.DataLengths.nextRank context.kinds ((stringLevel context J d).val + 1)))
+              (by simp [Rowl.DataLengths.belowKind, lt7])
+            rw [rank_kind_chain]
+            have ge := Rowl.DataLengths.nextRank_ge context.kinds ((stringLevel context J d).val + 1)
+            exact (chain_textIn (by omega) lt7 t).mpr form
+        | tagged t l => exact absurd inK notW.1
+        | uri t => exact absurd inK notW.2.1
+        | hex o => exact absurd inK notW.2.2.1
+        | base64 o => exact absurd inK notW.2.2.2
+    have hp : ¬ InUse context J .Plain d := fun h => plain ⟨hs, h⟩
+    by_cases hu : InUse context J .AnyUri d
+    · exact bounded_room N setting count notLiteral numeric notBool region lowIn highIn lowHeld highFailed slotIs
+        (kind := .AnyUri) (below := none) (uri_counted N lo hi) hu (fun b hb => nomatch hb)
+        (fun x ok inK _ => by
+          cases x with
+          | uri t => exact ⟨hs, hp, hu⟩
+          | _ => simp [Written.In, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf] at inK)
+        (slots.2.1 hu.1) runs
+    by_cases hh : InUse context J .HexBinary d
+    · exact bounded_room N setting count notLiteral numeric notBool region lowIn highIn lowHeld highFailed slotIs
+        (kind := .HexBinary) (below := none) (octets_counted N true lo hi) hh (fun b hb => nomatch hb)
+        (fun x ok inK _ => by
+          cases x with
+          | hex o => exact ⟨hs, hp, hu, hh⟩
+          | _ => simp [Written.In, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf] at inK)
+        (slots.2.2.1 hh.1) runs
+    have hb : InUse context J .Base64Binary d := by
+      rcases written with h | h | h | h | h
+      exacts [absurd h hs, absurd h hp, absurd h hu, absurd h hh, h]
+    exact bounded_room N setting count notLiteral numeric notBool region lowIn highIn lowHeld highFailed slotIs
+      (kind := .Base64Binary) (below := none) (octets_counted N false lo hi) hb (fun b hb => nomatch hb)
+      (fun x ok inK _ => by
+        cases x with
+        | base64 o => exact ⟨hs, hp, hu, hh, hb⟩
+        | _ => simp [Written.In, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf] at inK)
+      (slots.2.2.2 hb.1) runs
 
 /-- The index of the value of a node that is placed for an element is one its
     region has a value for. -/
@@ -2921,7 +3669,7 @@ theorem placed_valid (setting : Setting context capacity bits order J) (count : 
       rw [region_numeric numeric, level]
       exact ⟨Nat.zero_le _, .inr (lt_of_lt_of_le idx bound)⟩
     · rcases other_region (context := context) (J := J) (order := order) numericNode with
-        inf | ⟨dbl, region, inUse⟩ | ⟨st, region⟩
+        inf | ⟨dbl, region, inUse⟩ | ⟨st, region⟩ | ⟨written, region⟩
       · exact absurd inf infinite
       · have bound := binary_peers_bound setting count notLiteral inUse region (z := z)
         rw [shiftOk (float_blocked inUse) z, zero_add, region]
@@ -2932,8 +3680,13 @@ theorem placed_valid (setting : Setting context capacity bits order J) (count : 
           rw [region] at infinite; exact infinite
         obtain ⟨_, _, _, _, _, _, _, _, _, nonempty⟩ := moment_point setting region finite
         have bound := moment_peers_bound setting count notLiteral region finite (z := z)
-        rw [shiftOk (.inr (.inr (.inr nonempty))) z, zero_add, region]
+        rw [shiftOk (.inr (.inr (.inr (.inl nonempty)))) z, zero_add, region]
         exact .inr (lt_of_lt_of_le idx bound)
+      · rcases written_room N setting count notLiteral numericNode written region with inf | ⟨nonempty, _, bound⟩
+        · rw [region] at infinite
+          exact absurd inf infinite
+        · rw [shiftOk (.inr (.inr (.inr (.inr nonempty)))) z, zero_add, region]
+          exact .inr (lt_of_lt_of_le idx (bound z))
 
 /-- The first index of a node's region is one it has a value for. -/
 theorem alone_valid (setting : Setting context capacity bits order J) {d : Object'}
@@ -2946,7 +3699,7 @@ theorem alone_valid (setting : Setting context capacity bits order J) {d : Objec
     by_cases numericNode : NumericNode context J d
     swap
     · rcases other_region (context := context) (J := J) (order := order) numericNode with
-        inf | ⟨dbl, region, inUse⟩ | ⟨st, region⟩
+        inf | ⟨dbl, region, inUse⟩ | ⟨st, region⟩ | ⟨written, region⟩
       · exact absurd inf infinite
       · rw [region]
         show 0 < _
@@ -2956,6 +3709,12 @@ theorem alone_valid (setting : Setting context capacity bits order J) {d : Objec
           rw [region] at infinite; exact infinite
         rw [region]
         exact .inr (moment_free_pos setting notLiteral region finite)
+      · rcases written_room (atoms := []) N setting (Nat.zero_le _) notLiteral numericNode written region with
+          inf | ⟨_, pos, _⟩
+        · rw [region] at infinite
+          exact absurd inf infinite
+        · rw [region]
+          exact .inr pos
     obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral numericNode infinite
     have integer : Used context.kinds .Integer = true := (level_zero level).1
     have gap := run_gap setting ordered pos inside (not_point setting ordered notLiteral pos inside) integer
@@ -3043,7 +3802,7 @@ theorem region_not_literal (setting : Setting context capacity bits order J) {d 
       exact mem.2.2 ⟨val, member, number, N.real_injective same⟩
     · exact real_ne_value N (setting.good.1.1 val member) number _ same
   · rcases other_region (context := context) (J := J) (order := order) numeric with
-      infinite | ⟨dbl, region, inUse⟩ | ⟨st, region⟩
+      infinite | ⟨dbl, region, inUse⟩ | ⟨st, region⟩ | ⟨written, region⟩
     · intro same
       exact region_start_spec context N order _ infinite _ (Nat.le_add_right _ _) ⟨val, member, same⟩
     · have finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val)
@@ -3069,6 +3828,11 @@ theorem region_not_literal (setting : Setting context capacity bits order J) {d 
           pick_mem _ _ _ valid
         obtain ⟨y, rfl, at_y⟩ := moment_of_value N (setting.good.1.1 _ member) mem.2.1 same
         exact mem.1.2 ⟨y, member, at_y⟩
+    · rw [region] at valid ⊢
+      intro same
+      simp only [regionValue, litValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      have inS : writtenAt (writtenSet context J d) _ ∈ okSet (writtenSet context J d) := pick_mem _ _ _ valid
+      exact inS.1.2.2.2 ⟨val, member, written_lit N (setting.good.1.1 val member) inS.2 same⟩
 
 /-- Whether a real of an interval is in a cut: exactly for the cuts before the
     interval. -/
@@ -3107,7 +3871,7 @@ theorem realValue_injective (N : Normative D) : Function.Injective (realValue.{v
 theorem value_node (setting : Setting context capacity bits order J) (o : Element J) {d : Object'} {n : ℕ}
     (valid : ¬ LiteralNode context J d → Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n)) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) d
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) d
       (valueAt.{u,v,w,x} context J N order d n) where
   kinds := fun k used => by
     rw [sound_types]
@@ -3121,7 +3885,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       by_cases numeric : NumericNode context J d
       · rw [region_numeric numeric] at v ⊢
         exact number_profile setting.frame.kinds numeric (enumerate_mem _ _ v.2).2.1 k used
-      · exact text_profile order setting.frame.kinds numeric (not_boolean_region setting ld) _ _ _ k used
+      · exact text_profile order setting.frame.kinds numeric (not_boolean_region setting ld) _ _ _ v k used
   values := fun i h => by
     by_cases ld : LiteralNode context J d
     · obtain ⟨i0, h0, rfl⟩ := ld
@@ -3190,10 +3954,8 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
           simp only [numeric, ↓reduceIte] at same
           split_ifs at same <;> simp only [regionValue, realValue, embedValue, ULift.up.injEq, Sum.inl.injEq,
             reduceCtorEq] at same
-          · exact absurd same.symm (N.real_text r _ (Rowl.Strings.stringAt_xml (stringLevel context J d).isLt _))
-          · exact absurd same.symm (N.real_tagged r _ _ (aText_xml _) enTag_value)
           all_goals first
-            | exact absurd same.symm (N.real_coded r _ (sequence_valid _ _))
+            | exact absurd same.symm (real_written N r (writtenAt_ok _ _))
             | exact absurd same.symm (N.real_moment r _ (momentIn_valid _ _ _).1)
             | exact absurd same.symm (real_format N r _ (binaryAt_valid _ _ _ _ _))
   edges := fun double b hb e he => by
@@ -3234,22 +3996,16 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       | number p ℓ =>
         rw [hr] at inKind
         cases double <;> simp [RegionIn, floatKind, Rowl.Datatypes.IsNumeric] at inKind
-      | string ℓ =>
+      | written S =>
         rw [hr] at inKind
-        cases double <;> simp [RegionIn, floatKind, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf] at inKind
-      | tagged =>
-        rw [hr] at inKind
-        cases double <;> simp [RegionIn, floatKind] at inKind
-      | coded s' =>
-        rw [hr] at inKind
-        cases double <;> cases s' <;> simp [RegionIn, floatKind, sequenceKind] at inKind
+        exact absurd inKind (written_not_float _ double)
       | moment st S =>
         rw [hr] at inKind
         cases double <;> simp [RegionIn, floatKind] at inKind
       | other =>
         rw [hr] at inKind
         exact inKind.elim
-  goodTimes := ⟨setting.good.2.2.2.2.2.1, setting.good.2.2.2.2.2.2⟩
+  goodTimes := ⟨setting.good.2.2.2.2.2.1, setting.good.2.2.2.2.2.2.1⟩
   times := fun m hm i h zone => by
     obtain ⟨vm, same⟩ := hm
     by_cases ld : LiteralNode context J d
@@ -3257,7 +4013,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       rw [literal_value_at setting i0 h0 n] at same
       obtain ⟨y, at_y, rfl⟩ := moment_of_value N (setting.good.1.1 _ (List.getElem_mem h0)) vm
         (embedValue_injective same).symm
-      exact (setting.frame.values i0 h0).2.2.2.2.2 y at_y i h (by rw [zone, momentOf_zoned])
+      exact (setting.frame.values i0 h0).2.2.2.2.2.1 y at_y i h (by rw [zone, momentOf_zoned])
     · have v := valid ld
       rw [region_value_at d ld] at same
       cases hr : regionOf context J order d with
@@ -3273,18 +4029,10 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
         rw [hr] at same
         simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
         exact absurd same (N.real_moment _ _ vm)
-      | string ℓ =>
+      | written S =>
         rw [hr] at same
         simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-        exact absurd same (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ.isLt _) vm)
-      | tagged =>
-        rw [hr] at same
-        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-        exact absurd same (N.tagged_moment _ _ _ (aText_xml _) enTag_value vm)
-      | coded s' =>
-        rw [hr] at same
-        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-        exact absurd same (N.coded_moment _ _ (sequence_valid _ _) vm)
+        exact absurd same (written_moment N (writtenAt_ok _ _) vm)
       | binary dbl A lo hi =>
         rw [hr] at same
         simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
@@ -3292,6 +4040,51 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       | other =>
         rw [hr] at same
         simp [regionValue, momentValue, embedValue] at same
+
+  lengths := fun m hm i h => by
+    obtain ⟨y, hy, same⟩ := hm
+    by_cases ld : LiteralNode context J d
+    · obtain ⟨i0, h0, rfl⟩ := ld
+      rw [literal_value_at setting i0 h0 n] at same
+      have canonical := setting.good.1.1 _ (List.getElem_mem h0)
+      have e := embedValue_injective same
+      subst e
+      exact (setting.frame.values i0 h0).2.2.2.2.2.2 m ((native_lit N canonical m).mp hy) i h
+    · have v := valid ld
+      rw [region_value_at d ld] at same
+      cases hr : regionOf context J order d with
+      | written S =>
+        rw [hr] at same v
+        simp only [regionValue] at same
+        have e := embedValue_injective same
+        subst e
+        obtain ⟨_, _, rfl⟩ := region_written hr
+        have inS : writtenAt (writtenSet context J d) _ ∈ okSet (writtenSet context J d) := pick_mem _ _ _ v
+        obtain ⟨_, _, ⟨m', slot, len'⟩, _⟩ := inS.1
+        have := written_length_unique len' ((written_length N inS.2 m).mp hy)
+        subst this
+        exact slot i h
+      | number p ℓ =>
+        rw [hr] at same
+        simp only [regionValue] at same
+        have e := embedValue_injective same
+        subst e
+        exact absurd hy (real_no_length N _ m)
+      | moment st S =>
+        rw [hr] at same
+        simp only [regionValue] at same
+        have e := embedValue_injective same
+        subst e
+        exact absurd hy (moment_no_length N (momentIn_valid st S _).1 m)
+      | binary dbl A lo hi =>
+        rw [hr] at same
+        simp only [regionValue] at same
+        have e := embedValue_injective same
+        subst e
+        exact absurd hy (format_no_length N dbl (binaryAt_valid _ _ _ _ _) m)
+      | other =>
+        rw [hr] at same
+        simp [regionValue, embedValue] at same
 
 theorem peers_same {z d d' : Object'} (same : regionOf context J order d = regionOf context J order d') :
     peers context J order atoms z d = peers context J order atoms z d' := by
@@ -3327,7 +4120,7 @@ theorem nodeValue_injective (setting : Setting context capacity bits order J) (c
       obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d)
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d')
-        binary_coherent moment_coherent same
+        binary_coherent moment_coherent written_coherent same
       rw [sameRegion] at sameIndex
       rw [peers_same sameRegion] at sameIndex
       have index : (peers context J order atoms z d').idxOf d = (peers context J order atoms z d').idxOf d' := by
@@ -3379,14 +4172,14 @@ theorem nodeValue_shared (setting : Setting context capacity bits order J) (coun
       obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d)
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d')
-        binary_coherent moment_coherent same
+        binary_coherent moment_coherent written_coherent same
       rw [sameRegion] at sameIndex
       exact absurd (by omega) distinct
 
 /-- Each data node an element has a value at stands for it. -/
 theorem place_node (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) {z d : Object'} (placed : ValuedNode context J atoms z d) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) d
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) d
       (nodeValue.{u,v,w,x} context J N order atoms shift z d) :=
   value_node setting o (fun ld => placed_valid setting count shiftOk ld (placed.resolve_left ld).1
     (placed.resolve_left ld).2)
@@ -3439,7 +4232,7 @@ theorem sound_literal (o : Element J) {lt : Literal} {val : datatypes.DataValue}
   simp only [sound, litValue, value]
 
 theorem sound_range_frame (setting : Setting context capacity bits order J) (o : Element J) :
-    RangeFrame (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) where
+    RangeFrame (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) where
   literal := fun _ => .inl rfl
   thing := setting.thing
   literals := fun _ _ run => sound_literal o run
@@ -3558,6 +4351,49 @@ theorem sound_range_frame (setting : Setting context capacity bits order J) (o :
     · exact N.moment_double m _ vm vb this
   momentInjective := fun m m' x hm hm' =>
     N.moment_injective _ _ hm.1 hm'.1 (embedValue_injective (hm.2.symm.trans hm'.2))
+  sizeUnique := fun x m m' h h' => by
+    obtain ⟨y, hy, rfl⟩ := h
+    obtain ⟨y', hy', same⟩ := h'
+    rw [embedValue_injective same] at hy'
+    exact native_length_unique N hy hy'
+  sizeLits := fun w cw m => by
+    constructor
+    · rintro ⟨y, hy, same⟩
+      rw [embedValue_injective same] at hy
+      exact (native_lit N cw m).mp hy
+    · intro h
+      exact ⟨_, (native_lit N cw m).mpr h, rfl⟩
+  sized := fun k x len inK => by
+    rw [sound_types] at inK
+    obtain ⟨y, inside, rfl⟩ := inK
+    obtain ⟨m, hm⟩ := native_sized N len inside
+    exact ⟨m, y, hm, rfl⟩
+  sizedKinds := fun x m hs k inK => by
+    rw [sound_types] at inK
+    obtain ⟨y', inside, rfl⟩ := inK
+    obtain ⟨y, hy, same⟩ := hs
+    rw [embedValue_injective same] at hy
+    exact native_kind N hy inside
+  lengthFacets := fun f F w n facet run number bound x => by
+    obtain ⟨r, run', facts, _⟩ := Rowl.Datatypes.literal_value_correct f.value
+    rw [run] at run'
+    cases Result.ok_injective run'
+    obtain ⟨_, _, _, _, rest⟩ := facts w rfl
+    obtain ⟨_, _, value⟩ := rest D N
+    have lexValue : D.lexicalValue f.value.datatype f.value.lexical.val = N.real (n : ℕ) := by
+      rw [value, Rowl.Datatypes.valueOf_number N number, bound]
+      simp
+    have isLength := Rowl.Datatypes.lengthFacetOf_some facet
+    have member := Rowl.Datatypes.lengthFacetIri_mem F
+    simp only [sound]
+    rw [lexValue]
+    simp only [N.length_value f.facet (isLength ▸ member)]
+    simp only [isLength, Rowl.Datatypes.lengthFacet_iff]
+    constructor
+    · rintro ⟨y, ⟨m, holds, shape⟩, rfl⟩
+      exact ⟨m, holds, y, shape, rfl⟩
+    · rintro ⟨m, holds, y, shape, rfl⟩
+      exact ⟨y, ⟨m, holds, shape⟩, rfl⟩
 
 theorem sound_atom (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) {p : DataProperty} {range : Option DataRange} {n : Nat} (member : (p, range, n) ∈ atoms)
@@ -3574,7 +4410,7 @@ theorem sound_atom (setting : Setting context capacity bits order J) (count : at
     rcases optional_range_meaning.{u,max v w,u,x} context range filler fillerRun with
       ⟨rfl, rfl⟩ | ⟨r, c, rfl, rfl, means⟩
     · simp [RangeHolds, Rowl.Concepts.FillerHolds]
-    · exact means _ J (litValue N) (realValue N) (momentValue N) (sound_range_frame setting o) d _
+    · exact means _ J (litValue N) (realValue N) (momentValue N) (soundSize N) (sound_range_frame setting o) d _
         (place_node setting count shiftOk o placed)
   constructor
   · rintro ⟨f, fInj, each⟩
@@ -3628,7 +4464,7 @@ theorem sound_simulates (setting : Setting context capacity bits order J) (count
 
 theorem sound_placed (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) :
-    Placed context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (litValue N) (realValue N) (momentValue N)
+    Placed context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (litValue N) (realValue N) (momentValue N) (soundSize N)
       (fun z y d => Place.{u,v,w,x} context J N order atoms shift z.1 y d) where
   functional := fun z _ d d' pl pl' =>
     nodeValue_injective setting count shiftOk z.1 pl.1 pl'.1 (pl.2.trans pl'.2.symm)
@@ -3706,7 +4542,7 @@ theorem sound_satisfies (N : Normative D) {context : data_ontology.Context} (goo
     ⟨good, frame, enough, sorted, fine, valuesCut, jThing, jTop, jBottom⟩
   refine ⟨bits, order, o, setting, names, fun atoms covers count => ?_⟩
   exact (means.1 (sound.{u,v,w,x} context J N order atoms (fun _ => 0) o) J Subtype.val (Known J) atoms (litValue N)
-    (realValue N) (momentValue N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)
+    (realValue N) (momentValue N) (soundSize N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)
     (sound_range_frame setting o)
     (fun item mem a inside => covers a (List.mem_flatMap.mpr ⟨item, mem, inside⟩)) names).1 newHolds
 
@@ -3747,17 +4583,18 @@ theorem filler_anonymous (N : Normative D) (g : AnonymousIndividual → Object')
     have node := value_node (N := N) (atoms := []) (shift := fun _ => 0) (n := 0) setting o (d := d)
       (fun ld => alone_valid setting ld)
     have frame0 : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) (withAnonymous J g)
-        (litValue N) (realValue N) (momentValue N) := sound_range_frame (shift := fun _ => 0) setting o
+        (litValue N) (realValue N) (momentValue N) (soundSize N) := sound_range_frame (shift := fun _ => 0) setting o
     have frameJ : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
-        (realValue N) (momentValue N) :=
+        (realValue N) (momentValue N) (soundSize N) :=
       ⟨frame0.literal, frame0.thing, frame0.literals, frame0.injective, frame0.numbers, frame0.numeric,
         frame0.facets, frame0.binaries, frame0.binaryFacets, frame0.binaryReal, frame0.binaryApart,
         frame0.binaryInjective, frame0.moments, frame0.stamps, frame0.momentLits, frame0.momentFacets,
-        frame0.momentReal, frame0.momentBinary, frame0.momentInjective⟩
+        frame0.momentReal, frame0.momentBinary, frame0.momentInjective, frame0.sizeUnique, frame0.sizeLits,
+        frame0.sized, frame0.sizedKinds, frame0.lengthFacets⟩
     have nodeJ : NodeValue context (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
-        (realValue N) (momentValue N) d (valueAt.{u,0,w,x} context (withAnonymous J g) N order d 0) :=
-      ⟨node.kinds, node.values, node.cuts, node.edges, node.goodTimes, node.times⟩
-    exact (means _ _ _ _ _ frame0 d _ node).symm.trans (means _ J _ _ _ frameJ d _ nodeJ)
+        (realValue N) (momentValue N) (soundSize N) d (valueAt.{u,0,w,x} context (withAnonymous J g) N order d 0) :=
+      ⟨node.kinds, node.values, node.cuts, node.edges, node.goodTimes, node.times, node.lengths⟩
+    exact (means _ _ _ _ _ _ frame0 d _ node).symm.trans (means _ J _ _ _ _ frameJ d _ nodeJ)
 
 /-- A correspondence with an interpretation of the encoding with other
     anonymous individuals is one with the interpretation itself, for the

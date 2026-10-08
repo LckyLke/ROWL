@@ -168,6 +168,14 @@ pub enum Facet {
     MaxExclusive,
 }
 
+/// The length facets.
+#[derive(Clone, Copy)]
+pub enum LengthFacet {
+    Length,
+    MinLength,
+    MaxLength,
+}
+
 fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
     if index < key.len() {
         key[index] == pattern[index] && equal_from(key, pattern, index + 1)
@@ -1405,6 +1413,20 @@ pub fn facet_of(iri: &Iri) -> Option<Facet> {
         Some(Facet::MinExclusive)
     } else if same_pattern(spelling, b"http://www.w3.org/2001/XMLSchema#maxExclusive") {
         Some(Facet::MaxExclusive)
+    } else {
+        None
+    }
+}
+/// The length facet an IRI names, if it is one of `xsd:length`,
+/// `xsd:minLength` and `xsd:maxLength`.
+pub fn length_facet_of(iri: &Iri) -> Option<LengthFacet> {
+    let spelling = &iri.spelling;
+    if same_pattern(spelling, b"http://www.w3.org/2001/XMLSchema#length") {
+        Some(LengthFacet::Length)
+    } else if same_pattern(spelling, b"http://www.w3.org/2001/XMLSchema#minLength") {
+        Some(LengthFacet::MinLength)
+    } else if same_pattern(spelling, b"http://www.w3.org/2001/XMLSchema#maxLength") {
+        Some(LengthFacet::MaxLength)
     } else {
         None
     }

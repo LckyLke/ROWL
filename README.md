@@ -336,8 +336,8 @@ properties:
 - **Keys:** `HasKey` with object and data properties: two named patients
   with the same `:ssn` value are the same patient.
 - **Not yet:** keys with data properties next to datatype restrictions,
-  subtypes of `xsd:integer`, floating-point numbers or range facets on time
-  instants, `owl:topDataProperty`
+  subtypes of `xsd:integer`, floating-point numbers, range facets on time
+  instants or length facets, `owl:topDataProperty`
   other than as a superproperty, and a few corner cases that
   [docs/status.md](docs/status.md) lists. They are answered "unknown".
 
@@ -372,8 +372,15 @@ properties:
   `xsd:dateTime[>= "2024-01-01T00:00:00Z"]` holds `2024-01-01T14:00:01` but
   not `2024-01-01T13:59:59`, and the values at one instant are counted: one
   for each offset from -14:00 to +14:00 with a time zone, and one without.
-- **Not yet:** `rdf:XMLLiteral`, and the other facets (such as `xsd:length`,
-  `xsd:pattern` and `rdf:langRange`).
+- **Length facets:** `xsd:length`, `xsd:minLength` and `xsd:maxLength` on
+  `xsd:string` and its subtypes, `rdf:PlainLiteral`, `xsd:anyURI`,
+  `xsd:hexBinary` and `xsd:base64Binary`. A string's length is its number of
+  characters (`"äöü"` has three), binary data's its number of octets, and the
+  values of each length are counted exactly: an element can speak at most 52
+  `xsd:language` tags of one letter, and only three strings of one character
+  are no `xsd:normalizedString` (tab, line feed and carriage return).
+- **Not yet:** `rdf:XMLLiteral`, and the facets `xsd:pattern` and
+  `rdf:langRange`.
 
 ### Questions
 
@@ -457,7 +464,7 @@ Measured on a shared development machine; the
 ```sh
 python3 scripts/bootstrap.py   # pinned Rust, Lean 4 and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace         # 687 Rust regression tests
+cargo test --workspace         # 699 Rust regression tests
 python3 scripts/verify.py      # translate the Rust code again, rebuild every proof, audit the axioms
 ```
 

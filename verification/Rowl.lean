@@ -194,6 +194,9 @@ import Rowl.Moments
 import Rowl.TimeOrder
 import Rowl.Floats
 import Rowl.FloatOrder
+import Rowl.WordCounts
+import Rowl.StringCounts
+import Rowl.LengthCounts
 import Rowl.Datatypes
 import Rowl.Regions
 import Rowl.DataEncoding
@@ -202,6 +205,7 @@ import Rowl.DataAxioms
 import Rowl.DataRegions
 import Rowl.DataEdges
 import Rowl.DataTimes
+import Rowl.DataLengths
 import Rowl.DataReals
 import Rowl.DataStructure
 import Rowl.DataComplete

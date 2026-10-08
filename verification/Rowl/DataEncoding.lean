@@ -1,4 +1,5 @@
 import Rowl.Datatypes
+import Rowl.LengthCounts
 import Rowl.TimeOrder
 import Rowl.Regions
 import Rowl.AlcOntology
@@ -289,6 +290,9 @@ def superName : List U8 := [0#u8, 85#u8]
 
 /-- The name of the class of the values of the time cut at an index. -/
 def timeName (index : Nat) : List U8 := 0#u8 :: 84#u8 :: eightBytes index 8
+/-- The name of the class of the values with at least the length at an
+    index. -/
+def lengthName (index : Nat) : List U8 := 0#u8 :: 83#u8 :: eightBytes index 8
 def edgeName (double : Bool) (index : Nat) : List U8 :=
   0#u8 :: 70#u8 :: (if double then 1#u8 else 0#u8) :: eightBytes index 8
 
@@ -412,6 +416,25 @@ theorem time_class_eq (index : Usize) : data_ontology.time_class index = .ok (.C
 
 theorem timeClass_name (index : Usize) : (timeClass index).iri.spelling.val = timeName index.val :=
   (Classical.choose_spec (time_class_correct index)).2
+
+theorem length_class_correct (index : Usize) :
+    ∃ c : Class, data_ontology.length_class index = .ok (.Class c) ∧ c.iri.spelling.val = lengthName index.val := by
+  obtain ⟨b, bytesRun, bytesValue⟩ := bytes_correct index 0#usize (alloc.vec.Vec.new U8) (by simp)
+    (by simp [new_val]; scalar_tac)
+  obtain ⟨v, run, value⟩ := tagged_name_correct 83#u8 b
+    (by rw [bytesValue]; simp [new_val, eightBytes_length]; scalar_tac)
+  refine ⟨⟨⟨v⟩⟩, by simp [data_ontology.length_class, bytesRun, run, class_named_correct], ?_⟩
+  simp [value, bytesValue, new_val, lengthName]
+
+/-- The class of the values with at least the length at an index. -/
+noncomputable def lengthClass (index : Usize) : Class :=
+  Classical.choose (length_class_correct index)
+
+theorem length_class_eq (index : Usize) : data_ontology.length_class index = .ok (.Class (lengthClass index)) :=
+  (Classical.choose_spec (length_class_correct index)).1
+
+theorem lengthClass_name (index : Usize) : (lengthClass index).iri.spelling.val = lengthName index.val :=
+  (Classical.choose_spec (length_class_correct index)).2
 
 /-- The edges of a floating-point format in a context: of `xsd:double`
     (`double`) or of `xsd:float`. -/
@@ -566,16 +589,21 @@ def GoodCuts (cuts : List regions.Cut) : Prop :=
 def GoodTimes (times : List data_ontology.TimeCut) : Prop :=
   ∀ c ∈ times, Rowl.TimeOrder.InstantOk c.instant (Usize.max / 2)
 
+/-- Lengths up to `lengths::LENGTHS`, each once, none of them 0. -/
+def GoodLengths (lengths : List Usize) : Prop :=
+  (∀ t ∈ lengths, t.val ≤ Rowl.LengthCounts.lengthLimit) ∧ lengths.Nodup ∧ ∀ t ∈ lengths, 0 < t.val
+
 /-- A context whose literal values are canonical, each once, whose object
     properties are neither the encoding's nor the universal role, whose data
     properties are neither of the two built-in ones, whose cuts are of
-    canonical numbers, each once, and whose time cuts are at kernel
-    instants, with the time stamps in use when there are time cuts. -/
+    canonical numbers, each once, whose time cuts are at kernel
+    instants, with the time stamps in use when there are time cuts, and whose
+    lengths are up to `lengths::LENGTHS`, each once. -/
 def Good (context : data_ontology.Context) : Prop :=
   GoodValues context.values.val ∧ (∀ r ∈ context.roles.val, ¬ Reserved r.iri.spelling.val ∧ r ≠ topObject) ∧
     (∀ p ∈ context.data.val, p ≠ topData ∧ p ≠ bottomData) ∧ GoodCuts context.cuts.val ∧
     (context.kinds.ordered = true → context.kinds.real = true) ∧ GoodTimes context.times.val ∧
-    (context.times.val ≠ [] → context.kinds.stamp = true)
+    (context.times.val ≠ [] → context.kinds.stamp = true) ∧ GoodLengths context.lengths.val
 
 theorem value_index_correct (values : alloc.vec.Vec datatypes.DataValue) (value : datatypes.DataValue)
     (index : Usize) :
@@ -864,7 +892,7 @@ theorem kind_context_good (context : data_ontology.Context) (k : datatypes.Kind)
     cases k <;> simp [data_ontology.with_kind] at kindsRun <;> subst kindsRun <;> simp_all
   refine ⟨{ context with kinds := kinds, cuts := c2 }, by simp [kindsRun, loRun, run1, hiRun, run2],
     fun good => ⟨good.1, good.2.1, good.2.2.1, good2 (good1 good.2.2.2.1), keeps' good.2.2.2.2.1, good.2.2.2.2.2.1,
-      fun ne => stamps (good.2.2.2.2.2.2 ne)⟩, stamps⟩
+      fun ne => stamps (good.2.2.2.2.2.2.1 ne), good.2.2.2.2.2.2.2⟩, stamps⟩
 
 theorem facet_context_good (context : data_ontology.Context) (restriction : FacetRestriction) :
     ∃ r, data_ontology.facet_context context restriction = .ok r ∧ (Good context → Good r) := by
@@ -1191,7 +1219,8 @@ theorem time_context_good (context : data_ontology.Context) (good : Good context
         by_cases small : bound.year.val.length < Usize.max / 16
         · obtain ⟨r, rRun, rGood⟩ := time_facet_cuts_good context.times good.2.2.2.2.2.1 F bound canonical small
           exact ⟨{ context with times := r }, by simp [bounded_year_eq, small, rRun],
-            ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, good.2.2.2.2.1, rGood, fun _ => stamp⟩, stamp⟩
+            ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, good.2.2.2.2.1, rGood, fun _ => stamp,
+              good.2.2.2.2.2.2.2⟩, stamp⟩
         · exact ⟨context, by simp [bounded_year_eq, small], good, stamp⟩
       | _ => exact ⟨context, by simp, good, stamp⟩
 
@@ -1220,6 +1249,164 @@ theorem time_kind_eq (k : datatypes.Kind) :
 theorem binary_kind_eq (k : datatypes.Kind) :
     data_ontology.binary_kind k = .ok (decide (k = .Double ∨ k = .Float)) := by
   cases k <;> simp [data_ontology.binary_kind]
+
+/-! ### The lengths of a context -/
+
+theorem length_kind_eq (k : datatypes.Kind) :
+    data_ontology.length_kind k = .ok (decide (Rowl.Datatypes.LengthKind k)) := by
+  cases k <;> simp [data_ontology.length_kind, Rowl.Datatypes.LengthKind, decide_eq_true_eq, decide_eq_false_iff_not]
+
+theorem length_index_spec (lengths : alloc.vec.Vec Usize) (length index : Usize) :
+    ∃ r, data_ontology.length_index lengths length index = .ok r ∧
+      (∀ i, r = some i → index.val ≤ i.val ∧ ∃ h : i.val < lengths.val.length, lengths.val[i.val] = length) ∧
+      (r = none → ∀ (j : Nat) (h : j < lengths.val.length), index.val ≤ j → lengths.val[j] ≠ length) := by
+  rw [data_ontology.length_index]
+  by_cases inside : index.val < lengths.val.length
+  · have lookup : lengths.index_usize index = .ok lengths.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    by_cases here : lengths.val[index.val] = length
+    · exact ⟨some index, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, here],
+        fun i hi => (by cases hi; exact ⟨le_rfl, inside, here⟩), fun h => (nomatch h)⟩
+    · obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨r, run, found, missing⟩ := length_index_spec lengths length next
+      refine ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, here, advance, run],
+        fun i hi => ?_, fun h j hj low => ?_⟩
+      · obtain ⟨low, rest⟩ := found i hi
+        exact ⟨by omega, rest⟩
+      · rcases Nat.eq_or_lt_of_le low with same | after
+        · subst same; exact here
+        · exact missing h j hj (by omega)
+  · exact ⟨none, by simp [UScalar.lt_equiv, inside], fun i hi => (nomatch hi), fun _ j hj low => by omega⟩
+termination_by lengths.val.length - index.val
+decreasing_by simp at nextValue; omega
+
+/-- Lengths up to a limit, each once, are at most one more than the limit. -/
+theorem good_lengths_short {lengths : List Usize} (good : GoodLengths lengths) :
+    lengths.length ≤ Rowl.LengthCounts.lengthLimit + 1 := by
+  have nodup : (lengths.map (·.val)).Nodup := good.2.1.map (fun a b h => UScalar.eq_of_val_eq h)
+  have sub : (lengths.map (·.val)).toFinset ⊆ Finset.range (Rowl.LengthCounts.lengthLimit + 1) := by
+    intro x hx
+    simp only [List.mem_toFinset, List.mem_map] at hx
+    obtain ⟨t, ht, rfl⟩ := hx
+    simp only [Finset.mem_range]
+    have := good.1 t ht
+    omega
+  have := Finset.card_le_card sub
+  rw [List.toFinset_card_of_nodup nodup] at this
+  simpa using this
+
+theorem add_length_good (lengths : alloc.vec.Vec Usize) (good : GoodLengths lengths.val) (length : Usize)
+    (small : length.val ≤ Rowl.LengthCounts.lengthLimit) :
+    ∃ r, data_ontology.add_length lengths length = .ok r ∧ GoodLengths r.val ∧
+      (0 < length.val → length ∈ r.val) ∧ ∀ t, t ∈ r.val ↔ t ∈ lengths.val ∨ (t = length ∧ 0 < length.val) := by
+  rw [data_ontology.add_length]
+  by_cases zero : length = 0#usize
+  · subst zero
+    exact ⟨lengths, by simp, good, fun pos => by simp at pos, fun t => by simp⟩
+  have pos : 0 < length.val := Nat.pos_of_ne_zero (fun h => zero (UScalar.eq_of_val_eq (by simp [h])))
+  obtain ⟨o, run, found, missing⟩ := length_index_spec lengths length 0#usize
+  cases o with
+  | some i =>
+    obtain ⟨_, h, at_i⟩ := found i rfl
+    have mem : length ∈ lengths.val := at_i ▸ List.getElem_mem h
+    exact ⟨lengths, by simp [zero, run], good, fun _ => mem,
+      fun t => ⟨.inl, fun h => by rcases h with h | ⟨rfl, _⟩; exact h; exact mem⟩⟩
+  | none =>
+    have absent : length ∉ lengths.val := by
+      intro m
+      obtain ⟨j, hj, at_j⟩ := List.getElem_of_mem m
+      exact missing rfl j hj (Nat.zero_le _) at_j
+    have short : lengths.val.length < Usize.max := by
+      have := good_lengths_short good
+      have big := Rowl.LengthCounts.usize_big_enough
+      unfold Rowl.LengthCounts.lengthLimit at this
+      omega
+    obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec lengths length short)
+    have room : alloc.vec.Vec.len lengths < core.num.Usize.MAX := by
+      rw [UScalar.lt_equiv, usize_max_val]; simpa using short
+    refine ⟨pushed, by simp [zero, run, room, push], ⟨fun t m => ?_, ?_, fun t m => ?_⟩, fun _ => by simp [contents],
+      fun t => by simp [contents, pos]⟩
+    · simp only [contents, List.mem_append, List.mem_singleton] at m
+      rcases m with old | rfl
+      · exact good.1 t old
+      · exact small
+    · rw [contents]
+      exact List.Nodup.append good.2.1 (List.nodup_singleton _) (by simpa using absent)
+    · simp only [contents, List.mem_append, List.mem_singleton] at m
+      rcases m with old | rfl
+      · exact good.2.2 t old
+      · exact pos
+
+theorem facet_lengths_good (lengths : alloc.vec.Vec Usize) (good : GoodLengths lengths.val)
+    (F : datatypes.LengthFacet) (bound : Usize) (small : bound.val < Rowl.LengthCounts.lengthLimit) :
+    ∃ r, data_ontology.facet_lengths lengths F bound = .ok r ∧ GoodLengths r.val ∧
+      (∀ t ∈ lengths.val, t ∈ r.val) ∧
+      (F = .Length ∨ F = .MinLength → 0 < bound.val → bound ∈ r.val) ∧
+      (F = .Length ∨ F = .MaxLength → ∃ next : Usize, next.val = bound.val + 1 ∧ next ∈ r.val) := by
+  have limit : Rowl.LengthCounts.lengthLimit < Usize.max := by
+    unfold Rowl.LengthCounts.lengthLimit
+    have := Rowl.LengthCounts.usize_big_enough
+    omega
+  obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+    (Usize.add_spec (x := bound) (y := 1#usize) (by scalar_tac))
+  have nextIs : next.val = bound.val + 1 := by simpa using nextValue
+  cases F with
+  | Length =>
+    obtain ⟨r1, run1, good1, in1, mem1⟩ := add_length_good lengths good bound (by omega)
+    obtain ⟨r2, run2, good2, in2, mem2⟩ := add_length_good r1 good1 next (by omega)
+    refine ⟨r2, by simp [data_ontology.facet_lengths, run1, advance, run2], good2,
+      fun t m => (mem2 t).mpr (.inl ((mem1 t).mpr (.inl m))), fun _ pos => (mem2 bound).mpr (.inl (in1 pos)),
+      fun _ => ⟨next, nextIs, in2 (by omega)⟩⟩
+  | MinLength =>
+    obtain ⟨r1, run1, good1, in1, mem1⟩ := add_length_good lengths good bound (by omega)
+    exact ⟨r1, by simp [data_ontology.facet_lengths, run1], good1, fun t m => (mem1 t).mpr (.inl m),
+      fun _ => in1, fun h => (by rcases h with h | h <;> cases h)⟩
+  | MaxLength =>
+    obtain ⟨r1, run1, good1, in1, mem1⟩ := add_length_good lengths good next (by omega)
+    exact ⟨r1, by simp [data_ontology.facet_lengths, advance, run1], good1, fun t m => (mem1 t).mpr (.inl m),
+      fun h => (by rcases h with h | h <;> cases h), fun _ => ⟨next, nextIs, in1 (by omega)⟩⟩
+
+theorem length_context_good (context : data_ontology.Context) (good : Good context) (restriction : FacetRestriction) :
+    ∃ r, data_ontology.length_context context restriction = .ok r ∧ Good r ∧
+      (∀ t ∈ context.lengths.val, t ∈ r.lengths.val) := by
+  rw [data_ontology.length_context, Rowl.Datatypes.length_facet_of_correct]
+  obtain ⟨result, run, _, _⟩ := Rowl.Datatypes.literal_value_correct.{0} restriction.value
+  rw [run]
+  cases facet : Rowl.Datatypes.lengthFacetOf restriction.facet with
+  | none => exact ⟨context, by simp, good, fun t m => m⟩
+  | some F =>
+    cases result with
+    | none => exact ⟨context, by simp, good, fun t m => m⟩
+    | some value =>
+      obtain ⟨b, bRun, bFacts⟩ := Rowl.LengthCounts.length_bound_spec value
+      cases b with
+      | none => exact ⟨context, by simp [bRun], good, fun t m => m⟩
+      | some bound =>
+        obtain ⟨_, _, _, _, _, _, small⟩ := bFacts bound rfl
+        obtain ⟨r, rRun, rGood, keep, _, _⟩ := facet_lengths_good context.lengths good.2.2.2.2.2.2.2 F bound small
+        exact ⟨{ context with lengths := r }, by simp [bRun, rRun],
+          ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, good.2.2.2.2.1, good.2.2.2.2.2.1, good.2.2.2.2.2.2.1, rGood⟩,
+          keep⟩
+
+theorem lengths_context_good (context : data_ontology.Context) (restrictions : alloc.vec.Vec FacetRestriction)
+    (index : Usize) (good : Good context) :
+    ∃ r, data_ontology.lengths_context context restrictions index = .ok r ∧ Good r ∧
+      (∀ t ∈ context.lengths.val, t ∈ r.lengths.val) := by
+  rw [data_ontology.lengths_context]
+  by_cases inside : index.val < restrictions.val.length
+  · have lookup : restrictions.index_usize index = .ok restrictions.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    obtain ⟨c, run, cGood, cKeep⟩ := length_context_good context good restrictions.val[index.val]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    obtain ⟨r, rest, rGood, rKeep⟩ := lengths_context_good c restrictions next cGood
+    exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run, advance, rest], rGood,
+      fun t m => rKeep t (cKeep t m)⟩
+  · exact ⟨context, by simp [UScalar.lt_equiv, inside], good, fun t m => m⟩
+termination_by restrictions.val.length - index.val
+decreasing_by simp at nextValue; omega
 
 theorem ranges_context_good (ranges : alloc.vec.Vec DataRange) (index : Usize)
     (each : ∀ e ∈ ranges.val, ∀ context, Good context → ∃ r, data_ontology.range_context context e = .ok r ∧ Good r)
@@ -1294,17 +1481,25 @@ theorem range_context_good (range : DataRange) (context : data_ontology.Context)
         exact ⟨r, by simp [binary_kind_eq, binary, run1, run2, run], rGood⟩
       · by_cases time : k = .DateTime ∨ k = .DateTimeStamp
         · have goodS : Good { context with kinds := { context.kinds with stamp := true } } :=
-            ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, good.2.2.2.2.1, good.2.2.2.2.2.1, fun _ => rfl⟩
+            ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, good.2.2.2.2.1, good.2.2.2.2.2.1, fun _ => rfl,
+              good.2.2.2.2.2.2.2⟩
           obtain ⟨c1, run1, good1, stamp1⟩ :=
             kind_context_good { context with kinds := { context.kinds with stamp := true } } k
           obtain ⟨c2, run2, good2, stamp2⟩ := time_context_good c1 (good1 goodS) (stamp1 rfl) restrictions.first
           obtain ⟨r, run, rGood, _⟩ := times_context_good c2 restrictions.rest 0#usize good2 stamp2
           exact ⟨r, by simp [binary_kind_eq, binary, time_kind_eq, time, data_ontology.with_stamps, run1, run2, run],
             rGood⟩
-        · obtain ⟨c1, run1, good1, _⟩ := kind_context_good { context with kinds := kinds } k
-          obtain ⟨c2, run2, good2⟩ := facet_context_good c1 restrictions.first
-          obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 (good1 good0))
-          exact ⟨r, by simp [binary_kind_eq, binary, time_kind_eq, time, kindsRun, run1, run2, run], rGood⟩
+        · by_cases len : Rowl.Datatypes.LengthKind k
+          · obtain ⟨c1, run1, good1, _⟩ := kind_context_good context k
+            obtain ⟨c2, run2, good2, _⟩ := length_context_good c1 (good1 good) restrictions.first
+            obtain ⟨r, run, rGood, _⟩ := lengths_context_good c2 restrictions.rest 0#usize good2
+            exact ⟨r, by simp [binary_kind_eq, binary, time_kind_eq, time, length_kind_eq, len, run1, run2, run],
+              rGood⟩
+          · obtain ⟨c1, run1, good1, _⟩ := kind_context_good { context with kinds := kinds } k
+            obtain ⟨c2, run2, good2⟩ := facet_context_good c1 restrictions.first
+            obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 (good1 good0))
+            exact ⟨r, by simp [binary_kind_eq, binary, time_kind_eq, time, length_kind_eq, len, kindsRun, run1, run2,
+              run], rGood⟩
 termination_by sizeOf range
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -1560,8 +1755,8 @@ theorem closure_context_good (items : alloc.vec.Vec AnnotatedAxiom) :
         false false false false false false false)
       (alloc.vec.Vec.new ObjectProperty)
       (alloc.vec.Vec.new DataProperty) (alloc.vec.Vec.new regions.Cut) (alloc.vec.Vec.new U128)
-      (alloc.vec.Vec.new U128) (alloc.vec.Vec.new data_ontology.TimeCut)) := by
-    simp [Good, GoodValues, GoodCuts, GoodTimes, new_val]
+      (alloc.vec.Vec.new U128) (alloc.vec.Vec.new data_ontology.TimeCut) (alloc.vec.Vec.new Usize)) := by
+    simp [Good, GoodValues, GoodCuts, GoodTimes, GoodLengths, new_val]
   obtain ⟨r, run, rGood⟩ := items_context_good _ items 0#usize empty
   exact ⟨r, by simp [data_ontology.no_kinds, run], rGood⟩
 

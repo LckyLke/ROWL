@@ -591,3 +591,136 @@ fn floating_point_ranges_follow_the_order_of_xml_schema() {
         Some(true)
     );
 }
+
+/// A datatype restriction of a datatype with a length facet and its bound.
+fn sized(datatype: &str, facet: &str, bound: usize) -> String {
+    format!("DatatypeRestriction({datatype} xsd:{facet} \"{bound}\"^^xsd:nonNegativeInteger)")
+}
+
+#[test]
+fn length_facets_bound_the_lengths_of_values() {
+    // XML Schema 1.1 Part 2 §4.3.1: a string's length is its number of
+    // characters, an IRI's too, and that of binary data its number of octets.
+    let code = sized("xsd:string", "length", 3);
+    assert_eq!(
+        consistent(&format!(
+            "DataPropertyRange(:code {code})\nDataPropertyAssertion(:code :a \"abc\")"
+        )),
+        Some(true)
+    );
+    assert_eq!(
+        consistent(&format!(
+            "DataPropertyRange(:code {code})\nDataPropertyAssertion(:code :a \"abcd\")"
+        )),
+        Some(false)
+    );
+    assert_eq!(
+        consistent(&format!(
+            "DataPropertyRange(:code {code})\nDataPropertyAssertion(:code :a \"äöü\")"
+        )),
+        Some(true)
+    );
+    let key = sized("xsd:hexBinary", "maxLength", 2);
+    assert_eq!(
+        consistent(&format!(
+            "DataPropertyRange(:key {key})\nDataPropertyAssertion(:key :a \"0A0B\"^^xsd:hexBinary)"
+        )),
+        Some(true)
+    );
+    assert_eq!(
+        consistent(&format!("DataPropertyRange(:key {key})\nDataPropertyAssertion(:key :a \"0A0B0C\"^^xsd:hexBinary)")),
+        Some(false)
+    );
+    // rdf:PlainLiteral §4: the length of a plain literal is that of its string.
+    let label = sized("rdf:PlainLiteral", "minLength", 2);
+    assert_eq!(
+        consistent(&format!("DataPropertyRange(:label {label})\nDataPropertyAssertion(:label :a \"ab@en\"^^rdf:PlainLiteral)")),
+        Some(true)
+    );
+    assert_eq!(
+        consistent(&format!("DataPropertyRange(:label {label})\nDataPropertyAssertion(:label :a \"a@en\"^^rdf:PlainLiteral)")),
+        Some(false)
+    );
+    let home = sized("xsd:anyURI", "maxLength", 4);
+    assert_eq!(
+        consistent(&format!(
+            "DataPropertyRange(:home {home})\nDataPropertyAssertion(:home :a \"urn:\"^^xsd:anyURI)"
+        )),
+        Some(true)
+    );
+    assert_eq!(
+        consistent(&format!("DataPropertyRange(:home {home})\nDataPropertyAssertion(:home :a \"urn:x\"^^xsd:anyURI)")),
+        Some(false)
+    );
+    // A length facet on a number has no values.
+    assert_eq!(
+        consistent(&format!(
+            "SubClassOf(owl:Thing DataSomeValuesFrom(:dose {}))\nClassAssertion(owl:Thing :a)",
+            sized("xsd:integer", "length", 1)
+        )),
+        Some(false)
+    );
+    // Every value with a length has at least the length 0.
+    let any = sized("xsd:string", "minLength", 0);
+    assert_eq!(
+        consistent(&format!(
+            "SubClassOf(owl:Thing DataSomeValuesFrom(:code DataIntersectionOf(xsd:string DataComplementOf({any}))))\nClassAssertion(owl:Thing :a)"
+        )),
+        Some(false)
+    );
+    let empty = sized("rdf:PlainLiteral", "length", 0);
+    assert_eq!(
+        consistent(&format!("DataPropertyRange(:label {empty})\nDataPropertyAssertion(:label :a \"@en\"^^rdf:PlainLiteral)")),
+        Some(true)
+    );
+    assert_eq!(
+        consistent(&format!("DataPropertyRange(:label {empty})\nDataPropertyAssertion(:label :a \"a@en\"^^rdf:PlainLiteral)")),
+        Some(false)
+    );
+}
+
+#[test]
+fn length_facets_count_their_values() {
+    let at_least = |count: usize, range: &str| {
+        consistent(&format!(
+            "SubClassOf(:Speaker DataMinCardinality({count} :speaks {range}))\nClassAssertion(:Speaker :s)"
+        ))
+    };
+    // 52 language tags of one letter.
+    let letter = sized("xsd:language", "length", 1);
+    assert_eq!(at_least(52, &letter), Some(true));
+    assert_eq!(at_least(53, &letter), Some(false));
+    // 256 octet sequences of length one.
+    let octet = sized("xsd:hexBinary", "length", 1);
+    assert_eq!(at_least(256, &octet), Some(true));
+    assert_eq!(at_least(257, &octet), Some(false));
+    // One empty string.
+    let empty = sized("xsd:string", "maxLength", 0);
+    assert_eq!(at_least(1, &empty), Some(true));
+    assert_eq!(at_least(2, &empty), Some(false));
+    // Tab, line feed and carriage return are the strings of at most one
+    // character that are no normalized strings.
+    let broken = format!(
+        "DataIntersectionOf({} DataComplementOf(xsd:normalizedString))",
+        sized("xsd:string", "maxLength", 1)
+    );
+    assert_eq!(at_least(3, &broken), Some(true));
+    assert_eq!(at_least(4, &broken), Some(false));
+    // `:` is the only name of one character that is no NCName.
+    let colon = format!(
+        "DataIntersectionOf({} DataComplementOf(xsd:NCName))",
+        sized("xsd:Name", "length", 1)
+    );
+    assert_eq!(at_least(1, &colon), Some(true));
+    assert_eq!(at_least(2, &colon), Some(false));
+    // A literal value takes one of the places.
+    assert_eq!(
+        consistent(&format!(
+            "SubClassOf(:Speaker DataMinCardinality(2 :speaks {colon}))\nClassAssertion(:Speaker :s)\nDataPropertyAssertion(:speaks :s \":\"^^xsd:Name)"
+        )),
+        Some(false)
+    );
+    // Strings of two characters or more are too many to run out.
+    let pairs = sized("xsd:string", "minLength", 2);
+    assert_eq!(at_least(60, &pairs), Some(true));
+}

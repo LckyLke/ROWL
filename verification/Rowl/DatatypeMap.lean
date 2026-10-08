@@ -15,7 +15,8 @@ and `xsd:NCName`, `rdf:PlainLiteral`, `xsd:boolean`, `xsd:anyURI`,
 `xsd:hexBinary` and `xsd:base64Binary`, `xsd:dateTime` and `xsd:dateTimeStamp`,
 and `xsd:double` and `xsd:float`, with the four range facets
 `xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
-`xsd:maxExclusive`.
+`xsd:maxExclusive` and the three length facets `xsd:length`, `xsd:minLength`
+and `xsd:maxLength`.
 
 Numbers are real numbers: the value space of `owl:real` is the image of ℝ, and
 the rationals, decimals and integers are the images of their own sets, so a
@@ -41,9 +42,15 @@ in which the two zeros are equal and NaN is comparable to no value. The range
 facets of `xsd:dateTime` and `xsd:dateTimeStamp` take a time instant and select
 the time instants on its side in the order of XML Schema: by their places on the
 time line (`Moment.key`), and between an instant with a time zone and one
-without only when that holds for every offset the latter could have. `Normative`
-says that a datatype map agrees with the OWL 2 datatype map on these datatypes
-and facets and leaves every other datatype open.
+without only when that holds for every offset the latter could have. The length
+facets are in the facet spaces of `xsd:string` and its subtypes,
+`rdf:PlainLiteral`, `xsd:anyURI` and the binary datatypes with a nonnegative
+integer as constraining value, and select the values whose length is that
+integer, at least it or at most it: the characters of a string, of the string
+of a plain literal with a language tag and of an IRI, and the octets of binary
+data (`TextLength`, `LengthFacet`). `Normative` says that a datatype map agrees
+with the OWL 2 datatype map on these datatypes and facets and leaves every other
+datatype open.
 -/
 namespace Rowl.DatatypeMap
 open Aeneas Aeneas.Std RowlRust.model
@@ -123,6 +130,12 @@ def maxInclusiveFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 11
 def minExclusiveFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 105#u8, 110#u8, 69#u8, 120#u8, 99#u8, 108#u8, 117#u8, 115#u8, 105#u8, 118#u8, 101#u8] (by simp; scalar_tac)⟩
 /-- `xsd:maxExclusive` -/
 def maxExclusiveFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 97#u8, 120#u8, 69#u8, 120#u8, 99#u8, 108#u8, 117#u8, 115#u8, 105#u8, 118#u8, 101#u8] (by simp; scalar_tac)⟩
+/-- `xsd:length` -/
+def lengthFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 108#u8, 101#u8, 110#u8, 103#u8, 116#u8, 104#u8] (by simp; scalar_tac)⟩
+/-- `xsd:minLength` -/
+def minLengthFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 105#u8, 110#u8, 76#u8, 101#u8, 110#u8, 103#u8, 116#u8, 104#u8] (by simp; scalar_tac)⟩
+/-- `xsd:maxLength` -/
+def maxLengthFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 97#u8, 120#u8, 76#u8, 101#u8, 110#u8, 103#u8, 116#u8, 104#u8] (by simp; scalar_tac)⟩
 
 /-- An ASCII decimal digit. -/
 def Digit (byte : U8) : Prop := 48 ≤ byte.val ∧ byte.val ≤ 57
@@ -180,6 +193,19 @@ def integerSubtypes : List (Datatype × Option ℤ × Option ℤ) :=
 def xsdNumericTypes : List Datatype := integerType :: decimalType :: integerSubtypes.map (·.1)
 /-- The four range facets. -/
 def rangeFacets : List Iri := [minInclusiveFacet, maxInclusiveFacet, minExclusiveFacet, maxExclusiveFacet]
+/-- The three length facets. -/
+def lengthFacets : List Iri := [lengthFacet, minLengthFacet, maxLengthFacet]
+/-- The datatypes whose facet spaces have the length facets (OWL 2 §4.3–4.6,
+    rdf:PlainLiteral §4): `xsd:string` and its six subtypes, `rdf:PlainLiteral`,
+    `xsd:anyURI`, `xsd:hexBinary` and `xsd:base64Binary`. -/
+def lengthTypes : List Datatype :=
+  [stringType, normalizedStringType, tokenType, languageType, nmtokenType, nameType, ncnameType, plainType,
+    anyUriType, hexBinaryType, base64BinaryType]
+/-- Whether a length `m` is on the side of a length facet with the constraining
+    value `n`: equal for `xsd:length`, at least `n` for `xsd:minLength` and at
+    most `n` for `xsd:maxLength`. -/
+def LengthFacet (f : Iri) (n m : ℕ) : Prop :=
+  (f = lengthFacet ∧ m = n) ∨ (f = minLengthFacet ∧ n ≤ m) ∨ (f = maxLengthFacet ∧ m ≤ n)
 
 /-- The UTF-8 encoding of a string of XML characters. -/
 def XmlText (bytes : List U8) : Prop := ∃ text, Rowl.Unicode.TextFrom bytes 0 text
@@ -281,6 +307,11 @@ def NameChar (cp : Nat) : Prop :=
 /-- `cps` are the code points of the XML characters that `bytes` encode. -/
 def TextChars (bytes : List U8) (cps : List Nat) : Prop :=
   ∃ text, Rowl.Unicode.TextFrom bytes 0 text ∧ text.map Prod.fst = cps
+
+/-- `bytes` encode a string of `n` XML characters (XML Schema 1.1 Part 2
+    §4.3.1: the length of a string, and of an IRI, is its number of
+    characters). -/
+def TextLength (bytes : List U8) (n : ℕ) : Prop := ∃ cps, TextChars bytes cps ∧ cps.length = n
 
 /-- An ASCII letter `[a-zA-Z]`. -/
 def Letter (byte : U8) : Prop := (65 ≤ byte.val ∧ byte.val ≤ 90) ∨ (97 ≤ byte.val ∧ byte.val ≤ 122)
@@ -565,7 +596,11 @@ def BinaryForm (f : FloatFormat) (text : List U8) (b : Binary) : Prop :=
     that `BinaryForm` gives it, and their facet spaces the four range facets
     with a value of the datatype as constraining value, whose facet values
     are the datatype's values on the facet's side of it in the order of XML
-    Schema (`Binary.Le`, `Binary.Lt`). -/
+    Schema (`Binary.Le`, `Binary.Lt`); and the facet spaces of the string
+    datatypes, `rdf:PlainLiteral`, `xsd:anyURI` and the binary datatypes have
+    the length facets with every natural number as constraining value, whose
+    facet values are the strings, plain literals, IRIs and octet sequences
+    whose length is that number, at least it or at most it (`LengthFacet`). -/
 structure Normative {Native : Type w} (D : DatatypeMap Native) where
   number : ℚ → Native
   text : List U8 → Native
@@ -724,5 +759,10 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
     (D.facetValue minExclusiveFacet (float b) y ↔ ∃ x, x.Valid floatFormat ∧ b.Lt x ∧ y = float x)
   max_exclusive_float : ∀ b y, b.Valid floatFormat →
     (D.facetValue maxExclusiveFacet (float b) y ↔ ∃ x, x.Valid floatFormat ∧ x.Lt b ∧ y = float x)
+  length_facets : ∀ dt ∈ lengthTypes, ∀ f ∈ lengthFacets, ∀ v, D.facetSpace dt f v ↔ ∃ n : ℕ, v = real n
+  length_value : ∀ f ∈ lengthFacets, ∀ (n : ℕ) y, D.facetValue f (real n) y ↔ ∃ m, LengthFacet f n m ∧
+    ((∃ s, TextLength s m ∧ y = text s) ∨ (∃ s l, TextLength s m ∧ TagValue l ∧ y = tagged s l) ∨
+      (∃ s, TextLength s m ∧ y = coded (.uri s)) ∨
+      ∃ o : List U8, o.length = m ∧ (y = coded (.hex o) ∨ y = coded (.base64 o)))
 
 end Rowl.DatatypeMap

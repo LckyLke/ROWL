@@ -108,16 +108,26 @@ def PointsNamed (context : data_ontology.Context) (order : List Usize) (position
     (cutAt context.cuts.val order[p - 1].val).value ∈ context.values.val
 
 /-- Whether the encoding bounds the data nodes of an element along `U`: the
-    integers are in use while numbers are ordered, or floating-point numbers
-    are in use. -/
-def BoundsRuns (kinds : data_ontology.Kinds) : Prop :=
-  (kinds.ordered = true ∧ kinds.integer = true) ∨ kinds.double = true ∨ kinds.float = true ∨ kinds.stamp = true
+    integers are in use while numbers are ordered, floating-point numbers or
+    time stamps are in use, or length facets cut the lengths. -/
+def BoundsRuns (context : data_ontology.Context) : Prop :=
+  (context.kinds.ordered = true ∧ context.kinds.integer = true) ∨ context.kinds.double = true ∨
+    context.kinds.float = true ∨ context.kinds.stamp = true ∨ context.lengths.val ≠ []
 
-theorem bounds_runs_eq (kinds : data_ontology.Kinds) :
-    data_ontology.bounds_runs kinds = .ok (decide (BoundsRuns kinds)) := by
+theorem bounds_runs_eq (context : data_ontology.Context) :
+    data_ontology.bounds_runs context = .ok (decide (BoundsRuns context)) := by
   rw [data_ontology.bounds_runs]
-  cases h1 : kinds.ordered <;> cases h2 : kinds.integer <;> cases h3 : kinds.double <;> cases h4 : kinds.float <;>
-    cases h5 : kinds.stamp <;> simp [BoundsRuns, h1, h2, h3, h4, h5]
+  have empty : (alloc.vec.Vec.len context.lengths != 0#usize) = decide (context.lengths.val ≠ []) := by
+    by_cases h : context.lengths.val = []
+    · have : alloc.vec.Vec.len context.lengths = 0#usize := UScalar.eq_of_val_eq (by simp [h])
+      rw [this]
+      simp [h]
+    · have : alloc.vec.Vec.len context.lengths ≠ 0#usize := fun e => h (by
+        have := congrArg UScalar.val e; simpa using this)
+      simp [this, h]
+  rw [empty]
+  cases h1 : context.kinds.ordered <;> cases h2 : context.kinds.integer <;> cases h3 : context.kinds.double <;>
+    cases h4 : context.kinds.float <;> cases h5 : context.kinds.stamp <;> simp [BoundsRuns, h1, h2, h3, h4, h5]
 
 /-- What the axioms of the ordered numbers say, for the kernel's order of the
     cuts, and that every data property is below `U` when the encoding bounds
@@ -126,7 +136,7 @@ def RegionFacts (context : data_ontology.Context) (capacity : Nat) (order : List
     (J : Interpretation Object' Value') : Prop :=
   (context.kinds.ordered = true →
     (∀ first, order.head? = some first → ∀ y, J.classes (cutClass first) y → J.classes (kindClass .Real) y) ∧
-    ChainFacts context capacity order 1 J) ∧ (BoundsRuns context.kinds → SuperFacts context 0 J)
+    ChainFacts context capacity order 1 J) ∧ (BoundsRuns context → SuperFacts context 0 J)
 
 /-! ### The literal values of a run -/
 
@@ -924,7 +934,7 @@ theorem region_axioms_spec (context : data_ontology.Context) (good : Good contex
       | some o2 =>
         obtain ⟨n1, c1, m1⟩ := facts1 o1 rfl
         obtain ⟨named, n2, c2, m2⟩ := facts2 o2 rfl
-        by_cases runs : BoundsRuns context.kinds
+        by_cases runs : BoundsRuns context
         · obtain ⟨r3, run3, facts3⟩ := super_axioms_spec context 0#usize o2
           refine ⟨r3, by simp [ordered, orderRun, run1, run2, runs, run3], fun out' h => ?_⟩
           obtain ⟨n3, c3, m3⟩ := facts3 out' h
@@ -938,7 +948,7 @@ theorem region_axioms_spec (context : data_ontology.Context) (good : Good contex
           simp only [List.forall_mem_append]
           rw [m1 J, m2 J]
           simp [RegionFacts, ordered, runs]
-  · by_cases runs : BoundsRuns context.kinds
+  · by_cases runs : BoundsRuns context
     · obtain ⟨r3, run3, facts3⟩ := super_axioms_spec context 0#usize out
       refine ⟨r3, by simp [ordered, runs, run3], fun out' h => ?_⟩
       obtain ⟨n3, c3, m3⟩ := facts3 out' h

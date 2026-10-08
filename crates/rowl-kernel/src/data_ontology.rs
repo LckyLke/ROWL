@@ -40,6 +40,26 @@
 //!   its complement, and the values between two neighbouring edges that are
 //!   no literal values, counted exactly, are none or at most their number at
 //!   any element along `U` when there are fewer than the capacity;
+//! - when a range facet with a time instant as bound is in use, its bound
+//!   becomes cuts of the two time lines, the instants with and without a time
+//!   zone, each with a class of the instants of its line past it, or at or past
+//!   it when it is closed: the classes are included in each other along each
+//!   line, a literal time instant is in the classes of the cuts of its line
+//!   that it is in, and the instants at the place of a closed and an open cut
+//!   that are no literal values, counted exactly, are none or at most their
+//!   number at any element along `U` when there are fewer than the capacity;
+//! - when a length facet is in use, its bound, the length after it, or both,
+//!   but not the length 0, become lengths of the context, each with a class of
+//!   the values at least that long, `owl:Thing` standing for the length 0: the
+//!   class of each length lies inside the class of every shorter one, a literal
+//!   value with a length is in the classes of the lengths up to its own, a
+//!   facet becomes a class, its complement or both, and the values of each kind
+//!   but `rdf:PlainLiteral` (whose values with a language tag are infinitely
+//!   many at every length) from a length on before the next, or below the
+//!   least, that are no literal values, counted exactly by the automata of
+//!   `lengths` (the strings by the deepest subtype of `xsd:string` in use), are
+//!   none or at most their number at any element along `U` when there are at
+//!   most the capacity of them;
 //! - every object property relates only elements that are no data nodes, and
 //!   the individuals are no data nodes; a class expression that a data node
 //!   could satisfy, on the left of an inclusion or in a list of equivalent or
@@ -48,14 +68,16 @@
 //!   filler of a universal restriction along it is joined with `D`.
 //!
 //! The context of the encoding (`Context`) lists the distinct literal values,
-//! the datatypes in use, the object properties, the data properties and the
-//! cuts; the encoding gives no answer for anything outside it, so a context
+//! the datatypes in use, the object properties, the data properties, the cuts,
+//! the edges, the time cuts and the lengths; the encoding gives no answer for
+//! anything outside it, so a context
 //! prepared from a closure also encodes the questions about it. A model of the encoding has,
 //! at every element that is no data node, a value for each of finitely many
 //! data nodes it is related to, with the values of the literal individuals and
 //! distinct values for distinct data nodes, which the infinitely many values of
 //! every region of numbers outside the literals allow, and every bounded run of
-//! integers too, since its bound or the counts of all data restrictions limit
+//! integers, slot of floating-point numbers, place on a time line and slot of
+//! lengths too, since its axiom or the counts of all data restrictions limit
 //! how many data nodes need values from it; and every OWL model, with its data
 //! values as data nodes, is a model of the encoding.
 //!
@@ -63,8 +85,10 @@
 //! this encoding of its other axioms.
 //!
 //! `None` means that the closure or the question uses a datatype restriction
-//! other than one of the four range facets with a numeric bound on a numeric
-//! datatype, a datatype definition, a key that `key_ontology` declines, another
+//! other than the four range facets with a numeric bound on a numeric
+//! datatype, a bound of the format on `xsd:double` or `xsd:float` or a time
+//! instant on the time datatypes, and the three length facets with a natural
+//! number below `lengths::LENGTHS` as bound, a datatype definition, a key that `key_ontology` declines, another
 //! datatype, a literal outside its lexical space, `owl:topDataProperty` outside
 //! an inclusion into it, `owl:Thing` as a disjoint union, a number restriction
 //! along the universal role, the universal role included in another role (alone
@@ -91,11 +115,12 @@
 use crate::alc_ontology::{intern, position};
 use crate::concepts::copy_individual;
 use crate::datatypes::{
-    facet_of, in_kind, kind_of, literal_value, lower_bound, numeric, same_value, upper_bound,
-    Binary, DataValue, Facet, Kind, Moment,
+    facet_of, in_kind, kind_of, length_facet_of, literal_value, lower_bound, numeric, same_value,
+    upper_bound, Binary, DataValue, Facet, Kind, LengthFacet, Moment,
 };
 use crate::floats;
 use crate::key_ontology;
+use crate::lengths::{length_bound, slot_size, value_length};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange,
     FacetRestriction, Individual, Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty,
@@ -149,8 +174,9 @@ pub struct TimeCut {
 /// the universal role, the data properties other than the top and bottom
 /// ones, the cuts of the numbers that facets, bounds of datatypes and
 /// literal values make, the edges that facets make among the places of
-/// the values of `xsd:double` and of `xsd:float`, and the cuts that facets
-/// make on the time lines of the time instants with and without a time zone.
+/// the values of `xsd:double` and of `xsd:float`, the cuts that facets
+/// make on the time lines of the time instants with and without a time zone,
+/// and the lengths at which the values of the length facets begin or end.
 pub struct Context {
     pub values: Vec<DataValue>,
     pub kinds: Kinds,
@@ -160,6 +186,7 @@ pub struct Context {
     pub double_edges: Vec<u128>,
     pub float_edges: Vec<u128>,
     pub times: Vec<TimeCut>,
+    pub lengths: Vec<usize>,
 }
 
 fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
@@ -368,6 +395,11 @@ fn cut_class(index: usize) -> ClassExpression {
 /// The class of the values of the time cut at `index`.
 fn time_class(index: usize) -> ClassExpression {
     class_named(tagged_name(b'T', bytes(index, 0, Vec::new())))
+}
+/// The class `S` of the values with a length of at least the length at
+/// `index`.
+fn length_class(index: usize) -> ClassExpression {
+    class_named(tagged_name(b'S', bytes(index, 0, Vec::new())))
 }
 fn edge_class(double: bool, index: usize) -> ClassExpression {
     let mut rest = Vec::new();
@@ -928,6 +960,96 @@ fn with_stamps(kinds: Kinds) -> Kinds {
         ..kinds
     }
 }
+/// Whether the kind's datatype has the length facets: the string datatypes,
+/// `rdf:PlainLiteral`, `xsd:anyURI` and the binary datatypes.
+fn length_kind(kind: Kind) -> bool {
+    match kind {
+        Kind::String => true,
+        Kind::Plain => true,
+        Kind::AnyUri => true,
+        Kind::HexBinary => true,
+        Kind::Base64Binary => true,
+        Kind::NormalizedString => true,
+        Kind::Token => true,
+        Kind::Language => true,
+        Kind::NmToken => true,
+        Kind::Name => true,
+        Kind::NcName => true,
+        _ => false,
+    }
+}
+/// The index of `length` in `lengths[index..]`.
+fn length_index(lengths: &Vec<usize>, length: usize, index: usize) -> Option<usize> {
+    if index < lengths.len() {
+        if lengths[index] == length {
+            Some(index)
+        } else {
+            length_index(lengths, length, index + 1)
+        }
+    } else {
+        None
+    }
+}
+/// `lengths` with `length`, once, unless it is 0: every value with a length
+/// has at least the length 0, so that needs no class.
+fn add_length(mut lengths: Vec<usize>, length: usize) -> Vec<usize> {
+    if length == 0 {
+        lengths
+    } else {
+        match length_index(&lengths, length, 0) {
+            Some(_) => lengths,
+            None => {
+                if lengths.len() < usize::MAX {
+                    lengths.push(length);
+                }
+                lengths
+            }
+        }
+    }
+}
+/// `lengths` with the lengths of a length facet with a bound: the first
+/// length of its values, and the first length after them.
+fn facet_lengths(lengths: Vec<usize>, facet: LengthFacet, bound: usize) -> Vec<usize> {
+    match facet {
+        LengthFacet::Length => add_length(add_length(lengths, bound), bound + 1),
+        LengthFacet::MinLength => add_length(lengths, bound),
+        LengthFacet::MaxLength => add_length(lengths, bound + 1),
+    }
+}
+/// The context with the lengths of a length facet whose bound is a natural
+/// number.
+fn length_context(mut context: Context, restriction: &FacetRestriction) -> Context {
+    match (
+        length_facet_of(&restriction.facet),
+        literal_value(&restriction.value),
+    ) {
+        (Some(facet), Some(value)) => match length_bound(&value) {
+            Some(bound) => {
+                context.lengths = facet_lengths(context.lengths, facet, bound);
+                context
+            }
+            None => context,
+        },
+        _ => context,
+    }
+}
+/// The context with the lengths of the facet restrictions
+/// `restrictions[index..]`.
+fn lengths_context(
+    context: Context,
+    restrictions: &Vec<FacetRestriction>,
+    index: usize,
+) -> Context {
+    if index < restrictions.len() {
+        lengths_context(
+            length_context(context, &restrictions[index]),
+            restrictions,
+            index + 1,
+        )
+    } else {
+        context
+    }
+}
 /// Whether the kind is `xsd:double` or `xsd:float`.
 fn binary_kind(kind: Kind) -> bool {
     match kind {
@@ -975,6 +1097,10 @@ fn range_context(mut context: Context, range: &DataRange) -> Context {
                     let context = kind_context(context, kind);
                     let context = time_context(context, &restrictions.first);
                     times_context(context, &restrictions.rest, 0)
+                } else if length_kind(kind) {
+                    let context = kind_context(context, kind);
+                    let context = length_context(context, &restrictions.first);
+                    lengths_context(context, &restrictions.rest, 0)
                 } else {
                     context.kinds = with_order(context.kinds);
                     let context = kind_context(context, kind);
@@ -1151,6 +1277,7 @@ fn closure_context(items: &Vec<AnnotatedAxiom>) -> Context {
             double_edges: Vec::new(),
             float_edges: Vec::new(),
             times: Vec::new(),
+            lengths: Vec::new(),
         },
         items,
         0,
@@ -1569,12 +1696,72 @@ fn time_facet_class(context: &Context, facet: Facet, bound: &Moment) -> Option<C
         None
     }
 }
+/// The class of the values with a length of at least `length`: `owl:Thing`
+/// for 0, and otherwise the class of a length of the context.
+fn at_length(context: &Context, length: usize) -> Option<ClassExpression> {
+    if length == 0 {
+        Some(thing())
+    } else {
+        match length_index(&context.lengths, length, 0) {
+            Some(index) => Some(length_class(index)),
+            None => None,
+        }
+    }
+}
+/// The class expression of a length facet on the values of a kind: on a kind
+/// with the length facets, the values with a length of at least the bound,
+/// and not of at least one more than the bound; none on another kind. The
+/// bound must be a natural number.
+fn length_facet_class(
+    context: &Context,
+    kind: Kind,
+    facet: LengthFacet,
+    value: &Literal,
+) -> Option<ClassExpression> {
+    match literal_value(value) {
+        Some(value) => match length_bound(&value) {
+            Some(bound) => {
+                if length_kind(kind) {
+                    match facet {
+                        LengthFacet::Length => {
+                            match (at_length(context, bound), at_length(context, bound + 1)) {
+                                (Some(low), Some(high)) => Some(and(low, not(high))),
+                                _ => None,
+                            }
+                        }
+                        LengthFacet::MinLength => at_length(context, bound),
+                        LengthFacet::MaxLength => match at_length(context, bound + 1) {
+                            Some(high) => Some(not(high)),
+                            None => None,
+                        },
+                    }
+                } else {
+                    Some(nothing())
+                }
+            }
+            None => None,
+        },
+        None => None,
+    }
+}
 /// The class expression of a facet restriction on the values of a kind: a
-/// range facet with a numeric bound, whose cut is in the context, on a
-/// numeric kind, with a bound of `xsd:double` or `xsd:float` on that format,
-/// or with a time instant as bound on the time instants; a range facet whose
-/// bound is of another of these datatypes has no values in the kind.
+/// length facet as `length_facet_class` says, a range facet with a numeric
+/// bound, whose cut is in the context, on a numeric kind, with a bound of
+/// `xsd:double` or `xsd:float` on that format, or with a time instant as bound
+/// on the time instants; a range facet whose bound is of another of these
+/// datatypes has no values in the kind.
 fn facet_class(
+    context: &Context,
+    kind: Kind,
+    restriction: &FacetRestriction,
+) -> Option<ClassExpression> {
+    match length_facet_of(&restriction.facet) {
+        Some(facet) => length_facet_class(context, kind, facet, &restriction.value),
+        None => range_facet_class(context, kind, restriction),
+    }
+}
+/// The class expression of a range facet on the values of a kind.
+fn range_facet_class(
     context: &Context,
     kind: Kind,
     restriction: &FacetRestriction,
@@ -1639,13 +1826,18 @@ fn facet_classes(
     }
 }
 /// The class expression of a datatype restriction of a numeric datatype, of
-/// `xsd:double` or `xsd:float`, or of `xsd:dateTime` or `xsd:dateTimeStamp`.
+/// `xsd:double` or `xsd:float`, of `xsd:dateTime` or `xsd:dateTimeStamp`, or
+/// of a datatype with the length facets.
 fn restriction_range(
     context: &Context,
     kind: Kind,
     restrictions: &NonEmpty<FacetRestriction>,
 ) -> Option<ClassExpression> {
-    if (numeric_kind(kind) & context.kinds.ordered) | binary_kind(kind) | time_kind(kind) {
+    if (numeric_kind(kind) & context.kinds.ordered)
+        | binary_kind(kind)
+        | time_kind(kind)
+        | length_kind(kind)
+    {
         match (
             kind_range(context, kind),
             facet_class(context, kind, &restrictions.first),
@@ -3275,10 +3467,38 @@ fn time_memberships(
         Some(out)
     }
 }
+/// `out` with the literal value at `index`, when it has a length, in the
+/// class of every length of `context.lengths[length..]` at or below its
+/// length, and outside the others.
+fn length_memberships(
+    context: &Context,
+    index: usize,
+    length: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (index < context.values.len()) & (length < context.lengths.len()) {
+        match value_length(&context.values[index]) {
+            Some(size) => match member(
+                length_class(length),
+                context.lengths[length] <= size,
+                value_individual(index),
+                out,
+            ) {
+                Some(out) => length_memberships(context, index, length + 1, out),
+                None => None,
+            },
+            None => Some(out),
+        }
+    } else {
+        Some(out)
+    }
+}
 /// `out` with the classes of the literal values from `index` on: `D`, each
 /// kind class in use or its complement, the classes of the numbers at and
 /// above a numeric value, the classes of the edges at and below the place of
-/// a floating-point value, and each bit class or its complement.
+/// a floating-point value, the classes of the time cuts of a time instant,
+/// the classes of the lengths at or below a value's length, and each bit
+/// class or its complement.
 fn value_axioms(
     context: &Context,
     index: usize,
@@ -3358,6 +3578,10 @@ fn value_axioms(
             None => return None,
         };
         let out = match time_memberships(context, index, 0, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match length_memberships(context, index, 0, out) {
             Some(out) => out,
             None => return None,
         };
@@ -3652,10 +3876,15 @@ fn encodable(context: &Context) -> bool {
     cuts_fit(&context.cuts, 0) & values_fit(context, 0)
 }
 /// Whether the encoding bounds the data nodes of an element along `U`: the
-/// integers are in use while numbers are ordered, or floating-point numbers
-/// or time stamps are in use.
-fn bounds_runs(kinds: &Kinds) -> bool {
-    (kinds.ordered & kinds.integer) | kinds.double | kinds.float | kinds.stamp
+/// integers are in use while numbers are ordered, floating-point numbers or
+/// time stamps are in use, or length facets cut the lengths.
+fn bounds_runs(context: &Context) -> bool {
+    let kinds = &context.kinds;
+    (kinds.ordered & kinds.integer)
+        | kinds.double
+        | kinds.float
+        | kinds.stamp
+        | (context.lengths.len() != 0)
 }
 /// `out` with the axioms of the ordered numbers, when numbers are ordered: the
 /// first cut inside the reals and the chain of the cuts; and every data
@@ -3678,7 +3907,7 @@ fn region_axioms(
     } else {
         out
     };
-    if bounds_runs(&context.kinds) {
+    if bounds_runs(context) {
         super_axioms(context, 0, out)
     } else {
         Some(out)
@@ -4267,6 +4496,455 @@ fn time_axioms(
         Some(out)
     }
 }
+// ---------------------------------------------------------------------------
+// The lengths
+// ---------------------------------------------------------------------------
+
+/// The class of the values of `kind` and not of `below`, if any, with a length
+/// of at least the length at `low`, if any, and less than the length at
+/// `high`, if any.
+fn sized_class(
+    kind: Kind,
+    below: Option<Kind>,
+    low: Option<usize>,
+    high: Option<usize>,
+) -> ClassExpression {
+    let base = match below {
+        Some(other) => and(kind_class(kind), not(kind_class(other))),
+        None => kind_class(kind),
+    };
+    let from = match low {
+        Some(index) => and(base, length_class(index)),
+        None => base,
+    };
+    match high {
+        Some(index) => and(from, not(length_class(index))),
+        None => from,
+    }
+}
+/// Whether a literal value is of `kind` and not of `below`, if any, with a
+/// length from `low` on and before `high`.
+fn in_sized(value: &DataValue, kind: Kind, below: Option<Kind>, low: usize, high: usize) -> bool {
+    match value_length(value) {
+        Some(length) => {
+            let outside = match below {
+                Some(other) => !in_kind(value, other),
+                None => true,
+            };
+            in_kind(value, kind) & outside & (low <= length) & (length < high)
+        }
+        None => false,
+    }
+}
+/// `found` with the individuals of the literal values of `values[index..]`
+/// of `kind` and not of `below` with a length from `low` on and before `high`.
+fn sized_literals(
+    context: &Context,
+    kind: Kind,
+    below: Option<Kind>,
+    low: usize,
+    high: usize,
+    index: usize,
+    found: Option<NonEmpty<Individual>>,
+) -> Option<NonEmpty<Individual>> {
+    if index < context.values.len() {
+        if in_sized(&context.values[index], kind, below, low, high) {
+            sized_literals(
+                context,
+                kind,
+                below,
+                low,
+                high,
+                index + 1,
+                add_named(found, value_individual(index)),
+            )
+        } else {
+            sized_literals(context, kind, below, low, high, index + 1, found)
+        }
+    } else {
+        found
+    }
+}
+/// `count` plus the number of the literal values of `values[index..]` of
+/// `kind` and not of `below` with a length from `low` on and before `high`.
+fn sized_count(
+    context: &Context,
+    kind: Kind,
+    below: Option<Kind>,
+    low: usize,
+    high: usize,
+    index: usize,
+    count: usize,
+) -> usize {
+    if index < context.values.len() {
+        if in_sized(&context.values[index], kind, below, low, high) & (count < usize::MAX) {
+            sized_count(context, kind, below, low, high, index + 1, count + 1)
+        } else {
+            sized_count(context, kind, below, low, high, index + 1, count)
+        }
+    } else {
+        count
+    }
+}
+/// `out` with the axiom on the values of `kind` and not of `below` with a
+/// length from `low` on and before `high`, whose class is that of the lengths
+/// at `low_index` and `high_index`, that are no literal values, counted by the
+/// automaton of the octets (`octets`) or of the strings of the ranks from
+/// `first` on and before `last`: none of them when there are none, and at most
+/// their number at any element along `U` when there are at most `capacity`.
+fn sized_axiom(
+    context: &Context,
+    kind: Kind,
+    below: Option<Kind>,
+    octets: bool,
+    first: u8,
+    last: u8,
+    low_index: Option<usize>,
+    high_index: Option<usize>,
+    low: usize,
+    high: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let named = sized_count(context, kind, below, low, high, 0, 0);
+    if capacity < usize::MAX - named {
+        let room = capacity + named + 1;
+        match slot_size(octets, first, last, low, high, room) {
+            Some(size) => {
+                if size < room {
+                    let free = if named <= size { size - named } else { 0 };
+                    let found = sized_literals(context, kind, below, low, high, 0, None);
+                    if free == 0 {
+                        match found {
+                            None => push(
+                                out,
+                                Axiom::SubClassOf(
+                                    sized_class(kind, below, low_index, high_index),
+                                    not(sized_class(kind, below, low_index, high_index)),
+                                ),
+                            ),
+                            Some(list) => push(
+                                out,
+                                Axiom::SubClassOf(
+                                    sized_class(kind, below, low_index, high_index),
+                                    ClassExpression::ObjectOneOf(list),
+                                ),
+                            ),
+                        }
+                    } else {
+                        let filler = match found {
+                            None => sized_class(kind, below, low_index, high_index),
+                            Some(list) => and(
+                                sized_class(kind, below, low_index, high_index),
+                                not(ClassExpression::ObjectOneOf(list)),
+                            ),
+                        };
+                        push(
+                            out,
+                            Axiom::SubClassOf(
+                                thing(),
+                                ClassExpression::ObjectMaxCardinality(
+                                    natural_of(free),
+                                    data_super(),
+                                    Some(Box::new(filler)),
+                                ),
+                            ),
+                        )
+                    }
+                } else {
+                    Some(out)
+                }
+            }
+            None => None,
+        }
+    } else {
+        None
+    }
+}
+/// The first rank of the chain of `xsd:string` from `rank` on whose kind is
+/// in use, or 7.
+fn next_rank(kinds: &Kinds, rank: u8) -> u8 {
+    if rank < 7 {
+        if used(kinds, chain_kind(rank)) {
+            rank
+        } else {
+            next_rank(kinds, rank + 1)
+        }
+    } else {
+        7
+    }
+}
+/// `out` with the axioms on the strings of each rank of the chain from `rank`
+/// on whose kind is in use, up to the next such rank, with a length from `low`
+/// on and before `high`, the lengths at `low_index` and `high_index`.
+fn rank_axioms(
+    context: &Context,
+    rank: u8,
+    low_index: Option<usize>,
+    high_index: Option<usize>,
+    low: usize,
+    high: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if rank < 7 {
+        if used(&context.kinds, chain_kind(rank)) {
+            let last = next_rank(&context.kinds, rank + 1);
+            let below = if last < 7 {
+                Some(chain_kind(last))
+            } else {
+                None
+            };
+            match sized_axiom(
+                context,
+                chain_kind(rank),
+                below,
+                false,
+                rank,
+                last,
+                low_index,
+                high_index,
+                low,
+                high,
+                capacity,
+                out,
+            ) {
+                Some(out) => rank_axioms(
+                    context,
+                    rank + 1,
+                    low_index,
+                    high_index,
+                    low,
+                    high,
+                    capacity,
+                    out,
+                ),
+                None => None,
+            }
+        } else {
+            rank_axioms(
+                context,
+                rank + 1,
+                low_index,
+                high_index,
+                low,
+                high,
+                capacity,
+                out,
+            )
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axiom on the values of `kind`, when it is in use, with a
+/// length from `low` on and before `high`, the lengths at `low_index` and
+/// `high_index`, counted by the automaton of the octets (`octets`) or of the
+/// strings of the ranks from `first` on and before `last`.
+fn kind_axiom(
+    context: &Context,
+    kind: Kind,
+    octets: bool,
+    first: u8,
+    last: u8,
+    low_index: Option<usize>,
+    high_index: Option<usize>,
+    low: usize,
+    high: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if used(&context.kinds, kind) {
+        sized_axiom(
+            context, kind, None, octets, first, last, low_index, high_index, low, high, capacity,
+            out,
+        )
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms on the values of each kind in use with the length
+/// facets but `rdf:PlainLiteral`, the strings by rank, with a length from
+/// `low` on and before `high`, the lengths at `low_index` and `high_index`.
+fn slot_axioms(
+    context: &Context,
+    low_index: Option<usize>,
+    high_index: Option<usize>,
+    low: usize,
+    high: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match rank_axioms(context, 0, low_index, high_index, low, high, capacity, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kind_axiom(
+        context,
+        Kind::AnyUri,
+        false,
+        0,
+        7,
+        low_index,
+        high_index,
+        low,
+        high,
+        capacity,
+        out,
+    ) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kind_axiom(
+        context,
+        Kind::HexBinary,
+        true,
+        0,
+        0,
+        low_index,
+        high_index,
+        low,
+        high,
+        capacity,
+        out,
+    ) {
+        Some(out) => out,
+        None => return None,
+    };
+    kind_axiom(
+        context,
+        Kind::Base64Binary,
+        true,
+        0,
+        0,
+        low_index,
+        high_index,
+        low,
+        high,
+        capacity,
+        out,
+    )
+}
+/// Whether a length of `lengths[index..]` lies above `low` and below `high`.
+fn length_between(lengths: &Vec<usize>, low: usize, high: usize, index: usize) -> bool {
+    if index < lengths.len() {
+        ((low < lengths[index]) & (lengths[index] < high))
+            | length_between(lengths, low, high, index + 1)
+    } else {
+        false
+    }
+}
+/// Whether a length of `lengths[index..]` lies below `length`.
+fn length_below(lengths: &Vec<usize>, length: usize, index: usize) -> bool {
+    if index < lengths.len() {
+        (lengths[index] < length) | length_below(lengths, length, index + 1)
+    } else {
+        false
+    }
+}
+/// `out` with the class of the length at `first` inside the class of the
+/// length at `second`, when that is less.
+fn length_inclusion(
+    context: &Context,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (first < context.lengths.len()) & (second < context.lengths.len()) {
+        if context.lengths[second] < context.lengths[first] {
+            push(
+                out,
+                Axiom::SubClassOf(length_class(first), length_class(second)),
+            )
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms on the values from the length at `first` on and
+/// before the length at `second`, when that is the next length above it.
+fn length_neighbours(
+    context: &Context,
+    capacity: usize,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (first < context.lengths.len()) & (second < context.lengths.len()) {
+        let low = context.lengths[first];
+        let high = context.lengths[second];
+        if (low < high) & !length_between(&context.lengths, low, high, 0) {
+            slot_axioms(context, Some(first), Some(second), low, high, capacity, out)
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms between the length at `first` and those of
+/// `lengths[second..]`.
+fn length_pairs(
+    context: &Context,
+    capacity: usize,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if second < context.lengths.len() {
+        match length_inclusion(context, first, second, out) {
+            Some(out) => match length_neighbours(context, capacity, first, second, out) {
+                Some(out) => length_pairs(context, capacity, first, second + 1, out),
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with, for the least length at `index`, when it is not zero, the
+/// axioms on the values shorter than it.
+fn length_lowest(
+    context: &Context,
+    capacity: usize,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if index < context.lengths.len() {
+        let length = context.lengths[index];
+        if (0 < length) & !length_below(&context.lengths, length, 0) {
+            slot_axioms(context, None, Some(index), 0, length, capacity, out)
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms of the lengths of `lengths[index..]`: those between
+/// each and every length, and for the least length the axioms on the values
+/// shorter than it.
+fn length_axioms(
+    context: &Context,
+    capacity: usize,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if index < context.lengths.len() {
+        match length_pairs(context, capacity, index, 0, out) {
+            Some(out) => match length_lowest(context, capacity, index, out) {
+                Some(out) => length_axioms(context, capacity, index + 1, out),
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
 /// The encoding of a closure in the context: its axioms' encodings, then the
 /// axioms of the object and data properties, of the kinds, of the ordered
 /// numbers and of the literal values, and the further individual that is no
@@ -4309,6 +4987,10 @@ pub fn encode(
         None => return None,
     };
     let out = match time_axioms(context, capacity, 0, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match length_axioms(context, capacity, 0, out) {
         Some(out) => out,
         None => return None,
     };

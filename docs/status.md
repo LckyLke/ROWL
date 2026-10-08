@@ -780,8 +780,8 @@ formats are future work.
   2 map on the datatypes of `datatypes::literal_value`, and a positive
   subsumption or instance answer holds in every such model. Imports, the other
   facets, keys with a data property while numbers are ordered,
-  floating-point numbers are in use or range facets cut the time lines, data
-  ranges of
+  floating-point numbers are in use, range facets cut the time lines or length
+  facets the lengths, data ranges of
   the other datatypes and performance remain pending; datatype definitions are
   unfolded first (see the M5 entry on them).
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
@@ -1222,6 +1222,47 @@ formats are future work.
   axiom on that place or by the capacity (`moment_cases`,
   `moment_peers_bound`, `moment_coherent`). For keys with a data property
   while there are time cuts, the queries give no answer.
+- M5 length facets: Normative also specifies the length facets `xsd:length`,
+  `xsd:minLength` and `xsd:maxLength` on `xsd:string` and its six subtypes,
+  `rdf:PlainLiteral`, `xsd:anyURI`, `xsd:hexBinary` and `xsd:base64Binary`
+  (OWL 2 §4.3–§4.6, XML Schema 1.1 §4.3.1–§4.3.3): their facet spaces are the
+  natural numbers and their facet values the values of exactly, at least or at
+  most that length, the length of a string, of the string of a plain literal
+  with a language tag and of an IRI its number of characters (`TextLength`)
+  and that of binary data its number of octets (`lengthFacets`). The kernel
+  measures the length of a literal value (`lengths::value_length`,
+  `value_length_spec`) and counts the values of a kind with lengths in a range
+  (`lengths::slot_size`, `slot_size_spec`): the XML characters fall into nine
+  classes, an automaton of 1216 states follows the forms of the subtypes of
+  `xsd:string` and tells each string's deepest subtype
+  (`Rowl.StringCounts.chain_rank`, `ranked_between`), the octets have an
+  automaton of their own (`octets_between`), and the capped numbers of the
+  words of each length follow one another until they repeat
+  (`Rowl.WordCounts.capped_count`, `steps_fixed`). The ontology queries take
+  datatype restrictions of these datatypes by the length facets with natural
+  numbers below `usize::MAX / 16` as bounds: each bound, the length after it or
+  both, but not the length 0, become lengths of the context, each with a class
+  of the values at least that long, `owl:Thing` standing for the length 0
+  (`at_length_spec`, `length_facet_class_meaning`); each length's class lies
+  inside the class of every shorter length, each literal value with a length
+  is in exactly the classes of the lengths up to its own
+  (`length_memberships_spec`), and for each kind in use but `rdf:PlainLiteral`,
+  whose values with a language tag are infinitely many at every length, the
+  values of each slot between neighbouring lengths and below the least one that
+  are no literal values are counted exactly, the strings by the rank of their
+  deepest subtype in use up to the next rank in use: none at all, or at most
+  their number at any element along `U` when there are at most the capacity of
+  them (`length_axioms_spec`, `LengthFacts`, `SizedFact`). An OWL model lifts
+  to a model of the encoding (`lifted_lengths`), and a model of the encoding
+  gives each node of these kinds a string, tagged string, IRI or octet sequence
+  (`Written`) in exactly the kinds in use whose classes hold there, with a
+  length its classes of the lengths allow (`writtenSet`): infinitely many, or,
+  in a slot of lengths that ends, as many as the axiom on its kind and slot
+  counts, with room for the node's peers by that axiom or by the capacity
+  (`node_lengths`, `written_room`, `written_coherent`); infinitely many
+  private-use language tags `x-a-…-a` serve the plain literals
+  (`privateTag_value`). For keys with a data property while there are lengths,
+  the queries give no answer.
 - M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
   unfolded before the data queries (`unfolding`): each defined datatype in a
   data range of an axiom or of a question becomes the data range of its
@@ -1279,13 +1320,15 @@ formats are future work.
   bit classes keeps apart from the others. An OWL model lifts to a model of the
   encoding with its values as the data nodes, and a model of the encoding gives
   an OWL model in which each element takes its values from regions of numbers
-  (see the numeric data ranges above), strings, tagged strings and values
-  outside every datatype. Under every datatype map that is the OWL 2 map on the
+  (see the numeric data ranges above), strings, tagged strings, IRIs and octet
+  sequences with the kinds and lengths of their nodes (see the length facets
+  above) and values outside every datatype. Under every datatype map that is the OWL 2 map on the
   datatypes of `literal_value` an answer is therefore the Direct Semantics
   answer. Datatype restrictions other than the range facets on the numeric,
-  floating-point and time datatypes, keys with a data property while numbers
-  are ordered, floating-point numbers are in use or range facets cut the time
-  lines (see the keys below), data
+  floating-point and time datatypes and the length facets on the string, IRI
+  and binary datatypes, keys with a data property while numbers are ordered,
+  floating-point numbers are in use, range facets cut the time lines or length
+  facets the lengths (see the keys below), data
   ranges of the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
@@ -1460,14 +1503,15 @@ formats are future work.
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
   over thirty-two datatypes, with the range facets on the numeric,
-  floating-point and time ones, and data
+  floating-point and time ones and the length facets on the string, IRI and
+  binary ones, and data
   assertions with their literals under the OWL 2 datatype map, datatype
   definitions, and keys with object and data properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 687 Rust regression tests and 24 Python binding tests, plus separately fetched
+- 699 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1563,11 +1607,12 @@ catalog and the import closure are assembled from the bytes of the documents
 (`import_catalog`, `import_closure`).
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. Agreement with the OWL 2 map on thirty-two datatypes and the
-four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
-and the data queries, range facets included, are proved under every such map;
-the complete normative OWL map, its other datatypes and facets are
-unimplemented. Semantic
+external solver. Agreement with the OWL 2 map on thirty-two datatypes, the four
+range facets and the three length facets is specified
+(Rowl.DatatypeMap.Normative) and satisfiable, and the data queries, these
+facets included, are proved under every such map; the complete normative OWL
+map, its other datatype (`rdf:XMLLiteral`) and facets (`xsd:pattern`,
+`rdf:langRange`) are unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
 validity and canonical structure; `import_closure` assembles the complete import
 closure. The structural,

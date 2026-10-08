@@ -81,7 +81,7 @@ def InTimeCut (cut : data_ontology.TimeCut) (m : Rowl.DatatypeMap.Moment) : Prop
     context are at kernel instants. -/
 structure NodeValue (context : data_ontology.Context) (I : Interpretation Object Value)
     (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value) (num : ℝ → Value)
-    (mom : Rowl.DatatypeMap.Moment → Value) (d : Object') (x : Value) : Prop where
+    (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop) (d : Object') (x : Value) : Prop where
   kinds : ∀ k, Used context.kinds k = true → (J.classes (kindClass k) d ↔ I.datatypes (typeOf k) x)
   values : ∀ (i : Usize) (h : i.val < context.values.val.length),
     J.namedIndividuals (valueIndividual i) = d ↔ x = lit context.values.val[i.val]
@@ -94,6 +94,8 @@ structure NodeValue (context : data_ontology.Context) (I : Interpretation Object
   times : ∀ (m : Rowl.DatatypeMap.Moment), MomentAt mom x m → ∀ (i : Usize) (h : i.val < context.times.val.length),
     context.times.val[i.val].zoned = m.zone.isSome →
       (J.classes (timeClass i) d ↔ InTimeCut context.times.val[i.val] m)
+  lengths : ∀ m, size x m → ∀ (i : Usize) (h : i.val < context.lengths.val.length),
+    (J.classes (lengthClass i) d ↔ (context.lengths.val[i.val]'h).val ≤ m)
 
 /-- What every data range needs of the two interpretations: `rdfs:Literal` and
     `owl:Thing` hold everywhere, each literal with a value is that value, the
@@ -107,7 +109,7 @@ structure NodeValue (context : data_ontology.Context) (I : Interpretation Object
     moment's value, and a range facet with a time instant as bound holds of the
     time instants on its side of the bound in the order of XML Schema. -/
 structure RangeFrame (I : Interpretation Object Value) (J : Interpretation Object' Value')
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) : Prop where
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop) : Prop where
   literal : ∀ x, I.datatypes literalDatatype x
   thing : ∀ d, J.classes thing d
   literals : ∀ lt w, datatypes.literal_value lt = .ok (some w) → I.literals lt = lit w
@@ -136,20 +138,28 @@ structure RangeFrame (I : Interpretation Object Value) (J : Interpretation Objec
   momentBinary : ∀ (m : Rowl.DatatypeMap.Moment) (double : Bool) (b : datatypes.Binary) (x : Value),
     MomentAt mom x m → ¬ FloatAt lit double x b
   momentInjective : ∀ (m m' : Rowl.DatatypeMap.Moment) (x : Value), MomentAt mom x m → MomentAt mom x m' → m = m'
+  sizeUnique : ∀ x m m', size x m → size x m' → m = m'
+  sizeLits : ∀ w, Canonical w → ∀ m, (size (lit w) m ↔ Rowl.LengthCounts.ValueLength w m)
+  sized : ∀ k x, Rowl.Datatypes.LengthKind k → I.datatypes (typeOf k) x → ∃ m, size x m
+  sizedKinds : ∀ x m, size x m → ∀ k, I.datatypes (typeOf k) x → Rowl.Datatypes.LengthKind k
+  lengthFacets : ∀ (f : FacetRestriction) (F : datatypes.LengthFacet) (w : datatypes.DataValue) (n : ℕ),
+    Rowl.Datatypes.lengthFacetOf f.facet = some F → datatypes.literal_value f.value = .ok (some w) →
+    Rowl.Datatypes.IsNumber w → Rowl.Datatypes.numValue w = n →
+    ∀ x, I.facets f x ↔ ∃ m, Rowl.Datatypes.LengthHolds F n m ∧ size x m
 
 /-- What a data range's encoding means: at every data node standing for a
     value, it holds exactly when the range holds of the value. -/
 def RangeMeans (context : data_ontology.Context) (range : DataRange) (c : ClassExpression) : Prop :=
   ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
     (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-    (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom → ∀ d x, NodeValue context I J lit num mom d x →
+    (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size → ∀ d x, NodeValue context I J lit num mom size d x →
       (dataDenote I range x ↔ classDenote J c d)
 
 theorem literal_individual_meaning (context : data_ontology.Context) (lt : Literal) (a : Individual)
     (run : data_ontology.literal_individual context lt = .ok (some a))
     {I : Interpretation Object Value} {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value}
-    {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} (frame : RangeFrame I J lit num mom) {d : Object'} {x : Value}
-    (node : NodeValue context I J lit num mom d x) :
+    {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} {size : Value → ℕ → Prop} (frame : RangeFrame I J lit num mom size) {d : Object'} {x : Value}
+    (node : NodeValue context I J lit num mom size d x) :
     individual J a = d ↔ I.literals lt = x := by
   obtain ⟨res, run', facts⟩ := literal_individual_correct context lt
   rw [run] at run'
@@ -320,8 +330,8 @@ theorem and3_iff (J : Interpretation Object' Value') (a b c : ClassExpression) (
 /-- What the class of a bound's cut says at a data node standing for a value,
     when numbers are ordered. -/
 theorem bound_meaning {context : data_ontology.Context} {I : Interpretation Object Value}
-    {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value} {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value}
-    {d : Object'} {x : Value} (node : NodeValue context I J lit num mom d x)
+    {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value} {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} {size : Value → ℕ → Prop}
+    {d : Object'} {x : Value} (node : NodeValue context I J lit num mom size d x)
     (ordered : context.kinds.ordered = true) {v : datatypes.DataValue} {i : Usize}
     (h : i.val < context.cuts.val.length) («open» : Bool) (at_i : context.cuts.val[i.val] = ⟨v, «open»⟩) :
     J.classes (cutClass i) d ↔ ∃ r, x = num r ∧ Rowl.Regions.InCut ⟨v, «open»⟩ r := by
@@ -333,7 +343,7 @@ theorem kind_range_meaning (context : data_ontology.Context) (k : datatypes.Kind
     ∃ res, data_ontology.kind_range context k = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom → ∀ d x, NodeValue context I J lit num mom d x →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size → ∀ d x, NodeValue context I J lit num mom size d x →
           (I.datatypes (typeOf k) x ↔ classDenote J c d) := by
   rw [data_ontology.kind_range, bounded_eq]
   by_cases sub : Rowl.Datatypes.IsSubtype k
@@ -354,7 +364,7 @@ theorem kind_range_meaning (context : data_ontology.Context) (k : datatypes.Kind
           refine ⟨some (.ObjectIntersectionOf ⟨.Class (kindClass .Integer), lower, rest⟩),
             by simp [ready, loRun, lcRun, hiRun, ucRun, kind_class_eq, andRun], fun c hc => ?_⟩
           cases hc
-          intro Object Value Object' Value' I J lit num mom frame d x node
+          intro Object Value Object' Value' I J lit num mom size frame d x node
           rw [and3_iff J _ _ _ rest single, frame.numeric k (by cases k <;> simp_all [Rowl.Datatypes.IsSubtype, Rowl.Datatypes.IsNumeric])]
           simp only [classDenote]
           rw [node.kinds .Integer ready.1, frame.numeric .Integer (by simp [Rowl.Datatypes.IsNumeric])]
@@ -407,7 +417,7 @@ theorem kind_range_meaning (context : data_ontology.Context) (k : datatypes.Kind
     by_cases inUse : Used context.kinds k = true
     · refine ⟨some (.Class (kindClass k)), by simp [inUse, kind_class_eq], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit num mom frame d x node
+      intro Object Value Object' Value' I J lit num mom size frame d x node
       simp only [classDenote]
       exact (node.kinds k inUse).symm
     · exact ⟨none, by simp [inUse], by simp⟩
@@ -508,14 +518,14 @@ theorem binary_facet_class_meaning (context : data_ontology.Context) (double : B
     ∃ res, data_ontology.binary_facet_class context double F bound = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom → ∀ d x, NodeValue context I J lit num mom d x →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size → ∀ d x, NodeValue context I J lit num mom size d x →
           ∀ y, FloatAt lit double x y → (FacetHolds F (binaryOf bound) (binaryOf y) ↔ classDenote J c d) := by
   have pf := Rowl.FloatOrder.proper_fmt double
   rw [data_ontology.binary_facet_class, Rowl.FloatOrder.is_nan_spec]
   by_cases nan : binaryOf bound = .nan
   · refine ⟨some (.ObjectComplementOf (.Class thing)), by simp [nan, nothing_eq], fun c hc => ?_⟩
     cases hc
-    intro Object Value Object' Value' I J lit num mom frame d x node y hy
+    intro Object Value Object' Value' I J lit num mom size frame d x node y hy
     have := (Rowl.FloatOrder.facet_holds_iff pf F vb hy.2.1).not
     simp only [classDenote, frame.thing d, not_true_eq_false, iff_false]
     intro holds
@@ -537,10 +547,10 @@ theorem binary_facet_class_meaning (context : data_ontology.Context) (double : B
     -- the class of the edge at a place, at the node of a value of the format
     have edgeMeans : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         {I : Interpretation Object Value} {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value}
-        {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value}, RangeFrame I J lit num mom → ∀ {d x}, NodeValue context I J lit num mom d x →
+        {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} {size : Value → ℕ → Prop}, RangeFrame I J lit num mom size → ∀ {d x}, NodeValue context I J lit num mom size d x →
         ∀ {y}, FloatAt lit double x y → ∀ (i : Usize) (hi : i.val < (edgesOf context double).val.length),
           J.classes (edgeClass double i) d ↔ (edgesOf context double).val[i.val].val ≤ position (fmt double) (binaryOf y) := by
-      intro Object Value Object' Value' I J lit num mom frame d x node y hy i hi
+      intro Object Value Object' Value' I J lit num mom size frame d x node y hy i hi
       exact node.edges double y hy i hi
     have holds : ∀ y, (binaryOf y).Valid (fmt double) → (FacetHolds F (binaryOf bound) (binaryOf y) ↔
         Rowl.FloatOrder.FacetPlaces (fmt double) F (binaryOf bound) (position (fmt double) (binaryOf y))) := by
@@ -552,28 +562,28 @@ theorem binary_facet_class_meaning (context : data_ontology.Context) (double : B
       obtain ⟨res, run, facts⟩ := at_edge_correct context double low
       refine ⟨res, by simp [nan, lowRun, highRun, run], fun c hc => ?_⟩
       obtain ⟨i, hi, at_i, rfl⟩ := facts c hc
-      intro Object Value Object' Value' I J lit num mom frame d x node y hy
+      intro Object Value Object' Value' I J lit num mom size frame d x node y hy
       rw [holds y hy.2.1, classDenote, edgeMeans frame node hy i hi, at_i, lowVal]
       rfl
     | MinExclusive =>
       obtain ⟨res, run, facts⟩ := at_edge_correct context double h1
       refine ⟨res, by simp [nan, lowRun, highRun, h1Run, run], fun c hc => ?_⟩
       obtain ⟨i, hi, at_i, rfl⟩ := facts c hc
-      intro Object Value Object' Value' I J lit num mom frame d x node y hy
+      intro Object Value Object' Value' I J lit num mom size frame d x node y hy
       rw [holds y hy.2.1, classDenote, edgeMeans frame node hy i hi, at_i, h1Is]
       rfl
     | MaxInclusive =>
       obtain ⟨res, run, facts⟩ := between_edges_correct context double 1#u128 h1
       refine ⟨res, by simp [nan, lowRun, highRun, h1Run, run], fun c hc => ?_⟩
       obtain ⟨i, j, hi, hj, at_i, at_j, means⟩ := facts c hc
-      intro Object Value Object' Value' I J lit num mom frame d x node y hy
+      intro Object Value Object' Value' I J lit num mom size frame d x node y hy
       rw [holds y hy.2.1, means J d, edgeMeans frame node hy i hi, edgeMeans frame node hy j hj, at_i, at_j, h1Is]
       rfl
     | MaxExclusive =>
       obtain ⟨res, run, facts⟩ := between_edges_correct context double 1#u128 low
       refine ⟨res, by simp [nan, lowRun, highRun, run], fun c hc => ?_⟩
       obtain ⟨i, j, hi, hj, at_i, at_j, means⟩ := facts c hc
-      intro Object Value Object' Value' I J lit num mom frame d x node y hy
+      intro Object Value Object' Value' I J lit num mom size frame d x node y hy
       rw [holds y hy.2.1, means J d, edgeMeans frame node hy i hi, edgeMeans frame node hy j hj, at_i, at_j, lowVal]
       rfl
 
@@ -591,8 +601,8 @@ theorem time_line_meaning (zoned : Bool) :
     ∃ c, data_ontology.time_line zoned = .ok c ∧
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom →
-          ∀ (context : data_ontology.Context) d x, NodeValue context I J lit num mom d x →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size →
+          ∀ (context : data_ontology.Context) d x, NodeValue context I J lit num mom size d x →
             context.kinds.stamp = true → (classDenote J c d ↔ ∃ m, MomentAt mom x m ∧ m.zone.isSome = zoned) := by
   have used : ∀ (context : data_ontology.Context), context.kinds.stamp = true →
       Used context.kinds .DateTime = true ∧ Used context.kinds .DateTimeStamp = true := by
@@ -600,13 +610,13 @@ theorem time_line_meaning (zoned : Bool) :
   cases zoned with
   | true =>
     refine ⟨.Class (kindClass .DateTimeStamp), by simp [data_ontology.time_line, kind_class_eq], ?_⟩
-    intro Object Value Object' Value' I J lit num mom frame context d x node stamp
+    intro Object Value Object' Value' I J lit num mom size frame context d x node stamp
     rw [classDenote, node.kinds .DateTimeStamp (used context stamp).2, frame.stamps]
   | false =>
     refine ⟨.ObjectIntersectionOf ⟨.Class (kindClass .DateTime), .ObjectComplementOf (.Class (kindClass .DateTimeStamp)),
       alloc.vec.Vec.new ClassExpression⟩,
       by simp [data_ontology.time_line, kind_class_eq, data_ontology.not, data_ontology.and], ?_⟩
-    intro Object Value Object' Value' I J lit num mom frame context d x node stamp
+    intro Object Value Object' Value' I J lit num mom size frame context d x node stamp
     rw [inter_iff]
     simp only [AtLeastTwo.elements, new_val, List.cons_append, List.nil_append, List.mem_cons,
       List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq, classDenote]
@@ -633,8 +643,8 @@ theorem time_part_meaning (context : data_ontology.Context) (zoned : Bool) (inst
     ∃ res, data_ontology.time_part context zoned instant o inside = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom →
-          ∀ d x, NodeValue context I J lit num mom d x →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size →
+          ∀ d x, NodeValue context I J lit num mom size d x →
             (classDenote J c d ↔ ∃ m, MomentAt mom x m ∧ m.zone.isSome = zoned ∧ (TimeIn instant o m ↔ inside = true)) := by
   rw [data_ontology.time_part]
   obtain ⟨r, run, found⟩ := time_cut_index_found context.times zoned instant o 0#usize
@@ -646,11 +656,11 @@ theorem time_part_meaning (context : data_ontology.Context) (zoned : Bool) (inst
     -- the meaning of the found cut at a node
     have cutMeans : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         {I : Interpretation Object Value} {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value}
-        {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value}, RangeFrame I J lit num mom →
-        ∀ {d x}, NodeValue context I J lit num mom d x →
+        {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} {size : Value → ℕ → Prop}, RangeFrame I J lit num mom size →
+        ∀ {d x}, NodeValue context I J lit num mom size d x →
           context.kinds.stamp = true ∧ ∀ m, MomentAt mom x m → m.zone.isSome = zoned →
             (J.classes (timeClass i) d ↔ TimeIn instant o m) := by
-      intro Object Value Object' Value' I J lit num mom frame d x node
+      intro Object Value Object' Value' I J lit num mom size frame d x node
       have nonempty : context.times.val ≠ [] := fun e => by simp [e] at h
       refine ⟨node.goodTimes.2 nonempty, fun m hm zone => ?_⟩
       have gc := node.goodTimes.1 _ (List.getElem_mem h)
@@ -665,12 +675,12 @@ theorem time_part_meaning (context : data_ontology.Context) (zoned : Bool) (inst
       refine ⟨some (.ObjectIntersectionOf ⟨line, .Class (timeClass i), alloc.vec.Vec.new ClassExpression⟩),
         by simp [run, lineRun, time_class_eq, data_ontology.and], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit num mom frame d x node
+      intro Object Value Object' Value' I J lit num mom size frame d x node
       obtain ⟨stamp, means⟩ := cutMeans frame node
       rw [inter_iff]
       simp only [AtLeastTwo.elements, new_val, List.cons_append, List.nil_append, List.mem_cons,
         List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq, classDenote]
-      rw [lineMeans I J lit num mom frame context d x node stamp]
+      rw [lineMeans I J lit num mom size frame context d x node stamp]
       constructor
       · rintro ⟨⟨m, hm, zone⟩, holds⟩
         exact ⟨m, hm, zone, by simpa using (means m hm zone).mp holds⟩
@@ -681,12 +691,12 @@ theorem time_part_meaning (context : data_ontology.Context) (zoned : Bool) (inst
         alloc.vec.Vec.new ClassExpression⟩),
         by simp [run, lineRun, time_class_eq, data_ontology.not, data_ontology.and], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit num mom frame d x node
+      intro Object Value Object' Value' I J lit num mom size frame d x node
       obtain ⟨stamp, means⟩ := cutMeans frame node
       rw [inter_iff]
       simp only [AtLeastTwo.elements, new_val, List.cons_append, List.nil_append, List.mem_cons,
         List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq, classDenote]
-      rw [lineMeans I J lit num mom frame context d x node stamp]
+      rw [lineMeans I J lit num mom size frame context d x node stamp]
       constructor
       · rintro ⟨⟨m, hm, zone⟩, holds⟩
         exact ⟨m, hm, zone, by simpa using fun t => holds ((means m hm zone).mpr t)⟩
@@ -757,8 +767,8 @@ theorem same_line_part_meaning (context : data_ontology.Context) (F : datatypes.
     ∃ res, data_ontology.same_line_part context F bound = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom →
-          ∀ d x, NodeValue context I J lit num mom d x →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size →
+          ∀ d x, NodeValue context I J lit num mom size d x →
             (classDenote J c d ↔ ∃ m, MomentAt mom x m ∧ m.zone.isSome = bound.zone.isSome ∧
               MomentFacetHolds F (Rowl.Moments.momentOf bound) m) := by
   obtain ⟨i, iRun, iOk, iKey⟩ := Rowl.TimeOrder.instant_canonical bound cb (room := 0) (by omega)
@@ -770,15 +780,15 @@ theorem same_line_part_meaning (context : data_ontology.Context) (F : datatypes.
         ∀ c, res = some c →
         ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
           (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-          (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom →
-            ∀ d x, NodeValue context I J lit num mom d x →
+          (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size →
+            ∀ d x, NodeValue context I J lit num mom size d x →
               (classDenote J c d ↔ ∃ m, MomentAt mom x m ∧ m.zone.isSome = bound.zone.isSome ∧
                 MomentFacetHolds F (Rowl.Moments.momentOf bound) m) := by
     intro o inside holds
     obtain ⟨res, run, means⟩ := time_part_meaning.{u,v,w,x} context bound.zone.isSome i iOk o inside
     refine ⟨res, by rw [iRun, bind_ok]; exact run, fun c hc => ?_⟩
-    intro Object Value Object' Value' I J lit num mom frame d x node
-    rw [means c hc I J lit num mom frame d x node]
+    intro Object Value Object' Value' I J lit num mom size frame d x node
+    rw [means c hc I J lit num mom size frame d x node]
     constructor
     · rintro ⟨m, hm, zone, side⟩
       exact ⟨m, hm, zone, (holds m zone).mp side⟩
@@ -824,8 +834,8 @@ theorem other_line_part_meaning (context : data_ontology.Context) (F : datatypes
     ∃ res, data_ontology.other_line_part context F bound = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom →
-          ∀ d x, NodeValue context I J lit num mom d x →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size →
+          ∀ d x, NodeValue context I J lit num mom size d x →
             (classDenote J c d ↔ ∃ m, MomentAt mom x m ∧ m.zone.isSome ≠ bound.zone.isSome ∧
               MomentFacetHolds F (Rowl.Moments.momentOf bound) m) := by
   obtain ⟨i, iRun, iOk, iKey⟩ := Rowl.TimeOrder.instant_canonical bound cb (room := 2) (by omega)
@@ -841,8 +851,8 @@ theorem other_line_part_meaning (context : data_ontology.Context) (F : datatypes
         ∀ c, res = some c →
         ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
           (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-          (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom →
-            ∀ d x, NodeValue context I J lit num mom d x →
+          (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size →
+            ∀ d x, NodeValue context I J lit num mom size d x →
               (classDenote J c d ↔ ∃ m, MomentAt mom x m ∧ m.zone.isSome ≠ bound.zone.isSome ∧
                 MomentFacetHolds F (Rowl.Moments.momentOf bound) m) := by
     intro n hn later o inside holds
@@ -852,8 +862,8 @@ theorem other_line_part_meaning (context : data_ontology.Context) (F : datatypes
     have sKey' : (Rowl.Moments.momentOf s).key =
         (Rowl.Moments.momentOf bound).key + (if later then 50400 else -50400) := by
       rw [sKey, iKey, hn]; cases later <;> norm_num
-    intro Object Value Object' Value' I J lit num mom frame d x node
-    rw [means c hc I J lit num mom frame d x node]
+    intro Object Value Object' Value' I J lit num mom size frame d x node
+    rw [means c hc I J lit num mom size frame d x node]
     constructor
     · rintro ⟨m, hm, zone, side⟩
       have zone' := (bool_other _ _).mp zone
@@ -913,8 +923,8 @@ theorem time_facet_class_meaning (context : data_ontology.Context) (F : datatype
     ∃ res, data_ontology.time_facet_class context F bound = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom →
-          ∀ d x, NodeValue context I J lit num mom d x → ∀ m, MomentAt mom x m →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size →
+          ∀ d x, NodeValue context I J lit num mom size d x → ∀ m, MomentAt mom x m →
             (MomentFacetHolds F (Rowl.Moments.momentOf bound) m ↔ classDenote J c d) := by
   rw [data_ontology.time_facet_class, bounded_year_eq]
   by_cases small : bound.year.val.length < Usize.max / 16
@@ -929,8 +939,8 @@ theorem time_facet_class_meaning (context : data_ontology.Context) (F : datatype
         refine ⟨some (.ObjectUnionOf ⟨s, t, alloc.vec.Vec.new ClassExpression⟩),
           by simp [small, sameRun, otherRun, data_ontology.or], fun c hc => ?_⟩
         cases hc
-        intro Object Value Object' Value' I J lit num mom frame d x node m hm
-        rw [or_iff, sameMeans s rfl I J lit num mom frame d x node, otherMeans t rfl I J lit num mom frame d x node]
+        intro Object Value Object' Value' I J lit num mom size frame d x node m hm
+        rw [or_iff, sameMeans s rfl I J lit num mom size frame d x node, otherMeans t rfl I J lit num mom size frame d x node]
         constructor
         · intro holds
           by_cases zone : m.zone.isSome = bound.zone.isSome
@@ -943,21 +953,48 @@ theorem time_facet_class_meaning (context : data_ontology.Context) (F : datatype
 theorem float_kind_double : floatKind true = .Double := rfl
 theorem float_kind_float : floatKind false = .Float := rfl
 
+/-- A value with a length is no real number. -/
+theorem frame_real_sized {I : Interpretation Object Value} {J : Interpretation Object' Value'}
+    {lit : datatypes.DataValue → Value} {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value}
+    {size : Value → ℕ → Prop} (frame : RangeFrame I J lit num mom size) {x : Value} {m : ℕ} (hs : size x m) (r : ℝ) :
+    x ≠ num r := by
+  rintro rfl
+  have := frame.sizedKinds _ m hs .Real ((frame.numeric .Real (by simp [Rowl.Datatypes.IsNumeric]) (num r)).mpr
+    ⟨r, rfl, by simp [Rowl.Datatypes.RealIn]⟩)
+  simp [Rowl.Datatypes.LengthKind] at this
+
+/-- A value with a length is no floating-point number. -/
+theorem frame_float_sized {I : Interpretation Object Value} {J : Interpretation Object' Value'}
+    {lit : datatypes.DataValue → Value} {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value}
+    {size : Value → ℕ → Prop} (frame : RangeFrame I J lit num mom size) {x : Value} {m : ℕ} (hs : size x m)
+    (double : Bool) (b : datatypes.Binary) : ¬ FloatAt lit double x b := fun h => by
+  have := frame.sizedKinds x m hs (floatKind double) ((frame.binaries double x).mpr ⟨b, h⟩)
+  cases double <;> simp [floatKind, Rowl.Datatypes.LengthKind] at this
+
+/-- A value with a length is no time instant. -/
+theorem frame_moment_sized {I : Interpretation Object Value} {J : Interpretation Object' Value'}
+    {lit : datatypes.DataValue → Value} {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value}
+    {size : Value → ℕ → Prop} (frame : RangeFrame I J lit num mom size) {x : Value} {m : ℕ} (hs : size x m)
+    (y : Rowl.DatatypeMap.Moment) : ¬ MomentAt mom x y := fun h => by
+  have := frame.sizedKinds x m hs .DateTime ((frame.moments x).mpr ⟨y, h⟩)
+  simp [Rowl.Datatypes.LengthKind] at this
+
 set_option maxHeartbeats 8000000 in
-/-- The class of a facet restriction holds at a data node standing for a
-    value of the restricted kind exactly when the facet holds of it: for a
+/-- The class of a range facet restriction holds at a data node standing for
+    a value of the restricted kind exactly when the facet holds of it: for a
     numeric kind while numbers are ordered, for `xsd:double` and `xsd:float`,
-    and for `xsd:dateTime` and `xsd:dateTimeStamp`. -/
-theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kind) (f : FacetRestriction) :
-    ∃ res, data_ontology.facet_class context k f = .ok res ∧ ∀ c, res = some c →
+    for `xsd:dateTime` and `xsd:dateTimeStamp`, and for the kinds with the
+    length facets, whose values no range facet holds of. -/
+theorem range_facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kind) (f : FacetRestriction) :
+    ∃ res, data_ontology.range_facet_class context k f = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
-        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value), RangeFrame I J lit num mom → ∀ d x, NodeValue context I J lit num mom d x →
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop), RangeFrame I J lit num mom size → ∀ d x, NodeValue context I J lit num mom size d x →
           I.datatypes (typeOf k) x →
           (Rowl.Datatypes.IsNumeric k ∧ context.kinds.ordered = true) ∨ k = .Double ∨ k = .Float ∨
-            k = .DateTime ∨ k = .DateTimeStamp →
+            k = .DateTime ∨ k = .DateTimeStamp ∨ Rowl.Datatypes.LengthKind k →
             (I.facets f x ↔ classDenote J c d) := by
-  rw [data_ontology.facet_class, Rowl.Datatypes.facet_of_correct]
+  rw [data_ontology.range_facet_class, Rowl.Datatypes.facet_of_correct]
   obtain ⟨result, run, someValue, _⟩ := Rowl.Datatypes.literal_value_correct.{0} f.value
   rw [run]
   cases facet : Rowl.Datatypes.facetOf f.facet with
@@ -982,11 +1019,13 @@ theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kin
           refine ⟨res, ?_, fun c hc => ?_⟩
           · cases w <;> simp_all [Rowl.Datatypes.IsNumber, Rowl.Datatypes.numeric_correct, numeric_kind_eq,
               facet_open_eq, facet_outside_eq]
-          intro Object Value Object' Value' I J lit num mom frame d x node inType kinds
+          intro Object Value Object' Value' I J lit num mom size frame d x node inType kinds
           have ordered : context.kinds.ordered = true := by
-            rcases kinds with ⟨_, o⟩ | rfl | rfl | rfl | rfl
+            rcases kinds with ⟨_, o⟩ | rfl | rfl | rfl | rfl | len
             · exact o
-            all_goals simp [Rowl.Datatypes.IsNumeric] at numericK
+            all_goals first
+              | (simp [Rowl.Datatypes.IsNumeric] at numericK; done)
+              | (cases k <;> simp_all [Rowl.Datatypes.IsNumeric, Rowl.Datatypes.LengthKind])
           have isNumber : ∃ r, x = num r := by
             obtain ⟨r, rfl, _⟩ := (frame.numeric k numericK x).mp inType
             exact ⟨r, rfl⟩
@@ -1003,11 +1042,11 @@ theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kin
         · refine ⟨some (.ObjectComplementOf (.Class thing)), ?_, fun c hc => ?_⟩
           · cases w <;> simp_all [Rowl.Datatypes.IsNumber, Rowl.Datatypes.numeric_correct, numeric_kind_eq, nothing_eq]
           cases hc
-          intro Object Value Object' Value' I J lit num mom frame d x node inType kinds
+          intro Object Value Object' Value' I J lit num mom size frame d x node inType kinds
           apply empty frame.thing
           rw [frame.facets f F w facet run number x]
           rintro ⟨r, rfl, _⟩
-          rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl
+          rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl | len
           · exact numericK numeric
           · obtain ⟨y, hy⟩ := (frame.binaries true _).mp inType
             exact frame.binaryReal true y _ r hy rfl
@@ -1017,27 +1056,29 @@ theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kin
             exact frame.momentReal y _ r hy rfl
           · obtain ⟨y, hy, _⟩ := (frame.stamps _).mp inType
             exact frame.momentReal y _ r hy rfl
+          · obtain ⟨m, hm⟩ := frame.sized k _ len inType
+            exact frame_real_sized frame hm r rfl
       · cases w with
         | Double b =>
           by_cases kd : k = .Double
           · subst kd
             obtain ⟨res, bRun, bMeans⟩ := binary_facet_class_meaning context true F b canonical.1 canonical.2
             refine ⟨res, by simp [bRun], fun c hc => ?_⟩
-            intro Object Value Object' Value' I J lit num mom frame d x node inType _
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType _
             obtain ⟨y, hy⟩ := (frame.binaries true x).mp inType
             rw [frame.binaryFacets f F true b facet run x]
             constructor
             · rintro ⟨y', hy', holds⟩
-              exact (bMeans c hc I J lit num mom frame d x node y' hy').mp holds
+              exact (bMeans c hc I J lit num mom size frame d x node y' hy').mp holds
             · intro holds
-              exact ⟨y, hy, (bMeans c hc I J lit num mom frame d x node y hy).mpr holds⟩
+              exact ⟨y, hy, (bMeans c hc I J lit num mom size frame d x node y hy).mpr holds⟩
           · refine ⟨some (.ObjectComplementOf (.Class thing)), by cases k <;> simp_all [nothing_eq], fun c hc => ?_⟩
             cases hc
-            intro Object Value Object' Value' I J lit num mom frame d x node inType kinds
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType kinds
             apply empty frame.thing
             rw [frame.binaryFacets f F true b facet run x]
             rintro ⟨y, hy, _⟩
-            rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl
+            rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl | len
             · obtain ⟨r, rfl, _⟩ := (frame.numeric k numeric x).mp inType
               exact frame.binaryReal true y _ r hy rfl
             · exact kd rfl
@@ -1047,26 +1088,28 @@ theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kin
               exact frame.momentBinary y' true y x hy' hy
             · obtain ⟨y', hy', _⟩ := (frame.stamps x).mp inType
               exact frame.momentBinary y' true y x hy' hy
+            · obtain ⟨m, hm⟩ := frame.sized k x len inType
+              exact frame_float_sized frame hm true y hy
         | Float b =>
           by_cases kf : k = .Float
           · subst kf
             obtain ⟨res, bRun, bMeans⟩ := binary_facet_class_meaning context false F b canonical.1 canonical.2
             refine ⟨res, by simp [bRun], fun c hc => ?_⟩
-            intro Object Value Object' Value' I J lit num mom frame d x node inType _
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType _
             obtain ⟨y, hy⟩ := (frame.binaries false x).mp inType
             rw [frame.binaryFacets f F false b facet run x]
             constructor
             · rintro ⟨y', hy', holds⟩
-              exact (bMeans c hc I J lit num mom frame d x node y' hy').mp holds
+              exact (bMeans c hc I J lit num mom size frame d x node y' hy').mp holds
             · intro holds
-              exact ⟨y, hy, (bMeans c hc I J lit num mom frame d x node y hy).mpr holds⟩
+              exact ⟨y, hy, (bMeans c hc I J lit num mom size frame d x node y hy).mpr holds⟩
           · refine ⟨some (.ObjectComplementOf (.Class thing)), by cases k <;> simp_all [nothing_eq], fun c hc => ?_⟩
             cases hc
-            intro Object Value Object' Value' I J lit num mom frame d x node inType kinds
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType kinds
             apply empty frame.thing
             rw [frame.binaryFacets f F false b facet run x]
             rintro ⟨y, hy, _⟩
-            rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl
+            rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl | len
             · obtain ⟨r, rfl, _⟩ := (frame.numeric k numeric x).mp inType
               exact frame.binaryReal false y _ r hy rfl
             · obtain ⟨y', hy'⟩ := (frame.binaries true x).mp inType
@@ -1076,11 +1119,13 @@ theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kin
               exact frame.momentBinary y' false y x hy' hy
             · obtain ⟨y', hy', _⟩ := (frame.stamps x).mp inType
               exact frame.momentBinary y' false y x hy' hy
+            · obtain ⟨m, hm⟩ := frame.sized k x len inType
+              exact frame_float_sized frame hm false y hy
         | Moment b =>
           by_cases kt : k = .DateTime ∨ k = .DateTimeStamp
           · obtain ⟨res, tRun, tMeans⟩ := time_facet_class_meaning.{u,v,w,x} context F b canonical
             refine ⟨res, by rcases kt with rfl | rfl <;> simp [tRun], fun c hc => ?_⟩
-            intro Object Value Object' Value' I J lit num mom frame d x node inType _
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType _
             obtain ⟨y, hy⟩ : ∃ m, MomentAt mom x m := by
               rcases kt with rfl | rfl
               · exact (frame.moments x).mp inType
@@ -1089,18 +1134,18 @@ theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kin
             rw [frame.momentFacets f F b facet run x]
             constructor
             · rintro ⟨y', hy', holds⟩
-              exact (tMeans c hc I J lit num mom frame d x node y' hy').mp holds
+              exact (tMeans c hc I J lit num mom size frame d x node y' hy').mp holds
             · intro holds
-              exact ⟨y, hy, (tMeans c hc I J lit num mom frame d x node y hy).mpr holds⟩
+              exact ⟨y, hy, (tMeans c hc I J lit num mom size frame d x node y hy).mpr holds⟩
           · refine ⟨some (.ObjectComplementOf (.Class thing)), by
               cases k <;> first | exact absurd (.inl rfl) kt | exact absurd (.inr rfl) kt | simp [nothing_eq],
               fun c hc => ?_⟩
             cases hc
-            intro Object Value Object' Value' I J lit num mom frame d x node inType kinds
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType kinds
             apply empty frame.thing
             rw [frame.momentFacets f F b facet run x]
             rintro ⟨y, hy, _⟩
-            rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl
+            rcases kinds with ⟨numeric, _⟩ | rfl | rfl | rfl | rfl | len
             · obtain ⟨r, rfl, _⟩ := (frame.numeric k numeric x).mp inType
               exact frame.momentReal y _ r hy rfl
             · obtain ⟨y', hy'⟩ := (frame.binaries true x).mp inType
@@ -1109,7 +1154,166 @@ theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kin
               exact frame.momentBinary y false y' x hy hy'
             · exact kt (.inl rfl)
             · exact kt (.inr rfl)
+            · obtain ⟨m, hm⟩ := frame.sized k x len inType
+              exact frame_moment_sized frame hm y hy
         | _ => exact ⟨none, by simp_all [Rowl.Datatypes.IsNumber, Rowl.Datatypes.numeric_correct], by simp⟩
+
+/-- The class of the values with at least a length: `owl:Thing` for 0, and
+    otherwise the class of a length of the context, which holds at a data node
+    exactly when its value is at least that long. -/
+theorem at_length_spec (context : data_ontology.Context) (length : Usize) :
+    ∃ res, data_ontology.at_length context length = .ok res ∧ ∀ c, res = some c →
+      ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+        {I : Interpretation Object Value} {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value}
+        {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} {size : Value → ℕ → Prop},
+        RangeFrame I J lit num mom size → ∀ {d : Object'} {x : Value},
+          NodeValue context I J lit num mom size d x → ∀ {m : ℕ}, size x m → (classDenote J c d ↔ length.val ≤ m) := by
+  rw [data_ontology.at_length]
+  by_cases zero : length = 0#usize
+  · subst zero
+    refine ⟨some (.Class thing), by simp [thing_eq], fun c hc => ?_⟩
+    cases hc
+    intro Object Value Object' Value' I J lit num mom size frame d x node m hm
+    simp [classDenote, frame.thing d]
+  · obtain ⟨o, run, found, _⟩ := length_index_spec context.lengths length 0#usize
+    cases o with
+    | none => exact ⟨none, by simp [zero, run], fun c hc => nomatch hc⟩
+    | some i =>
+      obtain ⟨_, h, at_i⟩ := found i rfl
+      refine ⟨some (.Class (lengthClass i)), by simp [zero, run, length_class_eq], fun c hc => ?_⟩
+      cases hc
+      intro Object Value Object' Value' I J lit num mom size frame d x node m hm
+      simp only [classDenote]
+      rw [node.lengths m hm i h, at_i]
+
+/-- The class of a length facet restriction holds at a data node standing for
+    a value of the restricted kind exactly when the facet holds of it: on a
+    kind with the length facets the classes of the lengths of the context say
+    how long the value is, and no value of another kind has a length. -/
+theorem length_facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kind) (f : FacetRestriction)
+    (F : datatypes.LengthFacet) (facet : Rowl.Datatypes.lengthFacetOf f.facet = some F) :
+    ∃ res, data_ontology.length_facet_class context k F f.value = .ok res ∧ ∀ c, res = some c →
+      ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+        (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop),
+        RangeFrame I J lit num mom size → ∀ d x, NodeValue context I J lit num mom size d x →
+          I.datatypes (typeOf k) x → (I.facets f x ↔ classDenote J c d) := by
+  rw [data_ontology.length_facet_class]
+  obtain ⟨result, run, _, _⟩ := Rowl.Datatypes.literal_value_correct.{0} f.value
+  rw [run]
+  cases result with
+  | none => exact ⟨none, by simp, fun c hc => nomatch hc⟩
+  | some w =>
+    obtain ⟨b, bRun, bFacts⟩ := Rowl.LengthCounts.length_bound_spec w
+    cases b with
+    | none => exact ⟨none, by simp [bRun], fun c hc => nomatch hc⟩
+    | some bound =>
+      obtain ⟨whole, fraction, rfl, empty, digits, boundIs, small⟩ := bFacts bound rfl
+      have number : Rowl.Datatypes.IsNumber (.Number false whole fraction) := trivial
+      have value : Rowl.Datatypes.numValue (.Number false whole fraction) = (bound.val : ℚ) := by
+        simp [Rowl.Datatypes.numValue, Rowl.Datatypes.numberOf, empty, boundIs]
+      have facts := fun {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+          (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
+          (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop)
+          (frame : RangeFrame I J lit num mom size) (x : Value) =>
+        frame.lengthFacets f F _ bound.val facet run number value x
+      have limit : Rowl.LengthCounts.lengthLimit < Usize.max := by
+        unfold Rowl.LengthCounts.lengthLimit
+        have := Rowl.LengthCounts.usize_big_enough
+        omega
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := bound) (y := 1#usize) (by scalar_tac))
+      have nextIs : next.val = bound.val + 1 := by simpa using nextValue
+      by_cases len : Rowl.Datatypes.LengthKind k
+      · obtain ⟨lowRes, lowRun, lowFacts⟩ := at_length_spec.{u,v,w,x} context bound
+        obtain ⟨highRes, highRun, highFacts⟩ := at_length_spec.{u,v,w,x} context next
+        -- the length of the value of a node of the kind
+        have measure : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+            {I : Interpretation Object Value} {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value}
+            {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} {size : Value → ℕ → Prop}
+            (frame : RangeFrame I J lit num mom size) {x : Value}, I.datatypes (typeOf k) x →
+            ∃ m, size x m ∧ ∀ P : ℕ → Prop, (∃ m', P m' ∧ size x m') ↔ P m := by
+          intro Object Value Object' Value' I J lit num mom size frame x inType
+          obtain ⟨m, hm⟩ := frame.sized k x len inType
+          exact ⟨m, hm, fun P => ⟨fun ⟨m', hp, hm'⟩ => frame.sizeUnique x m m' hm hm' ▸ hp, fun hp => ⟨m, hp, hm⟩⟩⟩
+        cases F with
+        | Length =>
+          cases lowRes with
+          | none => exact ⟨none, by simp [bRun, length_kind_eq, len, lowRun, advance, highRun], fun c hc => nomatch hc⟩
+          | some low =>
+            cases highRes with
+            | none =>
+              exact ⟨none, by simp [bRun, length_kind_eq, len, lowRun, advance, highRun], fun c hc => nomatch hc⟩
+            | some high =>
+              refine ⟨some (.ObjectIntersectionOf ⟨low, .ObjectComplementOf high,
+                alloc.vec.Vec.new ClassExpression⟩), by simp [bRun, length_kind_eq, len, lowRun, advance, highRun,
+                data_ontology.and, data_ontology.not], fun c hc => ?_⟩
+              cases hc
+              intro Object Value Object' Value' I J lit num mom size frame d x node inType
+              obtain ⟨m, hm, one⟩ := measure frame inType
+              rw [facts I J lit num mom size frame x, one (Rowl.Datatypes.LengthHolds .Length bound.val), inter_iff]
+              simp only [AtLeastTwo.elements, List.mem_cons, forall_eq_or_imp, classDenote, new_val, List.not_mem_nil,
+                false_imp_iff, implies_true, and_true, Rowl.Datatypes.LengthHolds]
+              rw [lowFacts low rfl frame node hm, highFacts high rfl frame node hm, nextIs]
+              omega
+        | MinLength =>
+          cases lowRes with
+          | none => exact ⟨none, by simp [bRun, length_kind_eq, len, lowRun], fun c hc => nomatch hc⟩
+          | some low =>
+            refine ⟨some low, by simp [bRun, length_kind_eq, len, lowRun], fun c hc => ?_⟩
+            cases hc
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType
+            obtain ⟨m, hm, one⟩ := measure frame inType
+            rw [facts I J lit num mom size frame x, one (Rowl.Datatypes.LengthHolds .MinLength bound.val),
+              lowFacts low rfl frame node hm]
+            simp only [Rowl.Datatypes.LengthHolds]
+        | MaxLength =>
+          cases highRes with
+          | none => exact ⟨none, by simp [bRun, length_kind_eq, len, advance, highRun], fun c hc => nomatch hc⟩
+          | some high =>
+            refine ⟨some (.ObjectComplementOf high), by
+              simp [bRun, length_kind_eq, len, advance, highRun, data_ontology.not], fun c hc => ?_⟩
+            cases hc
+            intro Object Value Object' Value' I J lit num mom size frame d x node inType
+            obtain ⟨m, hm, one⟩ := measure frame inType
+            rw [facts I J lit num mom size frame x, one (Rowl.Datatypes.LengthHolds .MaxLength bound.val)]
+            simp only [classDenote, Rowl.Datatypes.LengthHolds]
+            rw [highFacts high rfl frame node hm, nextIs]
+            omega
+      · refine ⟨some (.ObjectComplementOf (.Class thing)), by simp [bRun, length_kind_eq, len, nothing_eq],
+          fun c hc => ?_⟩
+        cases hc
+        intro Object Value Object' Value' I J lit num mom size frame d x node inType
+        simp only [classDenote, frame.thing d, not_true_eq_false, iff_false]
+        rw [facts I J lit num mom size frame x]
+        rintro ⟨m, _, hm⟩
+        exact len (frame.sizedKinds x m hm k inType)
+
+/-- The class of a facet restriction holds at a data node standing for a
+    value of the restricted kind exactly when the facet holds of it: for a
+    numeric kind while numbers are ordered, for `xsd:double` and `xsd:float`,
+    for `xsd:dateTime` and `xsd:dateTimeStamp`, and for the kinds with the
+    length facets. -/
+theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kind) (f : FacetRestriction) :
+    ∃ res, data_ontology.facet_class context k f = .ok res ∧ ∀ c, res = some c →
+      ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+        (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
+        (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop),
+        RangeFrame I J lit num mom size → ∀ d x, NodeValue context I J lit num mom size d x →
+          I.datatypes (typeOf k) x →
+          (Rowl.Datatypes.IsNumeric k ∧ context.kinds.ordered = true) ∨ k = .Double ∨ k = .Float ∨
+            k = .DateTime ∨ k = .DateTimeStamp ∨ Rowl.Datatypes.LengthKind k →
+            (I.facets f x ↔ classDenote J c d) := by
+  rw [data_ontology.facet_class, Rowl.Datatypes.length_facet_of_correct]
+  cases facet : Rowl.Datatypes.lengthFacetOf f.facet with
+  | some F =>
+    obtain ⟨res, run, means⟩ := length_facet_class_meaning.{u,v,w,x} context k f F facet
+    refine ⟨res, by simp [run], fun c hc => ?_⟩
+    intro Object Value Object' Value' I J lit num mom size frame d x node inType _
+    exact means c hc I J lit num mom size frame d x node inType
+  | none =>
+    obtain ⟨res, run, means⟩ := range_facet_class_meaning.{u,v,w,x} context k f
+    exact ⟨res, by simp [run], means⟩
 
 /-- The classes of the facet restrictions of a list, member by member. -/
 theorem facet_classes_meaning (context : data_ontology.Context) (k : datatypes.Kind)
@@ -1178,7 +1382,7 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     by_cases literal : dt = literalDatatype
     · refine ⟨some (.Class thing), by simp [literal, thing_eq], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit num mom frame d x _
+      intro Object Value Object' Value' I J lit num mom size frame d x _
       subst literal
       simp [dataDenote, classDenote, frame.literal x, frame.thing d]
     · simp only [literal, decide_false, Bool.false_eq_true, ↓reduceIte, Rowl.Datatypes.kind_of_correct, bind_ok]
@@ -1187,10 +1391,10 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
       | some k =>
         obtain ⟨res, run, means⟩ := kind_range_meaning.{u,v,w,x} context k
         refine ⟨res, by simp [run], fun c hc => ?_⟩
-        intro Object Value Object' Value' I J lit num mom frame d x node
+        intro Object Value Object' Value' I J lit num mom size frame d x node
         rw [Rowl.Datatypes.kindOf_some kind]
         simp only [dataDenote]
-        exact means c hc I J lit num mom frame d x node
+        exact means c hc I J lit num mom size frame d x node
   | Intersection members =>
     rw [data_ontology.encode_range]
     have bound : ∀ e ∈ members.elements, sizeOf e < 1 + sizeOf members := by
@@ -1208,16 +1412,16 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | some cs =>
       refine ⟨some (.ObjectIntersectionOf cs), by simp [run], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit num mom frame d x node
+      intro Object Value Object' Value' I J lit num mom size frame d x node
       have pairs := means cs rfl
       have every : (∀ e ∈ members.elements, dataDenote I e x) ↔ ∀ c ∈ cs.elements, classDenote J c d := by
         constructor
         · intro all c member
           obtain ⟨e, inside, rel⟩ := forall2_mem_left pairs c member
-          exact (rel I J lit num mom frame d x node).mp (all e inside)
+          exact (rel I J lit num mom size frame d x node).mp (all e inside)
         · intro all e member
           obtain ⟨c, inside, rel⟩ := forall2_mem_right pairs e member
-          exact (rel I J lit num mom frame d x node).mpr (all c inside)
+          exact (rel I J lit num mom size frame d x node).mpr (all c inside)
       rw [dataDenote, classDenote]
       simpa [AtLeastTwo.elements] using every
   | Union members =>
@@ -1237,16 +1441,16 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | some cs =>
       refine ⟨some (.ObjectUnionOf cs), by simp [run], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit num mom frame d x node
+      intro Object Value Object' Value' I J lit num mom size frame d x node
       have pairs := means cs rfl
       have some' : (∃ e ∈ members.elements, dataDenote I e x) ↔ ∃ c ∈ cs.elements, classDenote J c d := by
         constructor
         · rintro ⟨e, member, holds⟩
           obtain ⟨c, inside, rel⟩ := forall2_mem_right pairs e member
-          exact ⟨c, inside, (rel I J lit num mom frame d x node).mp holds⟩
+          exact ⟨c, inside, (rel I J lit num mom size frame d x node).mp holds⟩
         · rintro ⟨c, member, holds⟩
           obtain ⟨e, inside, rel⟩ := forall2_mem_left pairs c member
-          exact ⟨e, inside, (rel I J lit num mom frame d x node).mpr holds⟩
+          exact ⟨e, inside, (rel I J lit num mom size frame d x node).mpr holds⟩
       rw [dataDenote, classDenote]
       simpa [AtLeastTwo.elements, or_assoc] using some'
   | Complement inner =>
@@ -1258,9 +1462,9 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | some c =>
       refine ⟨some (.ObjectComplementOf c), by simp [run], fun c' hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit num mom frame d x node
+      intro Object Value Object' Value' I J lit num mom size frame d x node
       rw [dataDenote, classDenote]
-      exact not_congr (means c rfl I J lit num mom frame d x node)
+      exact not_congr (means c rfl I J lit num mom size frame d x node)
   | OneOf literals =>
     rw [data_ontology.encode_range]
     obtain ⟨first, firstRun, _⟩ := literal_individual_correct context literals.first
@@ -1274,7 +1478,7 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
       | some others =>
         refine ⟨some (.ObjectOneOf ⟨a, others⟩), by simp [firstRun, restRun], fun c hc => ?_⟩
         cases hc
-        intro Object Value Object' Value' I J lit num mom frame d x node
+        intro Object Value Object' Value' I J lit num mom size frame d x node
         obtain ⟨pairs, _⟩ := restFacts others rfl
         simp only [new_val, List.length_nil, List.drop_zero, zero_val] at pairs
         rw [dataDenote, classDenote]
@@ -1298,12 +1502,13 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | none => exact ⟨none, by simp, by simp⟩
     | some k =>
       simp only [bind_ok]
-      rw [data_ontology.restriction_range, numeric_kind_eq, binary_kind_eq, time_kind_eq]
+      rw [data_ontology.restriction_range, numeric_kind_eq, binary_kind_eq, time_kind_eq, length_kind_eq]
       by_cases ready : (Rowl.Datatypes.IsNumeric k ∧ context.kinds.ordered = true) ∨ k = .Double ∨ k = .Float ∨
-          k = .DateTime ∨ k = .DateTimeStamp
-      · have readyB : (((decide (Rowl.Datatypes.IsNumeric k) && context.kinds.ordered) ||
-            decide (k = .Double ∨ k = .Float)) || decide (k = .DateTime ∨ k = .DateTimeStamp)) = true := by
-          rcases ready with ⟨n, o⟩ | rfl | rfl | rfl | rfl <;> simp_all
+          k = .DateTime ∨ k = .DateTimeStamp ∨ Rowl.Datatypes.LengthKind k
+      · have readyB : ((((decide (Rowl.Datatypes.IsNumeric k) && context.kinds.ordered) ||
+            decide (k = .Double ∨ k = .Float)) || decide (k = .DateTime ∨ k = .DateTimeStamp)) ||
+              decide (Rowl.Datatypes.LengthKind k)) = true := by
+          rcases ready with ⟨n, o⟩ | rfl | rfl | rfl | rfl | l <;> simp_all
         obtain ⟨b, bRun, bMeans⟩ := kind_range_meaning.{u,v,w,x} context k
         obtain ⟨f, fRun, fMeans⟩ := facet_class_meaning.{u,v,w,x} context k restrictions.first
         obtain ⟨fs, fsRun, fsFacts⟩ := facet_classes_meaning context k restrictions.rest 0#usize
@@ -1320,34 +1525,35 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
               refine ⟨some (.ObjectIntersectionOf ⟨base, first, rest⟩),
                 by simp only [bind_ok]; rw [if_pos readyB]; simp [bRun, fRun, fsRun], fun c hc => ?_⟩
               cases hc
-              intro Object Value Object' Value' I J lit num mom frame d x node
+              intro Object Value Object' Value' I J lit num mom size frame d x node
               obtain ⟨_, pairs⟩ := fsFacts rest rfl
               simp only [new_val, List.length_nil, List.drop_zero, zero_val] at pairs
               rw [Rowl.Datatypes.kindOf_some kind]
               rw [dataDenote, inter_iff]
               simp only [AtLeastTwo.elements, NonEmpty.elements, List.mem_cons, forall_eq_or_imp]
-              rw [← bMeans base rfl I J lit num mom frame d x node]
+              rw [← bMeans base rfl I J lit num mom size frame d x node]
               constructor
               · rintro ⟨inType, firstFacet, restFacets⟩
-                refine ⟨inType, (fMeans first rfl I J lit num mom frame d _ node inType ready).mp firstFacet,
+                refine ⟨inType, (fMeans first rfl I J lit num mom size frame d _ node inType ready).mp firstFacet,
                   fun c member => ?_⟩
                 obtain ⟨e, inside, ⟨res, run', same⟩⟩ := forall2_mem_left pairs c member
                 obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context k e
                 rw [run''] at run'
                 cases Result.ok_injective run'
                 subst same
-                exact (means res rfl I J lit num mom frame d _ node inType ready).mp (restFacets e inside)
+                exact (means res rfl I J lit num mom size frame d _ node inType ready).mp (restFacets e inside)
               · rintro ⟨inType, firstHolds, restHold⟩
-                refine ⟨inType, (fMeans first rfl I J lit num mom frame d _ node inType ready).mpr firstHolds,
+                refine ⟨inType, (fMeans first rfl I J lit num mom size frame d _ node inType ready).mpr firstHolds,
                   fun e later => ?_⟩
                 obtain ⟨c, inside, ⟨res, run', same⟩⟩ := forall2_mem_right pairs e later
                 obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context k e
                 rw [run''] at run'
                 cases Result.ok_injective run'
                 subst same
-                exact (means res rfl I J lit num mom frame d _ node inType ready).mpr (restHold res inside)
-      · have readyB : ¬ (((decide (Rowl.Datatypes.IsNumeric k) && context.kinds.ordered) ||
-            decide (k = .Double ∨ k = .Float)) || decide (k = .DateTime ∨ k = .DateTimeStamp)) = true := by
+                exact (means res rfl I J lit num mom size frame d _ node inType ready).mpr (restHold res inside)
+      · have readyB : ¬ ((((decide (Rowl.Datatypes.IsNumeric k) && context.kinds.ordered) ||
+            decide (k = .Double ∨ k = .Float)) || decide (k = .DateTime ∨ k = .DateTimeStamp)) ||
+              decide (Rowl.Datatypes.LengthKind k)) = true := by
           intro h; apply ready; simpa [or_assoc] using h
         exact ⟨none, by simp only [bind_ok]; rw [if_neg readyB], by simp⟩
 termination_by sizeOf range

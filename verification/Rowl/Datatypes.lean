@@ -5127,6 +5127,67 @@ theorem facetOf_facetIri (F : datatypes.Facet) : facetOf (facetIri F) = some F :
 theorem facetIri_range (F : datatypes.Facet) : facetIri F ∈ rangeFacets := by
   cases F <;> simp [facetIri, rangeFacets]
 
+/-! ### The length facets -/
+
+/-- The kinds whose datatypes have the length facets: the string datatypes,
+    `rdf:PlainLiteral`, `xsd:anyURI` and the binary datatypes. -/
+def LengthKind : datatypes.Kind → Prop
+  | .String | .Plain | .AnyUri | .HexBinary | .Base64Binary | .NormalizedString | .Token | .Language
+  | .NmToken | .Name | .NcName => True
+  | _ => False
+
+instance : DecidablePred LengthKind := fun k => by cases k <;> unfold LengthKind <;> infer_instance
+
+/-- The IRI of a length facet. -/
+def lengthFacetIri : datatypes.LengthFacet → Iri
+  | .Length => lengthFacet
+  | .MinLength => minLengthFacet
+  | .MaxLength => maxLengthFacet
+
+/-- The length facet an IRI names, if any. -/
+noncomputable def lengthFacetOf (iri : Iri) : Option datatypes.LengthFacet :=
+  if iri = lengthFacet then some .Length
+  else if iri = minLengthFacet then some .MinLength
+  else if iri = maxLengthFacet then some .MaxLength
+  else none
+
+/-- The kernel recognizes exactly the three length facets by their IRIs. -/
+theorem length_facet_of_correct (iri : Iri) : datatypes.length_facet_of iri = .ok (lengthFacetOf iri) := by
+  rw [datatypes.length_facet_of, lengthFacetOf]
+  simp only [iri_eq_iff iri lengthFacet, iri_eq_iff iri minLengthFacet, iri_eq_iff iri maxLengthFacet]
+  by_cases a : iri.spelling.val = lengthFacet.spelling.val <;>
+  by_cases b : iri.spelling.val = minLengthFacet.spelling.val <;>
+  by_cases c : iri.spelling.val = maxLengthFacet.spelling.val <;>
+    simp_all [same_pattern_total, Array.to_slice, Array.make, lift, lengthFacet, minLengthFacet, maxLengthFacet]
+
+theorem lengthFacetOf_iri (F : datatypes.LengthFacet) : lengthFacetOf (lengthFacetIri F) = some F := by
+  cases F <;> simp [lengthFacetOf, lengthFacetIri, iri_eq_iff, lengthFacet, minLengthFacet, maxLengthFacet]
+
+theorem lengthFacetOf_some {iri : Iri} {F : datatypes.LengthFacet} (h : lengthFacetOf iri = some F) :
+    iri = lengthFacetIri F := by
+  unfold lengthFacetOf at h
+  split_ifs at h with h1 h2 h3 <;> cases h <;> assumption
+
+theorem lengthFacetIri_mem (F : datatypes.LengthFacet) : lengthFacetIri F ∈ lengthFacets := by
+  cases F <;> simp [lengthFacetIri, lengthFacets]
+
+/-- A length facet is no range facet. -/
+theorem facetOf_length (F : datatypes.LengthFacet) : facetOf (lengthFacetIri F) = none := by
+  cases F <;> simp [facetOf, lengthFacetIri, iri_eq_iff, lengthFacet, minLengthFacet, maxLengthFacet,
+    minInclusiveFacet, maxInclusiveFacet, minExclusiveFacet, maxExclusiveFacet]
+
+/-- Which lengths a length facet with a bound holds of: the bound, at least
+    it, or at most it. -/
+def LengthHolds : datatypes.LengthFacet → ℕ → ℕ → Prop
+  | .Length, n, m => m = n
+  | .MinLength, n, m => n ≤ m
+  | .MaxLength, n, m => m ≤ n
+
+theorem lengthFacet_iff (F : datatypes.LengthFacet) (n m : ℕ) :
+    LengthFacet (lengthFacetIri F) n m ↔ LengthHolds F n m := by
+  cases F <;> simp [LengthFacet, LengthHolds, lengthFacetIri, iri_eq_iff, lengthFacet, minLengthFacet,
+    maxLengthFacet]
+
 /-- Whether a number meets a range facet with a bound. -/
 def FacetHolds : datatypes.Facet → ℚ → ℚ → Prop
   | .MinInclusive, bound, x => bound ≤ x
@@ -5654,18 +5715,18 @@ def ModelSpace : datatypes.Kind → ModelValue → Prop
 /-- The facet space of the datatype of a kind in the model map. -/
 def ModelFacetSpace (k : datatypes.Kind) (f : Iri) (v : ModelValue) : Prop :=
   match k with
-  | .String => False
-  | .Plain => False
+  | .String => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .Plain => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
   | .Boolean => False
-  | .AnyUri => False
-  | .HexBinary => False
-  | .Base64Binary => False
-  | .NormalizedString => False
-  | .Token => False
-  | .Language => False
-  | .NmToken => False
-  | .Name => False
-  | .NcName => False
+  | .AnyUri => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .HexBinary => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .Base64Binary => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .NormalizedString => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .Token => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .Language => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .NmToken => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .Name => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .NcName => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
   | .DateTime => f ∈ rangeFacets ∧ ∃ m, m.Valid ∧ v = .moment m
   | .DateTimeStamp => f ∈ rangeFacets ∧ ∃ m, m.Valid ∧ m.zone ≠ none ∧ v = .moment m
   | .Double => f ∈ rangeFacets ∧ ∃ b, b.Valid doubleFormat ∧ v = .double b
@@ -5686,17 +5747,27 @@ def MomentFacet (f : Iri) (b x : Moment) : Prop :=
   (f = minInclusiveFacet ∧ b.Le x) ∨ (f = maxInclusiveFacet ∧ x.Le b) ∨
     (f = minExclusiveFacet ∧ b.Lt x) ∨ (f = maxExclusiveFacet ∧ x.Lt b)
 
-/-- The facet values of the range facets in the model map: the reals on the
-    facet's side of a real bound, the values of a floating-point format on the
-    facet's side of a bound of the format, and the time instants on the
-    facet's side of a time instant. -/
+/-- The values with a length in the model map, of length `m`: strings of `m`
+    characters, plain literals with a language tag whose string has `m`
+    characters, IRIs of `m` characters and octet sequences of `m` octets. -/
+def ModelLength (y : ModelValue) (m : ℕ) : Prop :=
+  (∃ s, TextLength s m ∧ y = .text s) ∨ (∃ s l, TextLength s m ∧ TagValue l ∧ y = .tagged s l) ∨
+    (∃ s, TextLength s m ∧ y = .coded (.uri s)) ∨
+    ∃ o : List U8, o.length = m ∧ (y = .coded (.hex o) ∨ y = .coded (.base64 o))
+
+/-- The facet values in the model map: the reals on the facet's side of a real
+    bound, the values of a floating-point format on the facet's side of a
+    bound of the format, the time instants on the facet's side of a time
+    instant, and the values with a length on the side of a length facet with a
+    natural number as bound. -/
 def ModelFacetValue (f : Iri) (v y : ModelValue) : Prop :=
   (∃ r s, v = .real r ∧ y = .real s ∧
     ((f = minInclusiveFacet ∧ r ≤ s) ∨ (f = maxInclusiveFacet ∧ s ≤ r) ∨
       (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r))) ∨
   (∃ b x, v = .double b ∧ y = .double x ∧ x.Valid doubleFormat ∧ BinaryFacet f b x) ∨
   (∃ b x, v = .float b ∧ y = .float x ∧ x.Valid floatFormat ∧ BinaryFacet f b x) ∨
-  (∃ b x, v = .moment b ∧ y = .moment x ∧ x.Valid ∧ MomentFacet f b x)
+  (∃ b x, v = .moment b ∧ y = .moment x ∧ x.Valid ∧ MomentFacet f b x) ∨
+  (∃ (n : ℕ) (m : ℕ), v = .real n ∧ LengthFacet f n m ∧ ModelLength y m)
 
 private theorem integer_of_form {text : List U8} {q : ℚ} (form : NumberForm true text q) : IsInteger q := by
   obtain ⟨sign, w, _, _, _, _, rfl⟩ := form
@@ -6041,27 +6112,60 @@ theorem facets_apart : minInclusiveFacet ≠ maxInclusiveFacet ∧ minInclusiveF
 
 theorem cast_int (z : ℤ) : (((z : ℚ)) : ℝ) = (z : ℝ) := by simp
 
-theorem model_real_facet (f : Iri) (r : ℝ) (y : ModelValue) :
+/-- The length facets are none of the range facets. -/
+theorem length_not_range (f : Iri) (h : f ∈ lengthFacets) : f ∉ rangeFacets := by
+  simp only [lengthFacets, List.mem_cons, List.not_mem_nil, or_false] at h
+  rcases h with rfl | rfl | rfl <;>
+    simp [rangeFacets, iri_eq_iff, lengthFacet, minLengthFacet, maxLengthFacet, minInclusiveFacet,
+      maxInclusiveFacet, minExclusiveFacet, maxExclusiveFacet]
+
+theorem length_facet_mem {f : Iri} {n m : ℕ} (h : LengthFacet f n m) : f ∈ lengthFacets := by
+  rcases h with ⟨rfl, _⟩ | ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> simp [lengthFacets]
+
+theorem range_facet_mem {f : Iri} {r s : ℝ}
+    (h : (f = minInclusiveFacet ∧ r ≤ s) ∨ (f = maxInclusiveFacet ∧ s ≤ r) ∨
+      (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r)) : f ∈ rangeFacets := by
+  rcases h with ⟨rfl, _⟩ | ⟨rfl, _⟩ | ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> simp [rangeFacets]
+
+theorem model_real_facet (f : Iri) (notLength : f ∉ lengthFacets) (r : ℝ) (y : ModelValue) :
     ModelFacetValue f (.real r) y ↔ ∃ s, y = .real s ∧
       ((f = minInclusiveFacet ∧ r ≤ s) ∨ (f = maxInclusiveFacet ∧ s ≤ r) ∨
         (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r)) := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨r', s, h, rfl, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨r', s, h, rfl, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, _, facet, _⟩)
     · cases h; exact ⟨s, rfl, facet⟩
     · cases h
     · cases h
     · cases h
+    · exact absurd (length_facet_mem facet) notLength
   · rintro ⟨s, rfl, facet⟩
     exact .inl ⟨r, s, rfl, rfl, facet⟩
+
+theorem model_length_facet (f : Iri) (hf : f ∈ lengthFacets) (n : ℕ) (y : ModelValue) :
+    ModelFacetValue f (.real n) y ↔ ∃ m, LengthFacet f n m ∧ ModelLength y m := by
+  simp only [ModelFacetValue]
+  constructor
+  · rintro (⟨_, _, _, _, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨n', m, h, facet, len⟩)
+    · exact absurd (range_facet_mem facet) (length_not_range f hf)
+    · cases h
+    · cases h
+    · cases h
+    · have : (n : ℝ) = n' := by injection h
+      have : n = n' := by exact_mod_cast this
+      subst this
+      exact ⟨m, facet, len⟩
+  · rintro ⟨m, facet, len⟩
+    exact .inr (.inr (.inr (.inr ⟨n, m, rfl, facet, len⟩)))
 
 theorem model_double_facet (f : Iri) (b : Binary) (y : ModelValue) :
     ModelFacetValue f (.double b) y ↔ ∃ x, x.Valid doubleFormat ∧ BinaryFacet f b x ∧ y = .double x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
     · cases h
     · cases h
   · rintro ⟨x, valid, facet, rfl⟩
@@ -6071,10 +6175,11 @@ theorem model_float_facet (f : Iri) (b : Binary) (y : ModelValue) :
     ModelFacetValue f (.float b) y ↔ ∃ x, x.Valid floatFormat ∧ BinaryFacet f b x ∧ y = .float x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
     · cases h
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
     · cases h
   · rintro ⟨x, valid, facet, rfl⟩
     exact .inr (.inr (.inl ⟨b, x, rfl, rfl, valid, facet⟩))
@@ -6083,13 +6188,14 @@ theorem model_moment_facet (f : Iri) (b : Moment) (y : ModelValue) :
     ModelFacetValue f (.moment b) y ↔ ∃ x, x.Valid ∧ MomentFacet f b x ∧ y = .moment x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩)
     · cases h
     · cases h
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
   · rintro ⟨x, valid, facet, rfl⟩
-    exact .inr (.inr (.inr ⟨b, x, rfl, rfl, valid, facet⟩))
+    exact .inr (.inr (.inr (.inl ⟨b, x, rfl, rfl, valid, facet⟩)))
 
 theorem binary_facet_min_inclusive (b x : Binary) : BinaryFacet minInclusiveFacet b x ↔ b.Le x := by
   obtain ⟨a, c, d, _, _, _⟩ := facets_apart
@@ -6275,7 +6381,7 @@ noncomputable def modelNormative : Normative modelMap where
   min_inclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
     simp only [modelMap]
-    rw [model_real_facet]
+    rw [model_real_facet _ (fun h => length_not_range _ h (by simp [rangeFacets]))]
     constructor
     · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨_, le⟩ | ⟨h, _⟩ | ⟨h, _⟩ | ⟨h, _⟩
@@ -6286,7 +6392,7 @@ noncomputable def modelNormative : Normative modelMap where
   max_inclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
     simp only [modelMap]
-    rw [model_real_facet]
+    rw [model_real_facet _ (fun h => length_not_range _ h (by simp [rangeFacets]))]
     constructor
     · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨h, _⟩ | ⟨_, le⟩ | ⟨h, _⟩ | ⟨h, _⟩
@@ -6298,7 +6404,7 @@ noncomputable def modelNormative : Normative modelMap where
   min_exclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
     simp only [modelMap]
-    rw [model_real_facet]
+    rw [model_real_facet _ (fun h => length_not_range _ h (by simp [rangeFacets]))]
     constructor
     · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨h, _⟩ | ⟨h, _⟩ | ⟨_, lt⟩ | ⟨h, _⟩
@@ -6311,7 +6417,7 @@ noncomputable def modelNormative : Normative modelMap where
   max_exclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
     simp only [modelMap]
-    rw [model_real_facet]
+    rw [model_real_facet _ (fun h => length_not_range _ h (by simp [rangeFacets]))]
     constructor
     · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨h, _⟩ | ⟨h, _⟩ | ⟨h, _⟩ | ⟨_, lt⟩
@@ -6467,5 +6573,23 @@ noncomputable def modelNormative : Normative modelMap where
     simp only [modelMap]
     rw [model_moment_facet]
     simp only [moment_facet_max_exclusive]
+  length_facets := fun dt h f hf v => by
+    simp only [lengthTypes, List.mem_cons, List.not_mem_nil, or_false] at h
+    rcases h with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    · exact (model_facets .String f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .NormalizedString f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .Token f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .Language f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .NmToken f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .Name f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .NcName f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .Plain f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .AnyUri f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .HexBinary f v).trans (by simp [ModelFacetSpace, hf])
+    · exact (model_facets .Base64Binary f v).trans (by simp [ModelFacetSpace, hf])
+  length_value := fun f hf n y => by
+    simp only [modelMap]
+    rw [model_length_facet f hf n]
+    rfl
 
 end Rowl.Datatypes

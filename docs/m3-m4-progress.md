@@ -7156,3 +7156,104 @@ This block adds 176 public theorems (64 in the new module `Rowl.TimeOrder`
 and 21 in the new module `Rowl.DataTimes`) and 57 definitions. Totals are
 6219 audited theorems, 2060 definitions, 694 Rust regressions, 24 Python
 binding tests and 6412 ledger obligations.
+
+## Length facets
+
+`xsd:length`, `xsd:minLength` and `xsd:maxLength` now restrict `xsd:string`
+and its six subtypes, `rdf:PlainLiteral`, `xsd:anyURI`, `xsd:hexBinary` and
+`xsd:base64Binary`. Of the facets, `xsd:pattern` and `rdf:langRange` remain.
+
+Specification. `Rowl.DatatypeMap` gives the length facets' facet spaces on
+these datatypes, the natural numbers (`lengthFacets`, `lengthTypes`), and their
+facet values: the values of exactly, at least or at most that length
+(`LengthFacet`), the length of a string, of the string of a plain literal with
+a language tag and of an IRI its number of characters (`TextLength`, the
+characters its UTF-8 bytes decode to) and that of binary data its number of
+octets. The model map satisfies the new laws (`ModelLength`,
+`model_length_facet`).
+
+Counting. `Rowl.WordCounts` counts the words of each length that a finite
+automaton over atoms, finite sets of letters, accepts (`Dfa.count`,
+`words_card`), and shows that their numbers capped at a bound follow the same
+recurrence with capped sums and products (`capped_count`) and stay once the
+numbers of all states repeat (`steps_fixed`). `Rowl.StringCounts` splits the
+XML characters into nine atoms (`atomOf`, `atom_card`) and builds the product
+of five automata that follow the breaks, the spaces, the name characters, the
+colons and the shape of a language tag (`textNext`), whose state tells the rank
+of a string's deepest subtype of `xsd:string` (`chain_rank`); words of
+characters are written as UTF-8 (`encodeText`, `encode_chars`), so the strings
+of a length of the ranks from one on before another are as many as the
+automaton's words (`text_count`, `ranked_between`), and the octet sequences of
+a length 256 to the power of it (`octets_count`). In the kernel,
+`lengths::slot_size` computes these capped counts for a range of lengths
+(`slot_size_spec`, with `words_from_spec`), and `lengths::value_length`
+measures a literal value by the bytes that start its characters
+(`value_length_spec`, `text_length_starts`).
+
+Encoding. Each length facet's bound becomes lengths of the context: the bound
+for `xsd:minLength`, the length after it for `xsd:maxLength`, both for
+`xsd:length`, but never the length 0, which every value with a length has
+(`facet_lengths_good`, `GoodLengths`). Each length gets a class
+(`lengthClass`) of the values at least that long, `owl:Thing` standing for the
+length 0, and a facet becomes a class, its complement or their intersection
+(`at_length_spec`, `length_facet_class_meaning`). The kernel adds
+(`length_axioms`) each length's class inside the class of every shorter length
+(`InclusionFact`), each literal value with a length in exactly the classes of
+the lengths up to its own (`length_memberships_spec`, `LengthMemberFact`), and,
+for each slot from a length on before the next and below the least length, an
+axiom on the values of each kind in use but `rdf:PlainLiteral` there that are
+no literal values: the strings by the rank of their deepest subtype of
+`xsd:string` in use up to the next rank in use, the IRIs as strings of every
+rank, and the octets (`SlotFacts`, `RankFacts`). With none of them, the class
+of the kind and slot holds only at its literal values' individuals; with at
+most the capacity of them, at most that many nodes of the class are along `U`
+at any element (`SizedFact`, `sized_axiom_spec`). The roles of the data
+properties are below `U` whenever there are lengths (`BoundsRuns`).
+
+Values. A range frame now carries the lengths of the model's values (`size`):
+each value has at most one (`sizeUnique`), a literal value its kernel length
+(`sizeLits`), every value of these datatypes one and no other value one
+(`sized`, `sizedKinds`), and a length facet holds of the values with a length
+on its side of the bound (`lengthFacets`).
+
+Proofs. An OWL model lifts as before: a node is in a length's class exactly
+when its value is at least that long, and the axioms on the slots count the
+model's values of each kind and slot, as many as the automata say
+(`lifted_lengths`, `lifted_sized_fact`, `ranked_counted`, `uri_counted`,
+`octets_counted`). From a model of the encoding, each node of these datatypes
+gets a written string, tagged string, IRI or octet sequence (`Written`) in
+exactly the kinds in use whose classes hold there, with a length its classes
+of the lengths allow, and no literal value's (`writtenSet`). The length classes
+of a node are ordered, so its lengths are a slot from the longest held length
+before the shortest failed one (`node_lengths`): it has infinitely many values
+of its kinds (`written_infinite`), or, in a slot that ends, the values of its
+kind and slot that are no literal values, as many as the kernel counts
+(`written_card`), with room for its peers by the axiom on the kind and slot or
+by the capacity (`bounded_room`, `written_room`). The plain literals with a
+language tag of a slot are infinitely many through the private-use tags
+`x-a-…-a` (`privateTag_value`, `private_use_well_formed`). Nodes whose sets
+share a written value share the set (`written_coherent`), so values stay one to
+one. Keys with a data property get no answer while there are lengths.
+
+Kernel fixes. The proof of the encoding's soundness found two gaps, now
+closed: the length 0 was a length of the context, so a model of the encoding
+could keep a string out of the class of the values at least 0 long, and the
+axiom that a slot has no free values went missing when the capacity was 0.
+Now `owl:Thing` stands for the length 0, and a slot's axiom is there whenever
+its free values are at most the capacity, the count capped at the capacity
+plus the literal values plus one.
+
+The regressions check the kernel's counts (the octet sequences of each length,
+the empty string, the three strings of one character that are no normalized
+strings, the 52 language tags of one letter, `:` as the only name of one
+character that is no NCName), the lengths of values and the bounds of facets,
+and in the queries the lengths of strings, IRIs, plain literals and binary data
+against the facets, a length facet on a number, the length 0, the values
+counted by kind and slot, and a literal value taking one of them.
+
+This block adds 292 public theorems (179 in the new modules
+`Rowl.WordCounts`, `Rowl.StringCounts`, `Rowl.LengthCounts` and
+`Rowl.DataLengths`) and 100 definitions, and removes the 5 theorems and 4
+definitions of the old regions of strings, tagged strings, IRIs and octets.
+Totals are 6506 audited theorems, 2156 definitions, 699 Rust regressions,
+24 Python binding tests and 6698 ledger obligations.

@@ -43,9 +43,10 @@
 //!
 //! `None` means that a key has no property, the universal role or the top or
 //! bottom data property, that a key has a data property while numbers are
-//! ordered (their bounded runs of integers would need every value named), that
-//! a name is too long, or that the data encoding of the rest of the closure
-//! gives no answer.
+//! ordered, floating-point numbers are in use, or facets cut the time lines or
+//! the lengths (their bounded runs of integers, slots and places would need
+//! every value named), that a name is too long, or that the data encoding of
+//! the rest of the closure gives no answer.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -618,7 +619,7 @@ fn key_with(
 /// `out` with the axioms of a key; `None` for a key with no property, the
 /// universal role or the top or bottom data property, or with a data property
 /// while numbers are ordered, floating-point numbers are in use or facets cut
-/// the time lines.
+/// the time lines or the lengths.
 fn key_axioms(
     context: &Context,
     class: &ClassExpression,
@@ -636,7 +637,8 @@ fn key_axioms(
         & (context.kinds.ordered
             | context.kinds.double
             | context.kinds.float
-            | (context.times.len() != 0))
+            | (context.times.len() != 0)
+            | (context.lengths.len() != 0))
     {
         None
     } else {

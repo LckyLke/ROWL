@@ -1412,10 +1412,10 @@ decreasing_by omega
 
 /-- Whether the data values of a context let keys with data properties be
     answered: its numbers are not ordered, no floating-point numbers are in
-    use, and no range facets cut the time lines. -/
+    use, no range facets cut the time lines and no length facets the lengths. -/
 def PlainValues (context : data_ontology.Context) : Prop :=
   context.kinds.ordered = false ∧ context.kinds.double = false ∧ context.kinds.float = false ∧
-    context.times.val = []
+    context.times.val = [] ∧ context.lengths.val = []
 
 theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
     (objects : alloc.vec.Vec ObjectPropertyExpression) (data : alloc.vec.Vec DataProperty)
@@ -1439,8 +1439,8 @@ theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
     | true => exact ⟨none, by simp [notEmpty, run], by simp⟩
     | false =>
       have noTop : ∀ r ∈ objects.val, RoleOf r ≠ topObject := by simpa using facts rfl
-      by_cases blocked : ¬ data.val = [] ∧ (((context.kinds.ordered = true ∨ context.kinds.double = true) ∨
-          context.kinds.float = true) ∨ ¬ context.times.val = [])
+      by_cases blocked : ¬ data.val = [] ∧ ((((context.kinds.ordered = true ∨ context.kinds.double = true) ∨
+          context.kinds.float = true) ∨ ¬ context.times.val = []) ∨ ¬ context.lengths.val = [])
       · exact ⟨none, by simp [notEmpty, run, blocked.1, blocked.2], by simp⟩
       · obtain ⟨r1, run1, facts1⟩ := data_key_roles_spec context data 0#usize (alloc.vec.Vec.new ObjectPropertyExpression)
         cases r1 with
@@ -1460,10 +1460,10 @@ theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
           refine ⟨res, by simp [notEmpty, run, blocked, run1, run2], fun out' h => ?_⟩
           obtain ⟨new, c, means⟩ := facts2 out' h
           refine ⟨fun hasData => ?_, datas.val, roles0, new, c, ?_⟩
-          · refine ⟨?_, ?_, ?_, ?_⟩
+          · refine ⟨?_, ?_, ?_, ?_, ?_⟩
             all_goals first
               | (rw [Bool.eq_false_iff]; intro h; exact blocked ⟨hasData, by simp [h]⟩)
-              | (by_contra h; exact blocked ⟨hasData, .inr h⟩)
+              | (by_contra h; exact blocked ⟨hasData, by simp [h]⟩)
           · have ne : datas.val ≠ [] ↔ data.val ≠ [] := by
               rw [ne_eq, ne_eq, ← List.length_eq_zero_iff, ← List.length_eq_zero_iff, sameLength]
             have e1 : decide (¬ Counted objects.val.length datas.val.length counting) =

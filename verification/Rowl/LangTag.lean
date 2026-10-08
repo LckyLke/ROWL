@@ -255,4 +255,23 @@ theorem two_letters_well_formed (a b : Nat) (ha : 97 ≤ a ∧ a ≤ 122) (hb : 
         [], optional _, rfl⟩, rfl⟩, rfl⟩, rfl⟩
   have tagged : [a, b] ∈ Langtag := Language.mem_mul.mpr ⟨[a, b], subtag, [], rest, rfl⟩
   exact (Language.mem_add _ _ _).mpr (.inl tagged)
+/-- `x` followed by `n + 1` subtags `a` is a well-formed language tag: one for
+    private use. -/
+theorem private_use_well_formed (n : Nat) :
+    (120 :: (List.replicate (n + 1) [45, 97]).flatten) ∈ WellFormedLanguage := by
+  have one : ([] : List Nat) ∈ (1 : Language Nat) := (Language.mem_one _).mpr rfl
+  have letter : [97] ∈ Alnum :=
+    (Language.mem_add _ _ _).mpr (.inl ((Language.mem_add _ _ _).mpr (.inr ⟨97, rfl, by omega, by omega⟩)))
+  have between : [97] ∈ Between Alnum 1 7 :=
+    Language.mem_mul.mpr ⟨[97], by rw [pow_one]; exact letter, [], (Language.mem_add _ _ _).mpr (.inl one), rfl⟩
+  have dashed : [45, 97] ∈ Dashed (Between Alnum 1 7) :=
+    Language.mem_mul.mpr ⟨[45], ⟨45, rfl, le_refl _, le_refl _⟩, [97], between, rfl⟩
+  have positive : (List.replicate (n + 1) [45, 97]).flatten ∈ Positive (Dashed (Between Alnum 1 7)) := by
+    rw [List.replicate_succ, List.flatten_cons]
+    exact Language.mem_mul.mpr ⟨[45, 97], dashed, _, Language.join_mem_kstar (fun y hy => by
+      rw [(List.mem_replicate.mp hy).2]; exact dashed), rfl⟩
+  have priv : (120 :: (List.replicate (n + 1) [45, 97]).flatten) ∈ PrivateUse :=
+    Language.mem_mul.mpr ⟨[120], (Language.mem_add _ _ _).mpr (.inl ⟨120, rfl, le_refl _, le_refl _⟩), _,
+      positive, rfl⟩
+  exact (Language.mem_add _ _ _).mpr (.inr ((Language.mem_add _ _ _).mpr (.inl priv)))
 end Rowl.LangTag
