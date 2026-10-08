@@ -84327,6 +84327,1029 @@ def ntriples.write
   := do
   rdf_write.write_graph graph false max_output_bytes
 
+/-- [rowl_kernel::patterns::Span]
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 40:0-43:1
+    Visibility: public -/
+structure patterns.Span where
+  lower : Std.U32
+  upper : Std.U32
+
+/-- [rowl_kernel::patterns::LAST]
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 46:0-46:31
+    Visibility: public -/
+@[global_simps, irreducible] def patterns.LAST : Std.U32 := 1114111#u32
+
+/-- [rowl_kernel::patterns::SIZE]
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 49:0-49:30
+    Visibility: public -/
+@[global_simps, irreducible] def patterns.SIZE : Std.Usize := 65536#usize
+
+/-- [rowl_kernel::patterns::NUMBERS]
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 52:0-52:31 -/
+@[global_simps, irreducible] def patterns.NUMBERS : Std.Usize := 1048576#usize
+
+/-- [rowl_kernel::patterns::span]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 58:0-60:1 -/
+def patterns.span
+  (lower : Std.U32) (upper : Std.U32) : Result patterns.Span := do
+  ok { lower, upper }
+
+/-- [rowl_kernel::patterns::append_from]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 64:0-75:1 -/
+def patterns.append_from
+  (spans : alloc.vec.Vec patterns.Span) (index : Std.Usize)
+  (out : alloc.vec.Vec patterns.Span) :
+  Result (Option (alloc.vec.Vec patterns.Span))
+  := do
+  let i := alloc.vec.Vec.len spans
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let s ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          patterns.Span) spans index
+      let s1 ← patterns.span s.lower s.upper
+      let out1 ← alloc.vec.Vec.push out s1
+      let i2 ← index + 1#usize
+      patterns.append_from spans i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::meet_from]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 79:0-110:1 -/
+def patterns.meet_from
+  (spans : alloc.vec.Vec patterns.Span) (lower : Std.U32) (upper : Std.U32)
+  (index : Std.Usize) (out : alloc.vec.Vec patterns.Span) :
+  Result (Option (alloc.vec.Vec patterns.Span))
+  := do
+  let i := alloc.vec.Vec.len spans
+  if index < i
+  then
+    let s ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice patterns.Span)
+        spans index
+    let low ← if s.lower < lower
+                then ok lower
+                else ok s.lower
+    let high ← if upper < s.upper
+                 then ok upper
+                 else ok s.upper
+    if low <= high
+    then
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let s1 ← patterns.span low high
+        let out1 ← alloc.vec.Vec.push out s1
+        let i2 ← index + 1#usize
+        patterns.meet_from spans lower upper i2 out1
+      else ok none
+    else let i1 ← index + 1#usize
+         patterns.meet_from spans lower upper i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::without]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 114:0-130:1 -/
+def patterns.without
+  (spans : alloc.vec.Vec patterns.Span) (lower : Std.U32) (upper : Std.U32) :
+  Result (Option (alloc.vec.Vec patterns.Span))
+  := do
+  let below ←
+    if 0#u32 < lower
+    then
+      do
+      let i ← lower - 1#u32
+      patterns.meet_from spans 0#u32 i 0#usize (alloc.vec.Vec.new
+        patterns.Span)
+    else ok (some (alloc.vec.Vec.new patterns.Span))
+  match below with
+  | none => ok none
+  | some below1 =>
+    if upper < patterns.LAST
+    then
+      let i ← upper + 1#u32
+      patterns.meet_from spans i patterns.LAST 0#usize below1
+    else ok below
+
+/-- [rowl_kernel::patterns::without_from]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 133:0-142:1 -/
+def patterns.without_from
+  (spans : alloc.vec.Vec patterns.Span) (index : Std.Usize)
+  (rest : alloc.vec.Vec patterns.Span) :
+  Result (Option (alloc.vec.Vec patterns.Span))
+  := do
+  let i := alloc.vec.Vec.len spans
+  if index < i
+  then
+    let s ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice patterns.Span)
+        spans index
+    let o ← patterns.without rest s.lower s.upper
+    match o with
+    | none => ok none
+    | some next =>
+      let i1 ← index + 1#usize
+      patterns.without_from spans i1 next
+  else ok (some rest)
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::complement]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 145:0-149:1 -/
+def patterns.complement
+  (spans : alloc.vec.Vec patterns.Span) :
+  Result (Option (alloc.vec.Vec patterns.Span))
+  := do
+  let s ← patterns.span 0#u32 patterns.LAST
+  let all ← alloc.vec.Vec.push (alloc.vec.Vec.new patterns.Span) s
+  patterns.without_from spans 0#usize all
+
+/-- [rowl_kernel::patterns::meet_all]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 153:0-167:1 -/
+def patterns.meet_all
+  (left : alloc.vec.Vec patterns.Span) (right : alloc.vec.Vec patterns.Span)
+  (index : Std.Usize) (out : alloc.vec.Vec patterns.Span) :
+  Result (Option (alloc.vec.Vec patterns.Span))
+  := do
+  let i := alloc.vec.Vec.len right
+  if index < i
+  then
+    let s ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice patterns.Span)
+        right index
+    let o ← patterns.meet_from left s.lower s.upper 0#usize out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i1 ← index + 1#usize
+      patterns.meet_all left right i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::subtract]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 170:0-175:1 -/
+def patterns.subtract
+  (left : alloc.vec.Vec patterns.Span) (right : alloc.vec.Vec patterns.Span) :
+  Result (Option (alloc.vec.Vec patterns.Span))
+  := do
+  let o ← patterns.complement right
+  match o with
+  | none => ok none
+  | some other =>
+    patterns.meet_all left other 0#usize (alloc.vec.Vec.new patterns.Span)
+
+/-- [rowl_kernel::patterns::one]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 178:0-182:1 -/
+def patterns.one (c : Std.U32) : Result (alloc.vec.Vec patterns.Span) := do
+  let s ← patterns.span c c
+  alloc.vec.Vec.push (alloc.vec.Vec.new patterns.Span) s
+
+/-- [rowl_kernel::patterns::two]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 185:0-190:1 -/
+def patterns.two
+  (c : Std.U32) (d : Std.U32) : Result (alloc.vec.Vec patterns.Span) := do
+  let s ← patterns.span c c
+  let out ← alloc.vec.Vec.push (alloc.vec.Vec.new patterns.Span) s
+  let s1 ← patterns.span d d
+  alloc.vec.Vec.push out s1
+
+/-- [rowl_kernel::patterns::spaces]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 193:0-199:1 -/
+def patterns.spaces : Result (alloc.vec.Vec patterns.Span) := do
+  let s ← patterns.span 9#u32 10#u32
+  let out ← alloc.vec.Vec.push (alloc.vec.Vec.new patterns.Span) s
+  let s1 ← patterns.span 13#u32 13#u32
+  let out1 ← alloc.vec.Vec.push out s1
+  let s2 ← patterns.span 32#u32 32#u32
+  alloc.vec.Vec.push out1 s2
+
+/-- [rowl_kernel::patterns::name_starts]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 202:0-221:1 -/
+def patterns.name_starts : Result (alloc.vec.Vec patterns.Span) := do
+  let s ← patterns.span 58#u32 58#u32
+  let out ← alloc.vec.Vec.push (alloc.vec.Vec.new patterns.Span) s
+  let s1 ← patterns.span 65#u32 90#u32
+  let out1 ← alloc.vec.Vec.push out s1
+  let s2 ← patterns.span 95#u32 95#u32
+  let out2 ← alloc.vec.Vec.push out1 s2
+  let s3 ← patterns.span 97#u32 122#u32
+  let out3 ← alloc.vec.Vec.push out2 s3
+  let s4 ← patterns.span 192#u32 214#u32
+  let out4 ← alloc.vec.Vec.push out3 s4
+  let s5 ← patterns.span 216#u32 246#u32
+  let out5 ← alloc.vec.Vec.push out4 s5
+  let s6 ← patterns.span 248#u32 767#u32
+  let out6 ← alloc.vec.Vec.push out5 s6
+  let s7 ← patterns.span 880#u32 893#u32
+  let out7 ← alloc.vec.Vec.push out6 s7
+  let s8 ← patterns.span 895#u32 8191#u32
+  let out8 ← alloc.vec.Vec.push out7 s8
+  let s9 ← patterns.span 8204#u32 8205#u32
+  let out9 ← alloc.vec.Vec.push out8 s9
+  let s10 ← patterns.span 8304#u32 8591#u32
+  let out10 ← alloc.vec.Vec.push out9 s10
+  let s11 ← patterns.span 11264#u32 12271#u32
+  let out11 ← alloc.vec.Vec.push out10 s11
+  let s12 ← patterns.span 12289#u32 55295#u32
+  let out12 ← alloc.vec.Vec.push out11 s12
+  let s13 ← patterns.span 63744#u32 64975#u32
+  let out13 ← alloc.vec.Vec.push out12 s13
+  let s14 ← patterns.span 65008#u32 65533#u32
+  let out14 ← alloc.vec.Vec.push out13 s14
+  let s15 ← patterns.span 65536#u32 983039#u32
+  alloc.vec.Vec.push out14 s15
+
+/-- [rowl_kernel::patterns::name_chars]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 224:0-232:1 -/
+def patterns.name_chars : Result (alloc.vec.Vec patterns.Span) := do
+  let out ← patterns.name_starts
+  let s ← patterns.span 45#u32 46#u32
+  let out1 ← alloc.vec.Vec.push out s
+  let s1 ← patterns.span 48#u32 57#u32
+  let out2 ← alloc.vec.Vec.push out1 s1
+  let s2 ← patterns.span 183#u32 183#u32
+  let out3 ← alloc.vec.Vec.push out2 s2
+  let s3 ← patterns.span 768#u32 879#u32
+  let out4 ← alloc.vec.Vec.push out3 s3
+  let s4 ← patterns.span 8255#u32 8256#u32
+  alloc.vec.Vec.push out4 s4
+
+/-- [rowl_kernel::patterns::wildcard]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 235:0-241:1 -/
+def patterns.wildcard : Result (alloc.vec.Vec patterns.Span) := do
+  let s ← patterns.span 0#u32 9#u32
+  let out ← alloc.vec.Vec.push (alloc.vec.Vec.new patterns.Span) s
+  let s1 ← patterns.span 11#u32 12#u32
+  let out1 ← alloc.vec.Vec.push out s1
+  let s2 ← patterns.span 14#u32 patterns.LAST
+  alloc.vec.Vec.push out1 s2
+
+/-- [rowl_kernel::patterns::spans_expression]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 244:0-256:1 -/
+def patterns.spans_expression
+  (spans : alloc.vec.Vec patterns.Span) (index : Std.Usize) :
+  Result regular.Expression
+  := do
+  let i := alloc.vec.Vec.len spans
+  if index < i
+  then
+    let s ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice patterns.Span)
+        spans index
+    let i1 ← index + 1#usize
+    let e ← patterns.spans_expression spans i1
+    regular.alternate (regular.Expression.Interval s.lower s.upper) e
+  else ok regular.Expression.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::decode_from]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 264:0-277:1 -/
+def patterns.decode_from
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize)
+  (out : alloc.vec.Vec Std.U32) :
+  Result (Option (alloc.vec.Vec Std.U32))
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End => ok (some out)
+  | unicode.Decoded.Scalar codepoint next =>
+    let i := alloc.vec.Vec.len out
+    if i < core.num.Usize.MAX
+    then
+      let out1 ← alloc.vec.Vec.push out codepoint
+      patterns.decode_from bytes next out1
+    else ok none
+  | unicode.Decoded.Error _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::is_at]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 280:0-286:1 -/
+def patterns.is_at
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) (cp : Std.U32) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    ok (i1 = cp)
+  else ok false
+
+/-- [rowl_kernel::patterns::pair_at]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 289:0-299:1 -/
+def patterns.pair_at
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) (first : Std.U32)
+  (second : Std.U32) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    if i1 = first
+    then let i2 ← index + 1#usize
+         patterns.is_at cps i2 second
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::patterns::meta]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 303:0-316:1 -/
+def patterns.meta (c : Std.U32) : Result Bool := do
+  ok ((((((((((((c = 46#u32) || (c = 92#u32)) || (c = 63#u32)) || (c = 42#u32))
+    || (c = 43#u32)) || (c = 123#u32)) || (c = 125#u32)) || (c = 40#u32)) || (c
+    = 41#u32)) || (c = 124#u32)) || (c = 91#u32)) || (c = 93#u32))
+
+/-- [rowl_kernel::patterns::atom_start]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 320:0-327:1 -/
+def patterns.atom_start
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    let b ← patterns.meta c
+    ok (((((¬ b) || (c = 92#u32)) || (c = 91#u32)) || (c = 46#u32)) || (c =
+      40#u32))
+  else ok false
+
+/-- [rowl_kernel::patterns::quantifier_start]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 330:0-337:1 -/
+def patterns.quantifier_start
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    ok ((((c = 63#u32) || (c = 42#u32)) || (c = 43#u32)) || (c = 123#u32))
+  else ok false
+
+/-- [rowl_kernel::patterns::escaped_char]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 340:0-366:1 -/
+def patterns.escaped_char (x : Std.U32) : Result (Option Std.U32) := do
+  if x = 110#u32
+  then ok (some 10#u32)
+  else
+    if x = 114#u32
+    then ok (some 13#u32)
+    else
+      if x = 116#u32
+      then ok (some 9#u32)
+      else
+        if (((((((((((((x = 92#u32) || (x = 124#u32)) || (x = 46#u32)) || (x =
+          63#u32)) || (x = 42#u32)) || (x = 43#u32)) || (x = 40#u32)) || (x =
+          41#u32)) || (x = 123#u32)) || (x = 125#u32)) || (x = 45#u32)) || (x =
+          91#u32)) || (x = 93#u32)) || (x = 94#u32)
+        then ok (some x)
+        else ok none
+
+/-- [rowl_kernel::patterns::class_letter]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 370:0-383:1 -/
+def patterns.class_letter (x : Std.U32) : Result Bool := do
+  ok ((((((((((((x = 115#u32) || (x = 83#u32)) || (x = 105#u32)) || (x =
+    73#u32)) || (x = 99#u32)) || (x = 67#u32)) || (x = 100#u32)) || (x =
+    68#u32)) || (x = 119#u32)) || (x = 87#u32)) || (x = 112#u32)) || (x =
+    80#u32))
+
+/-- [rowl_kernel::patterns::multi_spans]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 387:0-403:1 -/
+def patterns.multi_spans
+  (x : Std.U32) : Result (Option (alloc.vec.Vec patterns.Span)) := do
+  if x = 115#u32
+  then let v ← patterns.spaces
+       ok (some v)
+  else
+    if x = 83#u32
+    then let v ← patterns.spaces
+         patterns.complement v
+    else
+      if x = 105#u32
+      then let v ← patterns.name_starts
+           ok (some v)
+      else
+        if x = 73#u32
+        then let v ← patterns.name_starts
+             patterns.complement v
+        else
+          if x = 99#u32
+          then let v ← patterns.name_chars
+               ok (some v)
+          else
+            if x = 67#u32
+            then let v ← patterns.name_chars
+                 patterns.complement v
+            else ok none
+
+/-- [rowl_kernel::patterns::single_char]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 410:0-430:1 -/
+def patterns.single_char
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option (Std.U32 × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    if c = 92#u32
+    then
+      let i1 ← index + 1#usize
+      let i2 := alloc.vec.Vec.len cps
+      if i1 < i2
+      then
+        let i3 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32)
+            cps i1
+        let o ← patterns.escaped_char i3
+        match o with
+        | none => ok none
+        | some d => let i4 ← index + 2#usize
+                    ok (some (d, i4))
+      else ok none
+    else
+      if (c = 91#u32) || (c = 93#u32)
+      then ok none
+      else let i1 ← index + 1#usize
+           ok (some (c, i1))
+  else ok none
+
+/-- [rowl_kernel::patterns::escape_letter]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 433:0-451:1 -/
+def patterns.escape_letter
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option Std.U32)
+  := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    if i1 = 92#u32
+    then
+      let i2 ← index + 1#usize
+      let i3 := alloc.vec.Vec.len cps
+      if i2 < i3
+      then
+        let i4 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32)
+            cps i2
+        let b ← patterns.class_letter i4
+        if b
+        then
+          let i5 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32)
+              cps i2
+          ok (some i5)
+        else ok none
+      else ok none
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::patterns::part]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 455:0-489:1 -/
+def patterns.part
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option ((alloc.vec.Vec patterns.Span) × Std.Usize))
+  := do
+  let o ← patterns.escape_letter cps index
+  match o with
+  | none =>
+    let o1 ← patterns.single_char cps index
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (c, next) := p
+      let b ← patterns.is_at cps next 45#u32
+      if b
+      then
+        let i ← next + 1#usize
+        let b1 ← patterns.is_at cps i 91#u32
+        if b1
+        then let v ← patterns.one c
+             ok (some (v, next))
+        else
+          let b2 ← patterns.is_at cps i 93#u32
+          if b2
+          then let v ← patterns.two c 45#u32
+               ok (some (v, i))
+          else
+            let b3 ← patterns.pair_at cps i 45#u32 91#u32
+            if b3
+            then let v ← patterns.two c 45#u32
+                 ok (some (v, i))
+            else
+              let b4 ← patterns.is_at cps index 45#u32
+              let b5 ← patterns.is_at cps i 45#u32
+              if b4 || b5
+              then ok none
+              else
+                let o2 ← patterns.single_char cps i
+                match o2 with
+                | none => ok none
+                | some p1 =>
+                  let (d, after) := p1
+                  let s ← patterns.span c d
+                  let spans ←
+                    alloc.vec.Vec.push (alloc.vec.Vec.new patterns.Span) s
+                  ok (some (spans, after))
+      else let v ← patterns.one c
+           ok (some (v, next))
+  | some x =>
+    let o1 ← patterns.multi_spans x
+    match o1 with
+    | none => ok none
+    | some spans => let i ← index + 2#usize
+                    ok (some (spans, i))
+
+/-- [rowl_kernel::patterns::parts_end]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 492:0-494:1 -/
+def patterns.parts_end
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) : Result Bool := do
+  let b ← patterns.is_at cps index 93#u32
+  let b1 ← patterns.pair_at cps index 45#u32 91#u32
+  ok (b || b1)
+
+/-- [rowl_kernel::patterns::parts]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 498:0-514:1 -/
+def patterns.parts
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize)
+  (out : alloc.vec.Vec patterns.Span) :
+  Result (Option ((alloc.vec.Vec patterns.Span) × Std.Usize))
+  := do
+  let o ← patterns.part cps index
+  match o with
+  | none => ok none
+  | some p =>
+    let (spans, next) := p
+    let o1 ← patterns.append_from spans 0#usize out
+    match o1 with
+    | none => ok none
+    | some joined =>
+      let b ← patterns.parts_end cps next
+      if b
+      then ok (some (joined, next))
+      else if index < next
+           then patterns.parts cps next joined
+           else ok none
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::patterns::char_group]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 518:0-547:1 -/
+def patterns.char_group
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option ((alloc.vec.Vec patterns.Span) × Std.Usize))
+  := do
+  let negative ← patterns.is_at cps index 94#u32
+  let start ← if negative
+                then index + 1#usize
+                else ok index
+  let o ← patterns.parts cps start (alloc.vec.Vec.new patterns.Span)
+  match o with
+  | none => ok none
+  | some p =>
+    let (spans, next) := p
+    let base ←
+      if negative
+      then patterns.complement spans
+      else ok (some spans)
+    match base with
+    | none => ok none
+    | some base1 =>
+      let b ← patterns.is_at cps next 45#u32
+      if b
+      then
+        let i ← next + 1#usize
+        let o1 ← patterns.class_expr cps i
+        match o1 with
+        | none => ok none
+        | some p1 =>
+          let (minus, after) := p1
+          let o2 ← patterns.subtract base1 minus
+          match o2 with
+          | none => ok none
+          | some left => ok (some (left, after))
+      else ok (some (base1, next))
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::class_expr]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 551:0-566:1 -/
+def patterns.class_expr
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option ((alloc.vec.Vec patterns.Span) × Std.Usize))
+  := do
+  let b ← patterns.is_at cps index 91#u32
+  if b
+  then
+    let i ← index + 1#usize
+    let o ← patterns.char_group cps i
+    match o with
+    | none => ok none
+    | some p =>
+      let (spans, next) := p
+      let b1 ← patterns.is_at cps next 93#u32
+      if b1
+      then let i1 ← next + 1#usize
+           ok (some (spans, i1))
+      else ok none
+  else ok none
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::patterns::char_class]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 570:0-591:1 -/
+def patterns.char_class
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option ((alloc.vec.Vec patterns.Span) × Std.Usize))
+  := do
+  let b ← patterns.is_at cps index 92#u32
+  if b
+  then
+    let i ← index + 1#usize
+    let i1 := alloc.vec.Vec.len cps
+    if i < i1
+    then
+      let x ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+          i
+      let o ← patterns.escaped_char x
+      match o with
+      | none =>
+        let o1 ← patterns.multi_spans x
+        match o1 with
+        | none => ok none
+        | some spans => let i2 ← index + 2#usize
+                        ok (some (spans, i2))
+      | some c =>
+        let v ← patterns.one c
+        let i2 ← index + 2#usize
+        ok (some (v, i2))
+    else ok none
+  else
+    let b1 ← patterns.is_at cps index 91#u32
+    if b1
+    then patterns.class_expr cps index
+    else
+      let b2 ← patterns.is_at cps index 46#u32
+      if b2
+      then
+        let v ← patterns.wildcard
+        let i ← index + 1#usize
+        ok (some (v, i))
+      else ok none
+
+/-- [rowl_kernel::patterns::digits_from]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 600:0-619:1 -/
+def patterns.digits_from
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) (value : Std.Usize)
+  (seen : Bool) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    if (48#u32 <= c) && (c <= 57#u32)
+    then
+      let i1 ← patterns.NUMBERS / 10#usize
+      if value < i1
+      then
+        let i2 ← index + 1#usize
+        let i3 ← value * 10#usize
+        let i4 ← c - 48#u32
+        let i5 ← lift (UScalar.cast .Usize i4)
+        let i6 ← i3 + i5
+        patterns.digits_from cps i2 i6 true
+      else ok none
+    else if seen
+         then ok (some (value, index))
+         else ok none
+  else if seen
+       then ok (some (value, index))
+       else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::quantifier]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 623:0-659:1 -/
+def patterns.quantifier
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option (Std.Usize × (Option Std.Usize) × Std.Usize))
+  := do
+  let b ← patterns.is_at cps index 63#u32
+  if b
+  then let i ← index + 1#usize
+       ok (some (0#usize, some 1#usize, i))
+  else
+    let b1 ← patterns.is_at cps index 42#u32
+    if b1
+    then let i ← index + 1#usize
+         ok (some (0#usize, none, i))
+    else
+      let b2 ← patterns.is_at cps index 43#u32
+      if b2
+      then let i ← index + 1#usize
+           ok (some (1#usize, none, i))
+      else
+        let b3 ← patterns.is_at cps index 123#u32
+        if b3
+        then
+          let i ← index + 1#usize
+          let o ← patterns.digits_from cps i 0#usize false
+          match o with
+          | none => ok none
+          | some p =>
+            let (least, next) := p
+            let b4 ← patterns.is_at cps next 125#u32
+            if b4
+            then let i1 ← next + 1#usize
+                 ok (some (least, some least, i1))
+            else
+              let b5 ← patterns.is_at cps next 44#u32
+              if b5
+              then
+                let i1 ← next + 1#usize
+                let b6 ← patterns.is_at cps i1 125#u32
+                if b6
+                then let i2 ← next + 2#usize
+                     ok (some (least, none, i2))
+                else
+                  let o1 ← patterns.digits_from cps i1 0#usize false
+                  match o1 with
+                  | none => ok none
+                  | some p1 =>
+                    let (most, after) := p1
+                    let b7 ← patterns.is_at cps after 125#u32
+                    if (least <= most) && b7
+                    then
+                      let i2 ← after + 1#usize
+                      ok (some (least, some most, i2))
+                    else ok none
+              else ok none
+        else ok none
+
+/-- [rowl_kernel::patterns::size_from]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 662:0-679:1 -/
+def patterns.size_from
+  (expression : regular.Expression) (count : Std.Usize) (cap : Std.Usize) :
+  Result Std.Usize
+  := do
+  if cap <= count
+  then ok cap
+  else
+    match expression with
+    | regular.Expression.Empty => count + 1#usize
+    | regular.Expression.Epsilon => count + 1#usize
+    | regular.Expression.Interval _ _ => count + 1#usize
+    | regular.Expression.Alternative left right =>
+      let i ← count + 1#usize
+      let i1 ← patterns.size_from left i cap
+      patterns.size_from right i1 cap
+    | regular.Expression.Sequence left right =>
+      let i ← count + 1#usize
+      let i1 ← patterns.size_from left i cap
+      patterns.size_from right i1 cap
+    | regular.Expression.Repeat inner =>
+      let i ← count + 1#usize
+      patterns.size_from inner i cap
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::power]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 682:0-688:1 -/
+def patterns.power
+  (expression : regular.Expression) (count : Std.Usize) :
+  Result regular.Expression
+  := do
+  if count = 0#usize
+  then ok regular.Expression.Epsilon
+  else
+    let e ← regular.copy_expression expression
+    let i ← count - 1#usize
+    let e1 ← patterns.power expression i
+    regular.sequence e e1
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::at_most]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 691:0-700:1 -/
+def patterns.at_most
+  (expression : regular.Expression) (count : Std.Usize) :
+  Result regular.Expression
+  := do
+  if count = 0#usize
+  then ok regular.Expression.Epsilon
+  else
+    let e ← regular.copy_expression expression
+    let i ← count - 1#usize
+    let e1 ← patterns.at_most expression i
+    let e2 ← regular.sequence e e1
+    regular.alternate regular.Expression.Epsilon e2
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::repeated]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 705:0-720:1 -/
+def patterns.repeated
+  (expression : regular.Expression) (least : Std.Usize)
+  (most : Option Std.Usize) :
+  Result (Option regular.Expression)
+  := do
+  let copies ← match most with
+                 | none => least + 1#usize
+                 | some m => ok m
+  let i ← patterns.SIZE + 1#usize
+  let size ← patterns.size_from expression 0#usize i
+  if 0#usize < size
+  then
+    let i1 ← patterns.SIZE / size
+    if copies <= i1
+    then
+      let first ← patterns.power expression least
+      match most with
+      | none =>
+        let e ← regular.repeat expression
+        let e1 ← regular.sequence first e
+        ok (some e1)
+      | some m =>
+        let i2 ← m - least
+        let e ← patterns.at_most expression i2
+        let e1 ← regular.sequence first e
+        ok (some e1)
+    else ok none
+  else ok none
+
+mutual
+
+/-- [rowl_kernel::patterns::reg_exp]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 728:0-742:1 -/
+def patterns.reg_exp
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option (regular.Expression × Std.Usize))
+  := do
+  let o ← patterns.branch cps index
+  match o with
+  | none => ok none
+  | some p =>
+    let (left, next) := p
+    let b ← patterns.is_at cps next 124#u32
+    if b
+    then
+      let i ← next + 1#usize
+      let o1 ← patterns.reg_exp cps i
+      match o1 with
+      | none => ok none
+      | some p1 =>
+        let (right, after) := p1
+        let e ← regular.alternate left right
+        ok (some (e, after))
+    else ok o
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::branch]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 745:0-763:1 -/
+def patterns.branch
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option (regular.Expression × Std.Usize))
+  := do
+  let b ← patterns.atom_start cps index
+  if b
+  then
+    let o ← patterns.piece cps index
+    match o with
+    | none => ok none
+    | some p =>
+      let (first, next) := p
+      if index < next
+      then
+        let o1 ← patterns.branch cps next
+        match o1 with
+        | none => ok none
+        | some p1 =>
+          let (rest, after) := p1
+          let e ← regular.sequence first rest
+          ok (some (e, after))
+      else ok none
+  else ok (some (regular.Expression.Epsilon, index))
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::piece]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 766:0-783:1 -/
+def patterns.piece
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option (regular.Expression × Std.Usize))
+  := do
+  let o ← patterns.atom cps index
+  match o with
+  | none => ok none
+  | some p =>
+    let (expression, next) := p
+    let b ← patterns.quantifier_start cps next
+    if b
+    then
+      let o1 ← patterns.quantifier cps next
+      match o1 with
+      | none => ok none
+      | some t =>
+        let (least, most, after) := t
+        let o2 ← patterns.repeated expression least most
+        match o2 with
+        | none => ok none
+        | some result => ok (some (result, after))
+    else ok o
+partial_fixpoint
+
+/-- [rowl_kernel::patterns::atom]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 786:0-813:1 -/
+def patterns.atom
+  (cps : alloc.vec.Vec Std.U32) (index : Std.Usize) :
+  Result (Option (regular.Expression × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len cps
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cps
+        index
+    if c = 40#u32
+    then
+      let i1 ← index + 1#usize
+      let o ← patterns.reg_exp cps i1
+      match o with
+      | none => ok none
+      | some p =>
+        let (expression, next) := p
+        let b ← patterns.is_at cps next 41#u32
+        if b
+        then let i2 ← next + 1#usize
+             ok (some (expression, i2))
+        else ok none
+    else
+      if ((c = 92#u32) || (c = 91#u32)) || (c = 46#u32)
+      then
+        let o ← patterns.char_class cps index
+        match o with
+        | none => ok none
+        | some p =>
+          let (spans, next) := p
+          let e ← patterns.spans_expression spans 0#usize
+          ok (some (e, next))
+      else
+        let b ← patterns.meta c
+        if b
+        then ok none
+        else
+          let i1 ← index + 1#usize
+          ok (some (regular.Expression.Interval c c, i1))
+  else ok none
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::patterns::pattern_expression]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 818:0-832:1
+    Visibility: public -/
+def patterns.pattern_expression
+  (bytes : alloc.vec.Vec Std.U8) : Result (Option regular.Expression) := do
+  let o ← patterns.decode_from bytes 0#usize (alloc.vec.Vec.new Std.U32)
+  match o with
+  | none => ok none
+  | some cps =>
+    let o1 ← patterns.reg_exp cps 0#usize
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (expression, next) := p
+      let i := alloc.vec.Vec.len cps
+      if next = i
+      then ok (some expression)
+      else ok none
+
+/-- [rowl_kernel::patterns::pattern_matches]:
+    Source: 'crates/rowl-kernel/src/patterns.rs', lines 836:0-841:1
+    Visibility: public -/
+def patterns.pattern_matches
+  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
+  Result (Option Bool)
+  := do
+  let e ← regular.copy_expression expression
+  let mr ← regular.matches_utf8 e bytes
+  match mr with
+  | regular.MatchResult.Matched accepted => ok (some accepted)
+  | regular.MatchResult.MalformedUtf8 _ => ok none
+
 /-- [rowl_kernel::prefixes::declarations]:
     Source: 'crates/rowl-kernel/src/prefixes.rs', lines 142:0-144:1
     Visibility: public -/

@@ -199,6 +199,8 @@ import Rowl.StringCounts
 import Rowl.LengthCounts
 import Rowl.Datatypes
 import Rowl.LangRanges
+import Rowl.XsdRegex
+import Rowl.Patterns
 import Rowl.Regions
 import Rowl.DataEncoding
 import Rowl.DataMeaning

@@ -1297,6 +1297,29 @@ formats are future work.
   tag that no range matches (`Rowl.DataRanges.choose_tag`), with infinitely
   many strings. A context with both language ranges and lengths gets no answer,
   and neither do keys with a data property while there are language ranges.
+- M5 regular expressions (first part of `xsd:pattern`): `Rowl.XsdRegex`
+  specifies the regular expressions of XML Schema 1.1 Part 2, Appendix G, as
+  relations that read an expression's code points left to right by the
+  productions [64]–[98] with the rules of §G.4.1 for `^` and for a hyphen after
+  a single character in a character group, together with the strings each
+  production denotes; category and block escapes refer to a Unicode database
+  (`UnicodeData`), an unrecognized block name standing for every character.
+  Every production reads its code points in at most one way, with one meaning
+  (`regExp_unique`, `pattern_unique`). The kernel module `patterns` reads an
+  expression into a `regular` expression (`patterns::pattern_expression`):
+  character classes become lists of code point intervals, with exact
+  intersections, complements among the code points up to `#x10FFFF` and
+  differences (`complement_spec`, `subtract_spec`), and a quantifier `{n,m}`
+  becomes `n` copies of its atom followed by up to `m - n` optional ones
+  (`repeated_spec`). Wherever it returns an expression, the bytes are UTF-8 for
+  a regular expression whose strings of code points up to `#x10FFFF` are
+  exactly the expression's, whatever the Unicode database
+  (`Rowl.Patterns.pattern_expression_spec`), and `patterns::pattern_matches`
+  tells whether UTF-8 text is one of them (`pattern_matches_spec`). It gives no
+  expression for `\p{…}`, `\P{…}`, `\d`, `\D`, `\w` and `\W`, which need the
+  Unicode database, for numerals of 2^20 or more and for quantifiers whose
+  copies would make more than 65536 nodes. Datatype restrictions with
+  `xsd:pattern` still get no answer in the ontology queries.
 - M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
   unfolded before the data queries (`unfolding`): each defined datatype in a
   data range of an axiom or of a question becomes the data range of its

@@ -386,8 +386,10 @@ properties:
   `"i"` and `"i-ami"`, a plain literal tagged under `i` but not `i-ami` must be
   one of the twelve other grandfathered `i-` tags, while with `"i"` and the
   thirteen grandfathered `i-` tags as ranges it cannot exist.
-- **Not yet:** `rdf:XMLLiteral`, the facet `xsd:pattern`, and language ranges
-  together with length facets in one ontology.
+- **Not yet:** `rdf:XMLLiteral`, the facet `xsd:pattern` (its regular
+  expressions are already read and matched by a verified parser, but the
+  queries do not use them yet), and language ranges together with length
+  facets in one ontology.
 
 ### Questions
 

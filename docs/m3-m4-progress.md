@@ -7342,3 +7342,63 @@ This block adds 107 public theorems (63 in the new modules `Rowl.LangRanges`
 and `Rowl.DataRanges`) and 39 definitions. Totals are 6613 audited theorems,
 2195 definitions, 705 Rust regressions, 24 Python binding tests and 6806 ledger
 obligations.
+
+## Regular expressions
+
+The first part of `xsd:pattern`: its regular expressions are specified, and the
+kernel reads them and matches text against them with proofs against the
+specification. The ontology queries do not use them yet; datatype restrictions
+with `xsd:pattern` still get no answer.
+
+Specification. `Rowl.XsdRegex` follows XML Schema 1.1 Part 2, Appendix G. Each
+production [64]–[98] is a relation between the code points where it begins,
+what it denotes and the code points that follow it, so that the rules which
+resolve the grammar's ambiguities are part of the reading: a branch takes
+pieces for as long as an atom can begin, a quantifier belongs to the atom
+before it, a character group that begins with `^` is negative, and after a
+single character in a character group a hyphen is a subtraction before `[`, a
+character of its own before `]` or `-[`, and otherwise makes a range with the
+next single character, neither of them an unescaped hyphen (§G.4.1). A
+regular expression denotes the strings of §G.1–§G.4 (`Repeats` for
+quantifiers, `single` for character classes); category and block escapes
+refer to a Unicode database (`UnicodeData`), an unrecognized block name
+standing for every character (§G.4.2.4). Every production reads its code
+points in at most one way, with one meaning (`regExp_unique`, proved by mutual
+structural recursion over the readings, and `pattern_unique`).
+
+Kernel. The module `patterns` decodes the expression's UTF-8 and reads it by
+recursive descent, one function per production. Sets of characters are lists
+of code point intervals (`Span`); intersections, complements among the code
+points up to `#x10FFFF` and differences are computed exactly, and a list that
+would outgrow `usize` gives no answer rather than losing intervals
+(`complement_spec`, `subtract_spec`). The expression is a `regular` expression:
+a character class is the union of its intervals (`spans_expression_spec`), and
+a quantifier `{n,m}` is `n` copies of its atom followed by up to `m - n`
+optional ones, `{n,}` `n` copies and a repetition (`repeated_spec`,
+`pow_mul_upTo`). `pattern_matches` runs the derivative matcher of `regular`
+on UTF-8 text.
+
+Proofs. `Rowl.Patterns` proves each reading function against its production:
+wherever it returns a result, the code points from its index to the index it
+returns are read by the production, with a meaning that agrees with the result
+on the code points up to `#x10FFFF` (`SameChars`, `SameStrings`). The
+character groups and class expressions call each other, as do regular
+expressions, branches, pieces and atoms; their proofs are mutual, by
+well-founded recursion on the code points left and the production's depth.
+So the expression of `pattern_expression` has, among the strings of code
+points up to `#x10FFFF`, exactly the strings of the regular expression that
+the bytes encode, whatever the Unicode database
+(`pattern_expression_spec`); strings of XML characters, the only ones a
+datatype has, are among them.
+
+Not read. The category escapes `\p{…}` and `\P{…}` and `\d`, `\D`, `\w` and
+`\W` depend on the Unicode database and give no expression yet, nor do
+numerals of 2^20 or more and quantifiers whose copies would make more than
+65536 nodes. Every other regular expression is read; the regressions check
+branches, quantifiers, character classes with ranges, negation and
+subtraction, the hyphen rules and invalid expressions.
+
+This block adds 115 public theorems in the new modules `Rowl.XsdRegex` and
+`Rowl.Patterns` and 41 definitions. Totals are 6728 audited theorems, 2236
+definitions, 708 Rust regressions, 24 Python binding tests and 6921 ledger
+obligations.
