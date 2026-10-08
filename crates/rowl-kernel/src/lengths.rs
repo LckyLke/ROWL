@@ -193,7 +193,7 @@ pub const TEXT_STATES: usize = 1216;
 /// The state of the automaton of the strings after an atom: the five states
 /// of breaks, spaces, names, colons and the language tag, written
 /// `(((breaks · 4 + spaces) · 4 + names) · 2 + colons) · 19 + tag`.
-fn next_text(state: usize, atom: usize) -> usize {
+pub(crate) fn next_text(state: usize, atom: usize) -> usize {
     let tag = state % 19;
     let rest = state / 19;
     let colons = rest % 2;
@@ -401,7 +401,7 @@ fn initial_from(
     }
 }
 /// Whether `left[index..]` and `right[index..]` are the same.
-fn same_counts(left: &Vec<usize>, right: &Vec<usize>, index: usize) -> bool {
+pub(crate) fn same_counts(left: &Vec<usize>, right: &Vec<usize>, index: usize) -> bool {
     if index < left.len() {
         if index < right.len() {
             (left[index] == right[index]) && same_counts(left, right, index + 1)

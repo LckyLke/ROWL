@@ -98,6 +98,7 @@ pub mod numbers;
 pub mod lang_ranges;
 pub mod lengths;
 pub mod moments;
+pub mod pattern_counts;
 pub mod patterns;
 
 pub mod floats;

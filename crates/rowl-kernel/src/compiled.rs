@@ -294,7 +294,7 @@ fn derive_stack(
 
 /// Add to `out` the stacks that remain after `codepoint` begins a word of a
 /// stack of `state[index..]`.
-fn step(
+pub(crate) fn step(
     nodes: &Vec<Node>,
     state: &Vec<Vec<usize>>,
     index: usize,
@@ -326,7 +326,7 @@ fn empty_from(nodes: &Vec<Node>, stack: &Vec<usize>, index: usize) -> bool {
 }
 
 /// Whether some stack of `state[index..]` accepts the empty word.
-fn accepting(nodes: &Vec<Node>, state: &Vec<Vec<usize>>, index: usize) -> bool {
+pub(crate) fn accepting(nodes: &Vec<Node>, state: &Vec<Vec<usize>>, index: usize) -> bool {
     if index < state.len() {
         if empty_from(nodes, &state[index], 0) {
             true
@@ -339,7 +339,7 @@ fn accepting(nodes: &Vec<Node>, state: &Vec<Vec<usize>>, index: usize) -> bool {
 }
 
 /// The state of the single stack with the root.
-fn start(root: usize) -> Vec<Vec<usize>> {
+pub(crate) fn start(root: usize) -> Vec<Vec<usize>> {
     let mut stack = Vec::new();
     stack.push(root);
     let mut state = Vec::new();

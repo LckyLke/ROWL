@@ -387,9 +387,9 @@ properties:
   one of the twelve other grandfathered `i-` tags, while with `"i"` and the
   thirteen grandfathered `i-` tags as ranges it cannot exist.
 - **Not yet:** `rdf:XMLLiteral`, the facet `xsd:pattern` (its regular
-  expressions are already read and matched by a verified parser, but the
-  queries do not use them yet), and language ranges together with length
-  facets in one ontology.
+  expressions are already read, matched and their strings counted by verified
+  kernel code, but the queries do not use them yet), and language ranges
+  together with length facets in one ontology.
 
 ### Questions
 

@@ -201,6 +201,7 @@ import Rowl.Datatypes
 import Rowl.LangRanges
 import Rowl.XsdRegex
 import Rowl.Patterns
+import Rowl.PatternCounts
 import Rowl.Regions
 import Rowl.DataEncoding
 import Rowl.DataMeaning

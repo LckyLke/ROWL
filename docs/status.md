@@ -1318,8 +1318,22 @@ formats are future work.
   tells whether UTF-8 text is one of them (`pattern_matches_spec`). It gives no
   expression for `\p{…}`, `\P{…}`, `\d`, `\D`, `\w` and `\W`, which need the
   Unicode database, for numerals of 2^20 or more and for quantifiers whose
-  copies would make more than 65536 nodes. Datatype restrictions with
-  `xsd:pattern` still get no answer in the ontology queries.
+  copies would make more than 65536 nodes. The kernel module `pattern_counts`
+  counts the strings of each combination of expressions, subtype of
+  `xsd:string` and slot of lengths (`pattern_counts::profile_count`): the
+  expressions share one table of `compiled` nodes, the nine atoms of `lengths`
+  are cut wherever an interval node begins or after it ends, so that every
+  language of the table is alike on each atom (`Rowl.PatternCounts.Uniform`,
+  `after_same`), and the joint states of the automaton of the strings and of the
+  expressions' continuation stacks reachable from the start get rows of next
+  states that agree with them (`automaton_spec`); the automaton takes a word to
+  a state of a profile exactly when the word is of XML characters of the
+  profile's ranks and exactly the profile's expressions have it
+  (`profile_accepts`), and the capped counts of each length stop once their sum
+  reaches the cap, the slot ends or the counts repeat, giving the capped number
+  of the profile's words in the slot, or, for a slot without end, the value at
+  which these capped numbers settle (`profile_count_words`). Datatype
+  restrictions with `xsd:pattern` still get no answer in the ontology queries.
 - M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
   unfolded before the data queries (`unfolding`): each defined datatype in a
   data range of an axiom or of a question becomes the data range of its

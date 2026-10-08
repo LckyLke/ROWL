@@ -7402,3 +7402,55 @@ This block adds 115 public theorems in the new modules `Rowl.XsdRegex` and
 `Rowl.Patterns` and 41 definitions. Totals are 6728 audited theorems, 2236
 definitions, 708 Rust regressions, 24 Python binding tests and 6921 ledger
 obligations.
+
+## Counting the strings of patterns
+
+The second part of `xsd:pattern`: the kernel counts the strings of each
+combination of regular expressions, subtype of `xsd:string` and slot of
+lengths, with proofs. The ontology queries do not use the counts yet.
+
+Atoms. The expressions are compiled into one table of `compiled` nodes. The
+intervals of the nine atoms of `lengths` are cut wherever an interval node
+begins and after it ends, without sorting: each cut splits the atoms it falls
+inside (`splitOne`). The atoms keep covering exactly the XML characters, apart
+from each other and each within one base atom (`Partition`, `base_partition`,
+`split_partition`), and no interval node begins or ends inside one (`Cut`,
+`refine_spec`), so two characters of an atom are in the same interval nodes
+(`interval_same`).
+
+Alike on atoms. A language that holds a word exactly when it holds the words
+whose letters are one by one in the same atoms (`Uniform`) stays so under
+union, concatenation and repetition; every node of the table, continuation
+stack and state of stacks has such a language (`lang_uniform`,
+`stateLang_uniform`), so the words after a character are the words after the
+first character of its atom (`after_same`), which is the character the kernel
+steps with.
+
+The joint automaton. A joint state is a state of the automaton of the strings
+and, for each expression, a state of continuation stacks; it stands for the
+strings' state and the languages of its stacks (`meaning`). The kernel finds
+the joint states reachable from the start one after the other, two being the
+same when their strings' states agree and their stacks are the same sets
+(`same_joint_spec`), and gives each a row of next states, one for each atom,
+that stand for the state after the atom (`row_spec`, `explore_spec`,
+`RowsAgree`). The automaton is `Built` from the expressions
+(`automaton_spec`): from its first state it takes a word to a state of a rank
+range where exactly the expressions of a profile accept exactly when the word
+is of XML characters of that rank and exactly those expressions have it
+(`joint_accepts`, `profile_accepts`).
+
+Counts. The capped numbers of the profile's words of each length from each
+state follow from those one letter shorter (`initial_from_spec`,
+`state_sum_spec`, `step_from_spec`). The count of a slot stops once its sum
+reaches the cap, once the lengths reach the slot's end, or once the numbers
+repeat, after which every later length has the same capped number; a slot
+without end then contributes nothing more, or reaches the cap
+(`count_from_spec`). So `profile_count` gives the capped number of the
+profile's words with lengths in the slot, or, for a slot without end, the
+value at which these capped numbers settle (`profile_count_words`). The kernel
+gives no answer beyond 4096 joint states or when the counts do not settle
+within 4096 lengths.
+
+This block adds 72 public theorems in the new module `Rowl.PatternCounts` and
+23 definitions. Totals are 6800 audited theorems, 2259 definitions, 711 Rust
+regressions, 24 Python binding tests and 6993 ledger obligations.

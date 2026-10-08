@@ -84327,6 +84327,872 @@ def ntriples.write
   := do
   rdf_write.write_graph graph false max_output_bytes
 
+/-- [rowl_kernel::pattern_counts::Atom]
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 45:0-49:1
+    Visibility: public -/
+structure pattern_counts.Atom where
+  lower : Std.U32
+  upper : Std.U32
+  base : Std.Usize
+
+/-- [rowl_kernel::pattern_counts::Joint]
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 53:0-56:1
+    Visibility: public -/
+structure pattern_counts.Joint where
+  text : Std.Usize
+  «stacks» : alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+
+/-- [rowl_kernel::pattern_counts::Automaton]
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 60:0-65:1
+    Visibility: public -/
+structure pattern_counts.Automaton where
+  atoms : alloc.vec.Vec pattern_counts.Atom
+  ranks : alloc.vec.Vec Std.U8
+  accepts : alloc.vec.Vec (alloc.vec.Vec Bool)
+  next : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+
+/-- [rowl_kernel::pattern_counts::JOINT_STATES]
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 68:0-68:37
+    Visibility: public -/
+@[global_simps, irreducible]
+def pattern_counts.JOINT_STATES : Std.Usize := 4096#usize
+
+/-- [rowl_kernel::pattern_counts::PROFILE_SETTLE]
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 71:0-71:39
+    Visibility: public -/
+@[global_simps, irreducible]
+def pattern_counts.PROFILE_SETTLE : Std.Usize := 4096#usize
+
+/-- [rowl_kernel::pattern_counts::END]
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 74:0-74:26 -/
+@[global_simps, irreducible] def pattern_counts.END : Std.U32 := 1114112#u32
+
+/-- [rowl_kernel::pattern_counts::atom]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 80:0-82:1 -/
+def pattern_counts.atom
+  (lower : Std.U32) (upper : Std.U32) (base : Std.Usize) :
+  Result pattern_counts.Atom
+  := do
+  ok { lower, upper, base }
+
+/-- [rowl_kernel::pattern_counts::base_atoms]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 88:0-134:1 -/
+def pattern_counts.base_atoms
+  : Result (alloc.vec.Vec pattern_counts.Atom) := do
+  let a ← pattern_counts.atom 9#u32 10#u32 0#usize
+  let out ← alloc.vec.Vec.push (alloc.vec.Vec.new pattern_counts.Atom) a
+  let a1 ← pattern_counts.atom 13#u32 13#u32 0#usize
+  let out1 ← alloc.vec.Vec.push out a1
+  let a2 ← pattern_counts.atom 32#u32 32#u32 1#usize
+  let out2 ← alloc.vec.Vec.push out1 a2
+  let a3 ← pattern_counts.atom 58#u32 58#u32 2#usize
+  let out3 ← alloc.vec.Vec.push out2 a3
+  let a4 ← pattern_counts.atom 65#u32 90#u32 3#usize
+  let out4 ← alloc.vec.Vec.push out3 a4
+  let a5 ← pattern_counts.atom 97#u32 122#u32 3#usize
+  let out5 ← alloc.vec.Vec.push out4 a5
+  let a6 ← pattern_counts.atom 48#u32 57#u32 4#usize
+  let out6 ← alloc.vec.Vec.push out5 a6
+  let a7 ← pattern_counts.atom 45#u32 45#u32 5#usize
+  let out7 ← alloc.vec.Vec.push out6 a7
+  let a8 ← pattern_counts.atom 95#u32 95#u32 6#usize
+  let out8 ← alloc.vec.Vec.push out7 a8
+  let a9 ← pattern_counts.atom 192#u32 214#u32 6#usize
+  let out9 ← alloc.vec.Vec.push out8 a9
+  let a10 ← pattern_counts.atom 216#u32 246#u32 6#usize
+  let out10 ← alloc.vec.Vec.push out9 a10
+  let a11 ← pattern_counts.atom 248#u32 767#u32 6#usize
+  let out11 ← alloc.vec.Vec.push out10 a11
+  let a12 ← pattern_counts.atom 880#u32 893#u32 6#usize
+  let out12 ← alloc.vec.Vec.push out11 a12
+  let a13 ← pattern_counts.atom 895#u32 8191#u32 6#usize
+  let out13 ← alloc.vec.Vec.push out12 a13
+  let a14 ← pattern_counts.atom 8204#u32 8205#u32 6#usize
+  let out14 ← alloc.vec.Vec.push out13 a14
+  let a15 ← pattern_counts.atom 8304#u32 8591#u32 6#usize
+  let out15 ← alloc.vec.Vec.push out14 a15
+  let a16 ← pattern_counts.atom 11264#u32 12271#u32 6#usize
+  let out16 ← alloc.vec.Vec.push out15 a16
+  let a17 ← pattern_counts.atom 12289#u32 55295#u32 6#usize
+  let out17 ← alloc.vec.Vec.push out16 a17
+  let a18 ← pattern_counts.atom 63744#u32 64975#u32 6#usize
+  let out18 ← alloc.vec.Vec.push out17 a18
+  let a19 ← pattern_counts.atom 65008#u32 65533#u32 6#usize
+  let out19 ← alloc.vec.Vec.push out18 a19
+  let a20 ← pattern_counts.atom 65536#u32 983039#u32 6#usize
+  let out20 ← alloc.vec.Vec.push out19 a20
+  let a21 ← pattern_counts.atom 46#u32 46#u32 7#usize
+  let out21 ← alloc.vec.Vec.push out20 a21
+  let a22 ← pattern_counts.atom 183#u32 183#u32 7#usize
+  let out22 ← alloc.vec.Vec.push out21 a22
+  let a23 ← pattern_counts.atom 768#u32 879#u32 7#usize
+  let out23 ← alloc.vec.Vec.push out22 a23
+  let a24 ← pattern_counts.atom 8255#u32 8256#u32 7#usize
+  let out24 ← alloc.vec.Vec.push out23 a24
+  let a25 ← pattern_counts.atom 33#u32 44#u32 8#usize
+  let out25 ← alloc.vec.Vec.push out24 a25
+  let a26 ← pattern_counts.atom 47#u32 47#u32 8#usize
+  let out26 ← alloc.vec.Vec.push out25 a26
+  let a27 ← pattern_counts.atom 59#u32 64#u32 8#usize
+  let out27 ← alloc.vec.Vec.push out26 a27
+  let a28 ← pattern_counts.atom 91#u32 94#u32 8#usize
+  let out28 ← alloc.vec.Vec.push out27 a28
+  let a29 ← pattern_counts.atom 96#u32 96#u32 8#usize
+  let out29 ← alloc.vec.Vec.push out28 a29
+  let a30 ← pattern_counts.atom 123#u32 182#u32 8#usize
+  let out30 ← alloc.vec.Vec.push out29 a30
+  let a31 ← pattern_counts.atom 184#u32 191#u32 8#usize
+  let out31 ← alloc.vec.Vec.push out30 a31
+  let a32 ← pattern_counts.atom 215#u32 215#u32 8#usize
+  let out32 ← alloc.vec.Vec.push out31 a32
+  let a33 ← pattern_counts.atom 247#u32 247#u32 8#usize
+  let out33 ← alloc.vec.Vec.push out32 a33
+  let a34 ← pattern_counts.atom 894#u32 894#u32 8#usize
+  let out34 ← alloc.vec.Vec.push out33 a34
+  let a35 ← pattern_counts.atom 8192#u32 8203#u32 8#usize
+  let out35 ← alloc.vec.Vec.push out34 a35
+  let a36 ← pattern_counts.atom 8206#u32 8254#u32 8#usize
+  let out36 ← alloc.vec.Vec.push out35 a36
+  let a37 ← pattern_counts.atom 8257#u32 8303#u32 8#usize
+  let out37 ← alloc.vec.Vec.push out36 a37
+  let a38 ← pattern_counts.atom 8592#u32 11263#u32 8#usize
+  let out38 ← alloc.vec.Vec.push out37 a38
+  let a39 ← pattern_counts.atom 12272#u32 12288#u32 8#usize
+  let out39 ← alloc.vec.Vec.push out38 a39
+  let a40 ← pattern_counts.atom 57344#u32 63743#u32 8#usize
+  let out40 ← alloc.vec.Vec.push out39 a40
+  let a41 ← pattern_counts.atom 64976#u32 65007#u32 8#usize
+  let out41 ← alloc.vec.Vec.push out40 a41
+  let a42 ← pattern_counts.atom 983040#u32 1114111#u32 8#usize
+  alloc.vec.Vec.push out41 a42
+
+/-- [rowl_kernel::pattern_counts::split_from]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 138:0-160:1 -/
+def pattern_counts.split_from
+  (atoms : alloc.vec.Vec pattern_counts.Atom) (cut : Std.U32)
+  (index : Std.Usize) (out : alloc.vec.Vec pattern_counts.Atom) :
+  Result (Option (alloc.vec.Vec pattern_counts.Atom))
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let a ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        pattern_counts.Atom) atoms index
+    if (a.lower < cut) && (cut <= a.upper)
+    then
+      let i1 := alloc.vec.Vec.len out
+      let i2 ← core.num.Usize.MAX - 1#usize
+      if i1 < i2
+      then
+        let i3 ← cut - 1#u32
+        let a1 ← pattern_counts.atom a.lower i3 a.base
+        let out1 ← alloc.vec.Vec.push out a1
+        let a2 ← pattern_counts.atom cut a.upper a.base
+        let out2 ← alloc.vec.Vec.push out1 a2
+        let i4 ← index + 1#usize
+        pattern_counts.split_from atoms cut i4 out2
+      else ok none
+    else
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let a1 ← pattern_counts.atom a.lower a.upper a.base
+        let out1 ← alloc.vec.Vec.push out a1
+        let i2 ← index + 1#usize
+        pattern_counts.split_from atoms cut i2 out1
+      else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::refine]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 164:0-182:1 -/
+def pattern_counts.refine
+  (nodes : alloc.vec.Vec compiled.Node) (index : Std.Usize)
+  (atoms : alloc.vec.Vec pattern_counts.Atom) :
+  Result (Option (alloc.vec.Vec pattern_counts.Atom))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice compiled.Node)
+        nodes index
+    match n.kind with
+    | compiled.Kind.Empty =>
+      let i1 ← index + 1#usize
+      pattern_counts.refine nodes i1 atoms
+    | compiled.Kind.Epsilon =>
+      let i1 ← index + 1#usize
+      pattern_counts.refine nodes i1 atoms
+    | compiled.Kind.Interval lower upper =>
+      let i1 ← pattern_counts.END - 1#u32
+      let after ← if upper < i1
+                    then upper + 1#u32
+                    else ok pattern_counts.END
+      let o ←
+        pattern_counts.split_from atoms lower 0#usize (alloc.vec.Vec.new
+          pattern_counts.Atom)
+      match o with
+      | none => ok none
+      | some once =>
+        let o1 ←
+          pattern_counts.split_from once after 0#usize (alloc.vec.Vec.new
+            pattern_counts.Atom)
+        match o1 with
+        | none => ok none
+        | some twice =>
+          let i2 ← index + 1#usize
+          pattern_counts.refine nodes i2 twice
+    | compiled.Kind.Alternative _ _ =>
+      let i1 ← index + 1#usize
+      pattern_counts.refine nodes i1 atoms
+    | compiled.Kind.Sequence _ _ =>
+      let i1 ← index + 1#usize
+      pattern_counts.refine nodes i1 atoms
+    | compiled.Kind.Repeat _ =>
+      let i1 ← index + 1#usize
+      pattern_counts.refine nodes i1 atoms
+  else ok (some atoms)
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::step_all]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 190:0-212:1 -/
+def pattern_counts.step_all
+  (nodes : alloc.vec.Vec compiled.Node)
+  («stacks» : alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  (index : Std.Usize) (codepoint : Std.U32)
+  (out : alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize))) :
+  Result (Option (alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize))))
+  := do
+  let i := alloc.vec.Vec.len «stacks»
+  if index < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (alloc.vec.Vec Std.Usize))) «stacks» index
+    let (b, next) ←
+      compiled.step nodes v 0#usize codepoint (alloc.vec.Vec.new (alloc.vec.Vec
+        Std.Usize))
+    if b
+    then
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out next
+        let i2 ← index + 1#usize
+        pattern_counts.step_all nodes «stacks» i2 codepoint out1
+      else ok none
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::joint_step]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 215:0-223:1 -/
+def pattern_counts.joint_step
+  (nodes : alloc.vec.Vec compiled.Node) (joint : pattern_counts.Joint)
+  (atom : pattern_counts.Atom) :
+  Result (Option pattern_counts.Joint)
+  := do
+  let o ←
+    pattern_counts.step_all nodes joint.stacks 0#usize atom.lower
+      (alloc.vec.Vec.new (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  match o with
+  | none => ok none
+  | some «stacks» =>
+    let i ← lengths.next_text joint.text atom.base
+    ok (some { text := i, «stacks» })
+
+/-- [rowl_kernel::pattern_counts::same_from]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 239:0-249:1 -/
+def pattern_counts.same_from
+  (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len right
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          left index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           pattern_counts.same_from left right i4
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::same_stack]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 252:0-258:1 -/
+def pattern_counts.same_stack
+  (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then pattern_counts.same_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::pattern_counts::listed_stack]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 261:0-271:1 -/
+def pattern_counts.listed_stack
+  (states : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (stack : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len states
+  if index < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) states index
+    let b ← pattern_counts.same_stack v stack
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         pattern_counts.listed_stack states stack i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::within]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 226:0-236:1 -/
+def pattern_counts.within
+  (left : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (right : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) left index
+    let b ← pattern_counts.listed_stack right v 0#usize
+    if b
+    then let i1 ← index + 1#usize
+         pattern_counts.within left right i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::same_sets]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 275:0-285:1 -/
+def pattern_counts.same_sets
+  (left : alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  (right : alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len right
+    if index < i1
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (alloc.vec.Vec Std.Usize))) left index
+      let v1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (alloc.vec.Vec Std.Usize))) right index
+      let b ← pattern_counts.within v v1 0#usize
+      if b
+      then
+        let b1 ← pattern_counts.within v1 v 0#usize
+        if b1
+        then let i2 ← index + 1#usize
+             pattern_counts.same_sets left right i2
+        else ok false
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::same_joint]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 288:0-292:1 -/
+def pattern_counts.same_joint
+  (left : pattern_counts.Joint) (right : pattern_counts.Joint) :
+  Result Bool
+  := do
+  if left.text = right.text
+  then
+    let i := alloc.vec.Vec.len left.stacks
+    let i1 := alloc.vec.Vec.len right.stacks
+    if i = i1
+    then pattern_counts.same_sets left.stacks right.stacks 0#usize
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::pattern_counts::find_joint]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 296:0-306:1 -/
+def pattern_counts.find_joint
+  (states : alloc.vec.Vec pattern_counts.Joint) (joint : pattern_counts.Joint)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len states
+  if index < i
+  then
+    let j ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        pattern_counts.Joint) states index
+    let b ← pattern_counts.same_joint j joint
+    if b
+    then ok (some index)
+    else let i1 ← index + 1#usize
+         pattern_counts.find_joint states joint i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::row]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 310:0-343:1 -/
+def pattern_counts.row
+  (nodes : alloc.vec.Vec compiled.Node)
+  (atoms : alloc.vec.Vec pattern_counts.Atom) (state : Std.Usize)
+  (atom_index : Std.Usize) (states : alloc.vec.Vec pattern_counts.Joint)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option ((alloc.vec.Vec pattern_counts.Joint) × (alloc.vec.Vec
+    Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len atoms
+  let i1 := alloc.vec.Vec.len states
+  if (atom_index < i) && (state < i1)
+  then
+    let j ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        pattern_counts.Joint) states state
+    let a ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        pattern_counts.Atom) atoms atom_index
+    let o ← pattern_counts.joint_step nodes j a
+    match o with
+    | none => ok none
+    | some joint =>
+      let o1 ← pattern_counts.find_joint states joint 0#usize
+      let (states1, target) ←
+        match o1 with
+        | none =>
+          do
+          let fresh := alloc.vec.Vec.len states
+          let v ←
+            if fresh < core.num.Usize.MAX
+            then alloc.vec.Vec.push states joint
+            else ok states
+          ok (v, fresh)
+        | some found => ok (states, found)
+      let i2 := alloc.vec.Vec.len states1
+      let i3 := alloc.vec.Vec.len out
+      if (target < i2) && (i3 < core.num.Usize.MAX)
+      then
+        let out1 ← alloc.vec.Vec.push out target
+        let i4 ← atom_index + 1#usize
+        pattern_counts.row nodes atoms state i4 states1 out1
+      else ok none
+  else ok (some (states, out))
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::explore]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 347:0-374:1 -/
+def pattern_counts.explore
+  (nodes : alloc.vec.Vec compiled.Node)
+  (atoms : alloc.vec.Vec pattern_counts.Atom)
+  (states : alloc.vec.Vec pattern_counts.Joint)
+  (next : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec pattern_counts.Joint) × (alloc.vec.Vec
+    (alloc.vec.Vec Std.Usize))))
+  := do
+  let state := alloc.vec.Vec.len next
+  let i := alloc.vec.Vec.len states
+  if state < i
+  then
+    if fuel = 0#usize
+    then ok none
+    else
+      let o ←
+        pattern_counts.row nodes atoms state 0#usize states (alloc.vec.Vec.new
+          Std.Usize)
+      match o with
+      | none => ok none
+      | some p =>
+        let (found, out) := p
+        let i1 := alloc.vec.Vec.len next
+        if i1 < core.num.Usize.MAX
+        then
+          let next1 ← alloc.vec.Vec.push next out
+          let i2 ← fuel - 1#usize
+          pattern_counts.explore nodes atoms found next1 i2
+        else ok none
+  else ok (some (states, next))
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::starts]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 377:0-392:1 -/
+def pattern_counts.starts
+  (roots : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize))) :
+  Result (Option (alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize))))
+  := do
+  let i := alloc.vec.Vec.len roots
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          roots index
+      let v ← compiled.start i2
+      let out1 ← alloc.vec.Vec.push out v
+      let i3 ← index + 1#usize
+      pattern_counts.starts roots i3 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::accepts_from]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 395:0-409:1 -/
+def pattern_counts.accepts_from
+  (nodes : alloc.vec.Vec compiled.Node)
+  («stacks» : alloc.vec.Vec (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  (index : Std.Usize) (out : alloc.vec.Vec Bool) :
+  Result (alloc.vec.Vec Bool)
+  := do
+  let i := alloc.vec.Vec.len «stacks»
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let v ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec (alloc.vec.Vec Std.Usize))) «stacks» index
+        let b ← compiled.accepting nodes v 0#usize
+        alloc.vec.Vec.push out b
+      else ok out
+    let i2 ← index + 1#usize
+    pattern_counts.accepts_from nodes «stacks» i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::profiles_from]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 413:0-429:1 -/
+def pattern_counts.profiles_from
+  (nodes : alloc.vec.Vec compiled.Node)
+  (states : alloc.vec.Vec pattern_counts.Joint) (index : Std.Usize)
+  (ranks : alloc.vec.Vec Std.U8) (accepts : alloc.vec.Vec (alloc.vec.Vec Bool))
+  :
+  Result ((alloc.vec.Vec Std.U8) × (alloc.vec.Vec (alloc.vec.Vec Bool)))
+  := do
+  let i := alloc.vec.Vec.len states
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len ranks
+    let i2 := alloc.vec.Vec.len accepts
+    let (ranks1, accepts1) ←
+      if (i1 < core.num.Usize.MAX) && (i2 < core.num.Usize.MAX)
+      then
+        do
+        let j ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            pattern_counts.Joint) states index
+        let i3 ← lengths.rank j.text
+        let ranks2 ← alloc.vec.Vec.push ranks i3
+        let v ←
+          pattern_counts.accepts_from nodes j.stacks 0#usize (alloc.vec.Vec.new
+            Bool)
+        let accepts2 ← alloc.vec.Vec.push accepts v
+        ok (ranks2, accepts2)
+      else ok (ranks, accepts)
+    let i3 ← index + 1#usize
+    pattern_counts.profiles_from nodes states i3 ranks1 accepts1
+  else ok (ranks, accepts)
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::compile_all]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 433:0-448:1 -/
+def pattern_counts.compile_all
+  (nodes : compiled.Table) (expressions : alloc.vec.Vec regular.Expression)
+  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result ((alloc.vec.Vec Std.Usize) × compiled.Table)
+  := do
+  let i := alloc.vec.Vec.len expressions
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        regular.Expression) expressions index
+    let (root, nodes1) ← compiled.compile nodes e
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then alloc.vec.Vec.push out root
+      else ok out
+    let i2 ← index + 1#usize
+    pattern_counts.compile_all nodes1 expressions i2 out1
+  else ok (out, nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::automaton]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 452:0-485:1
+    Visibility: public -/
+def pattern_counts.automaton
+  (expressions : alloc.vec.Vec regular.Expression) :
+  Result (Option pattern_counts.Automaton)
+  := do
+  let compiled ← compiled.table
+  let (roots, compiled1) ←
+    pattern_counts.compile_all compiled expressions 0#usize (alloc.vec.Vec.new
+      Std.Usize)
+  let i := alloc.vec.Vec.len roots
+  let i1 := alloc.vec.Vec.len expressions
+  if compiled1.full || (i != i1)
+  then ok none
+  else
+    let v ← pattern_counts.base_atoms
+    let o ← pattern_counts.refine compiled1.nodes 0#usize v
+    match o with
+    | none => ok none
+    | some atoms =>
+      let o1 ←
+        pattern_counts.starts roots 0#usize (alloc.vec.Vec.new (alloc.vec.Vec
+          (alloc.vec.Vec Std.Usize)))
+      match o1 with
+      | none => ok none
+      | some first =>
+        let states ←
+          alloc.vec.Vec.push (alloc.vec.Vec.new pattern_counts.Joint)
+            ({ text := 0#usize, «stacks» := first } : pattern_counts.Joint)
+        let o2 ←
+          pattern_counts.explore compiled1.nodes atoms states
+            (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
+            pattern_counts.JOINT_STATES
+        match o2 with
+        | none => ok none
+        | some p =>
+          let (found, next) := p
+          let (ranks, accepts) ←
+            pattern_counts.profiles_from compiled1.nodes found 0#usize
+              (alloc.vec.Vec.new Std.U8) (alloc.vec.Vec.new (alloc.vec.Vec
+              Bool))
+          ok (some { atoms, ranks, accepts, next })
+
+/-- [rowl_kernel::pattern_counts::same_flags]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 492:0-502:1 -/
+def pattern_counts.same_flags
+  (left : alloc.vec.Vec Bool) (right : alloc.vec.Vec Bool) (index : Std.Usize)
+  :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len right
+    if index < i1
+    then
+      let b ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) left
+          index
+      let b1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) right
+          index
+      if b = b1
+      then let i2 ← index + 1#usize
+           pattern_counts.same_flags left right i2
+      else ok false
+    else ok false
+  else let i1 := alloc.vec.Vec.len right
+       ok (i1 <= index)
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::initial_from]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 507:0-528:1 -/
+def pattern_counts.initial_from
+  (automaton : pattern_counts.Automaton) (first : Std.U8) (last : Std.U8)
+  (profile : alloc.vec.Vec Bool) (cap : Std.Usize) (state : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len automaton.ranks
+  let i1 := alloc.vec.Vec.len automaton.accepts
+  if (state < i) && (state < i1)
+  then
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        automaton.ranks state
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Bool)) automaton.accepts state
+    let b ← pattern_counts.same_flags v profile 0#usize
+    let value ←
+      if ((first <= i2) && (i2 < last)) && b
+      then lengths.capped_sum 0#usize 1#usize cap
+      else ok 0#usize
+    let i3 := alloc.vec.Vec.len out
+    let out1 ←
+      if i3 < core.num.Usize.MAX
+      then alloc.vec.Vec.push out value
+      else ok out
+    let i4 ← state + 1#usize
+    pattern_counts.initial_from automaton first last profile cap i4 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::state_sum]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 533:0-570:1 -/
+def pattern_counts.state_sum
+  (automaton : pattern_counts.Automaton) (counts : alloc.vec.Vec Std.Usize)
+  (cap : Std.Usize) (state : Std.Usize) (atom_index : Std.Usize)
+  (total : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len automaton.next
+  let i1 := alloc.vec.Vec.len automaton.atoms
+  if (state < i) && (atom_index < i1)
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) automaton.next state
+    let i2 := alloc.vec.Vec.len v
+    if atom_index < i2
+    then
+      let target ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) v
+          atom_index
+      let i3 := alloc.vec.Vec.len counts
+      let words ←
+        if target < i3
+        then
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+            counts target
+        else ok 0#usize
+      let a ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          pattern_counts.Atom) automaton.atoms atom_index
+      let size ←
+        if (a.lower <= a.upper) && (a.upper < pattern_counts.END)
+        then
+          do
+          let i4 ← a.upper - a.lower
+          let i5 ← lift (UScalar.cast .Usize i4)
+          i5 + 1#usize
+        else ok 0#usize
+      let i4 ← atom_index + 1#usize
+      let i5 ← lengths.capped_product size words cap
+      let i6 ← lengths.capped_sum total i5 cap
+      pattern_counts.state_sum automaton counts cap state i4 i6
+    else ok total
+  else ok total
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::step_from]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 574:0-590:1 -/
+def pattern_counts.step_from
+  (automaton : pattern_counts.Automaton) (counts : alloc.vec.Vec Std.Usize)
+  (cap : Std.Usize) (state : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len automaton.next
+  if state < i
+  then
+    let value ←
+      pattern_counts.state_sum automaton counts cap state 0#usize 0#usize
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then alloc.vec.Vec.push out value
+      else ok out
+    let i2 ← state + 1#usize
+    pattern_counts.step_from automaton counts cap i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::count_from]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 597:0-650:1 -/
+def pattern_counts.count_from
+  (automaton : pattern_counts.Automaton) (cap : Std.Usize)
+  (counts : alloc.vec.Vec Std.Usize) (length : Std.Usize) (low : Std.Usize)
+  (high : Option Std.Usize) (total : Std.Usize) (fuel : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let ended ←
+    match high with
+    | none => ok false
+    | some «end» => ok («end» <= length)
+  if ended
+  then ok (some total)
+  else
+    let i := alloc.vec.Vec.len counts
+    let here ←
+      if 0#usize < i
+      then
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          counts 0#usize
+      else ok 0#usize
+    let sum ←
+      if low <= length
+      then lengths.capped_sum total here cap
+      else ok total
+    if cap <= sum
+    then ok (some sum)
+    else
+      let next ←
+        pattern_counts.step_from automaton counts cap 0#usize
+          (alloc.vec.Vec.new Std.Usize)
+      let b ← lengths.same_counts next counts 0#usize
+      if b
+      then
+        let «from» ← if low <= length
+                         then length + 1#usize
+                         else ok low
+        let rest ←
+          match high with
+          | none => if here = 0#usize
+                    then ok 0#usize
+                    else ok cap
+          | some «end» =>
+            if «from» < «end»
+            then
+              do
+              let i1 ← «end» - «from»
+              lengths.capped_product i1 here cap
+            else ok 0#usize
+        let i1 ← lengths.capped_sum sum rest cap
+        ok (some i1)
+      else
+        if (fuel = 0#usize) || (length = core.num.Usize.MAX)
+        then ok none
+        else
+          let i1 ← length + 1#usize
+          let i2 ← fuel - 1#usize
+          pattern_counts.count_from automaton cap next i1 low high sum i2
+partial_fixpoint
+
+/-- [rowl_kernel::pattern_counts::profile_count]:
+    Source: 'crates/rowl-kernel/src/pattern_counts.rs', lines 657:0-668:1
+    Visibility: public -/
+def pattern_counts.profile_count
+  (automaton : pattern_counts.Automaton) (first : Std.U8) (last : Std.U8)
+  (profile : alloc.vec.Vec Bool) (low : Std.Usize) (high : Option Std.Usize)
+  (cap : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let counts ←
+    pattern_counts.initial_from automaton first last profile cap 0#usize
+      (alloc.vec.Vec.new Std.Usize)
+  pattern_counts.count_from automaton cap counts 0#usize low high 0#usize
+    pattern_counts.PROFILE_SETTLE
+
 /-- [rowl_kernel::patterns::Span]
     Source: 'crates/rowl-kernel/src/patterns.rs', lines 40:0-43:1
     Visibility: public -/
