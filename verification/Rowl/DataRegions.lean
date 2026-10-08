@@ -111,13 +111,13 @@ def PointsNamed (context : data_ontology.Context) (order : List Usize) (position
     integers are in use while numbers are ordered, or floating-point numbers
     are in use. -/
 def BoundsRuns (kinds : data_ontology.Kinds) : Prop :=
-  (kinds.ordered = true ∧ kinds.integer = true) ∨ kinds.double = true ∨ kinds.float = true
+  (kinds.ordered = true ∧ kinds.integer = true) ∨ kinds.double = true ∨ kinds.float = true ∨ kinds.stamp = true
 
 theorem bounds_runs_eq (kinds : data_ontology.Kinds) :
     data_ontology.bounds_runs kinds = .ok (decide (BoundsRuns kinds)) := by
   rw [data_ontology.bounds_runs]
   cases h1 : kinds.ordered <;> cases h2 : kinds.integer <;> cases h3 : kinds.double <;> cases h4 : kinds.float <;>
-    simp [BoundsRuns, h1, h2, h3, h4]
+    cases h5 : kinds.stamp <;> simp [BoundsRuns, h1, h2, h3, h4, h5]
 
 /-- What the axioms of the ordered numbers say, for the kernel's order of the
     cuts, and that every data property is below `U` when the encoding bounds
@@ -294,9 +294,11 @@ theorem fit_widths {a b : regions.Cut} (fa : Rowl.Regions.Fit a) (fb : Rowl.Regi
   have : 64 ≤ Usize.max := by scalar_tac
   omega
 
-/-- Every number among the literal values is short enough to compare. -/
+/-- Every number among the literal values is short enough to compare, and
+    every time instant among them has a year short enough to move. -/
 def ValuesFit (context : data_ontology.Context) : Prop :=
-  ∀ v ∈ context.values.val, IsNumber v → digitWidth v < Usize.max / 8
+  ∀ v ∈ context.values.val, (IsNumber v → digitWidth v < Usize.max / 8) ∧
+    ∀ m, v = .Moment m → m.year.val.length < Usize.max / 16
 
 /-- Whether a literal value is of a run. -/
 theorem in_run_spec (low high : regions.Cut) (fl : Fit low) (fh : Fit high) (v : datatypes.DataValue)
@@ -346,7 +348,7 @@ theorem run_literals_spec (context : data_ontology.Context) (good : Good context
   · have lookup : context.values.index_usize index = .ok context.values.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
     have member := List.getElem_mem inside
-    have runIs := in_run_spec low high fl fh context.values.val[index.val] (good.1.1 _ member) (fit _ member)
+    have runIs := in_run_spec low high fl fh context.values.val[index.val] (good.1.1 _ member) (fit _ member).1
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val + 1 := by simpa using nextValue
@@ -405,7 +407,7 @@ theorem run_count_spec (context : data_ontology.Context) (good : Good context) (
   · have lookup : context.values.index_usize index = .ok context.values.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
     have member := List.getElem_mem inside
-    have runIs := in_run_spec low high fl fh context.values.val[index.val] (good.1.1 _ member) (fit _ member)
+    have runIs := in_run_spec low high fl fh context.values.val[index.val] (good.1.1 _ member) (fit _ member).1
     have split := List.drop_eq_getElem_cons inside
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
@@ -834,18 +836,28 @@ theorem least_axiom_spec (order : alloc.vec.Vec Usize) (out : alloc.vec.Vec Anno
     have : order.val = [] := List.eq_nil_of_length_eq_zero (by omega)
     simp [this]
 
-/-- Whether a literal value is no number or a number short enough to compare. -/
+/-- Whether a literal value is no number or a number short enough to compare,
+    and no time instant or one whose year is short enough to move. -/
 theorem value_fits_spec (v : datatypes.DataValue) (cv : IsNumber v → CanonicalNumeric v) :
-    ∃ b, data_ontology.value_fits v = .ok b ∧ (b = true → IsNumber v → digitWidth v < Usize.max / 8) := by
-  rw [data_ontology.value_fits, Rowl.Datatypes.numeric_correct]
+    ∃ b, data_ontology.value_fits v = .ok b ∧ (b = true → (IsNumber v → digitWidth v < Usize.max / 8) ∧
+      ∀ m, v = .Moment m → m.year.val.length < Usize.max / 16) := by
+  unfold data_ontology.value_fits
+  rw [Rowl.Datatypes.numeric_correct]
   by_cases number : IsNumber v
   · obtain ⟨b, run, facts⟩ := Rowl.Regions.fits_spec v cv
-    exact ⟨b, by simp [number, run], fun h _ => (facts h).2⟩
-  · exact ⟨true, by simp [number], fun _ h => absurd h number⟩
+    refine ⟨b, by simp [number, run], fun h => ⟨fun _ => (facts h).2, fun m e => ?_⟩⟩
+    subst e; simp [IsNumber] at number
+  · cases v with
+    | Moment m =>
+      refine ⟨decide (m.year.val.length < Usize.max / 16), by simp [number, bounded_year_eq],
+        fun h => ⟨fun n => absurd n number, fun m' e => ?_⟩⟩
+      cases e; simpa using h
+    | _ => exact ⟨true, by simp [number], fun _ => ⟨fun n => absurd n number, fun m e => by cases e⟩⟩
 
 theorem values_fit_spec (context : data_ontology.Context) (good : Good context) (index : Usize) :
     ∃ b, data_ontology.values_fit context index = .ok b ∧ (b = true → ∀ (i : Nat) (h : i < context.values.val.length),
-      index.val ≤ i → IsNumber context.values.val[i] → digitWidth context.values.val[i] < Usize.max / 8) := by
+      index.val ≤ i → (IsNumber context.values.val[i] → digitWidth context.values.val[i] < Usize.max / 8) ∧
+        ∀ m, context.values.val[i] = .Moment m → m.year.val.length < Usize.max / 16) := by
   rw [data_ontology.values_fit]
   by_cases inside : index.val < context.values.val.length
   · have lookup : context.values.index_usize index = .ok context.values.val[index.val] := by
@@ -861,10 +873,10 @@ theorem values_fit_spec (context : data_ontology.Context) (good : Good context) 
         by simp⟩
     | true =>
       refine ⟨rest, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run, advance,
-        restRun], fun hr i hi low number => ?_⟩
+        restRun], fun hr i hi low => ?_⟩
       by_cases here : i = index.val
-      · subst here; exact facts rfl number
-      · exact restFacts hr i hi (by omega) number
+      · subst here; exact facts rfl
+      · exact restFacts hr i hi (by omega)
   · exact ⟨true, by simp [UScalar.lt_equiv, inside], fun _ i hi low => by omega⟩
 termination_by context.values.val.length - index.val
 decreasing_by omega
@@ -879,11 +891,11 @@ theorem encodable_spec (context : data_ontology.Context) (good : Good context) :
   obtain ⟨v, vRun, vFacts⟩ := values_fit_spec context good 0#usize
   refine ⟨f && v, by simp [fRun, vRun], fun both => ?_⟩
   simp only [Bool.and_eq_true] at both
-  refine ⟨⟨fun c m => ?_, good.2.2.2.1.2⟩, fun w m number => ?_⟩
+  refine ⟨⟨fun c m => ?_, good.2.2.2.1.2⟩, fun w m => ?_⟩
   · obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem m
     exact fFacts both.1 j (by simp) hj
   · obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem m
-    exact vFacts both.2 i hi (by simp) number
+    exact vFacts both.2 i hi (by simp)
 
 /-- The axioms of the ordered numbers: when numbers are ordered, the kernel
     lists the cuts in order and adds the axioms of `RegionFacts` for that

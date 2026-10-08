@@ -18,8 +18,14 @@ neighbours, by the axiom on the run or because the counts of the data
 restrictions are at most their number. Strings serve the string nodes, at the
 level of the deepest subtype of `xsd:string` whose class holds there
 (`Rowl.Strings.stringAt`: strings in exactly the subtypes up to the level);
-tagged strings, IRIs of letters a, octet sequences of zeros and values outside
-every datatype serve the other data nodes. When the
+a node of the time instants gets the time instants of its line, with or
+without a time zone, that are in exactly the time cuts whose classes hold
+there (`timeSlot`): infinitely many, or the instants at the place of a closed
+and an open cut, which have room by the axiom on that place
+(`moment_cases`, `moment_peers_bound`); a node of a floating-point format gets
+the values of the slot its edge classes place it in; tagged strings, IRIs of
+letters a, octet sequences of zeros and values outside every datatype serve
+the other data nodes. When the
 interpretation of the encoding satisfies a closure's encoding, the OWL
 interpretation satisfies the closure (`sound_satisfies`), and every class
 expression holds at an element exactly when its encoding does (`sound_class`).
@@ -198,6 +204,165 @@ theorem momentAt_injective {s s' : Bool} {n n' : ℕ} (same : momentAt s n = mom
   refine ⟨?_, same.1⟩
   cases s <;> cases s' <;> simp_all
 
+theorem momentAt_zone (stamped : Bool) (n : ℕ) : (momentAt stamped n).zone.isSome = stamped := by
+  cases stamped <;> rfl
+
+/-- The members of a set one after the other: one to one for every index while
+    the set has members left, and `d` past them. -/
+noncomputable def pick {α : Type} (d : α) (S : Set α) (n : ℕ) : α :=
+  if h : S.Infinite then (h.natEmbedding S n : α) else ((Set.not_infinite.mp h).toFinset.toList).getD n d
+
+theorem pick_mem {α : Type} (d : α) (S : Set α) (n : ℕ) (valid : S.Infinite ∨ n < S.ncard) : pick d S n ∈ S := by
+  unfold pick
+  by_cases h : S.Infinite
+  · simp only [dif_pos h]; exact (h.natEmbedding S n).2
+  · simp only [dif_neg h]
+    have finite := Set.not_infinite.mp h
+    have small : n < finite.toFinset.toList.length := by
+      rw [Finset.length_toList, ← Set.ncard_eq_toFinset_card S finite]
+      exact valid.resolve_left h
+    rw [List.getD_eq_getElem _ _ small]
+    have member := List.getElem_mem small
+    rw [Finset.mem_toList, Set.Finite.mem_toFinset] at member
+    exact member
+
+theorem pick_cases {α : Type} (d : α) (S : Set α) (n : ℕ) : pick d S n ∈ S ∨ pick d S n = d := by
+  by_cases valid : S.Infinite ∨ n < S.ncard
+  · exact .inl (pick_mem d S n valid)
+  · right
+    push Not at valid
+    unfold pick
+    simp only [dif_neg (Set.not_infinite.mpr valid.1)]
+    have finite := valid.1
+    have big : finite.toFinset.toList.length ≤ n := by
+      rw [Finset.length_toList, ← Set.ncard_eq_toFinset_card S finite]
+      exact valid.2
+    exact List.getD_eq_default _ _ big
+
+theorem pick_injective {α : Type} (d : α) (S : Set α) {m n : ℕ} (vm : S.Infinite ∨ m < S.ncard)
+    (vn : S.Infinite ∨ n < S.ncard) (same : pick d S m = pick d S n) : m = n := by
+  unfold pick at same
+  by_cases h : S.Infinite
+  · simp only [dif_pos h] at same
+    exact (h.natEmbedding S).injective (Subtype.ext same)
+  · simp only [dif_neg h] at same
+    have finite := Set.not_infinite.mp h
+    have card : S.ncard = finite.toFinset.toList.length := by
+      rw [Finset.length_toList, ← Set.ncard_eq_toFinset_card S finite]
+    have sm : m < finite.toFinset.toList.length := card ▸ vm.resolve_left h
+    have sn : n < finite.toFinset.toList.length := card ▸ vn.resolve_left h
+    rw [List.getD_eq_getElem _ _ sm, List.getD_eq_getElem _ _ sn] at same
+    exact (List.Nodup.getElem_inj_iff (Finset.nodup_toList _)).mp same
+
+/-- The moments of a set that are valid and on a line: with a time zone or
+    without one. -/
+def lineSet (stamped : Bool) (S : Set DatatypeMap.Moment) : Set DatatypeMap.Moment :=
+  {m | m ∈ S ∧ m.Valid ∧ m.zone.isSome = stamped}
+
+/-- The time instants of a region of moments one after the other. -/
+noncomputable def momentIn (stamped : Bool) (S : Set DatatypeMap.Moment) (n : ℕ) : DatatypeMap.Moment :=
+  pick (momentAt stamped 0) (lineSet stamped S) n
+
+theorem decimal_add {a b : ℚ} (ha : DatatypeMap.IsDecimal a) (hb : DatatypeMap.IsDecimal b) :
+    DatatypeMap.IsDecimal (a + b) := by
+  obtain ⟨z, n, rfl⟩ := ha
+  obtain ⟨z', n', rfl⟩ := hb
+  refine ⟨z * 10 ^ n' + z' * 10 ^ n, n + n', ?_⟩
+  push_cast
+  rw [pow_add]
+  field_simp
+
+theorem decimal_neg {a : ℚ} (ha : DatatypeMap.IsDecimal a) : DatatypeMap.IsDecimal (-a) := by
+  obtain ⟨z, n, rfl⟩ := ha
+  exact ⟨-z, n, by push_cast; ring⟩
+
+theorem decimal_sub {a b : ℚ} (ha : DatatypeMap.IsDecimal a) (hb : DatatypeMap.IsDecimal b) :
+    DatatypeMap.IsDecimal (a - b) := by
+  rw [sub_eq_add_neg]; exact decimal_add ha (decimal_neg hb)
+
+theorem decimal_int (z : ℤ) : DatatypeMap.IsDecimal z := ⟨z, 0, by simp⟩
+
+theorem decimal_div_two_pow {c : ℚ} (h : DatatypeMap.IsDecimal c) (k : ℕ) : DatatypeMap.IsDecimal (c / 2 ^ k) := by
+  obtain ⟨z, n, rfl⟩ := h
+  refine ⟨z * 5 ^ k, n + k, ?_⟩
+  have ten : (10 : ℚ) ^ k = 2 ^ k * 5 ^ k := by rw [← mul_pow]; norm_num
+  push_cast
+  rw [pow_add, ten]
+  field_simp
+
+theorem decimal_min {a b : ℚ} (ha : DatatypeMap.IsDecimal a) (hb : DatatypeMap.IsDecimal b) :
+    DatatypeMap.IsDecimal (min a b) := by
+  rcases min_choice a b with h | h <;> rw [h] <;> assumption
+
+/-- The place of a time instant on the time line is a decimal number. -/
+theorem decimal_key {m : DatatypeMap.Moment} (vm : m.Valid) : DatatypeMap.IsDecimal m.key :=
+  decimal_add (decimal_int _) vm.2.2.2.2.2.2.2.2.1
+
+/-- The time instants a little after an instant within its minute, with a time
+    zone of offset zero or without one. -/
+def secondsAfter (b : DatatypeMap.Moment) (stamped : Bool) (c : ℚ) (n : ℕ) : DatatypeMap.Moment :=
+  { b with second := b.second + c / 2 ^ (n + 1), zone := if stamped then some 0 else none }
+
+theorem secondsAfter_facts {b : DatatypeMap.Moment} (vb : b.Valid) (zb : b.zone = none) (stamped : Bool) {c : ℚ}
+    (pos : 0 < c) (room : c ≤ 60 - b.second) (dec : DatatypeMap.IsDecimal c) (n : ℕ) :
+    (secondsAfter b stamped c n).Valid ∧ (secondsAfter b stamped c n).zone.isSome = stamped ∧
+      (secondsAfter b stamped c n).key = b.key + c / 2 ^ (n + 1) := by
+  obtain ⟨m1, m12, d1, dIn, h24, mi60, s0, s60, sd, _⟩ := vb
+  have big : (1 : ℚ) < 2 ^ (n + 1) := one_lt_pow₀ (by norm_num) (Nat.succ_ne_zero n)
+  have small : c / 2 ^ (n + 1) < c := div_lt_self pos big
+  have nonneg : 0 ≤ c / 2 ^ (n + 1) := by positivity
+  refine ⟨⟨m1, m12, d1, dIn, h24, mi60, by simp only [secondsAfter]; linarith,
+    by simp only [secondsAfter]; linarith, decimal_add sd (decimal_div_two_pow dec (n + 1)), fun z hz => ?_⟩,
+    by cases stamped <;> rfl, ?_⟩
+  · cases stamped <;> simp [secondsAfter] at hz
+    omega
+  · unfold DatatypeMap.Moment.key secondsAfter
+    rw [zb]
+    cases stamped <;> simp <;> ring
+
+theorem secondsAfter_injective (b : DatatypeMap.Moment) (stamped : Bool) {c : ℚ} (pos : 0 < c) :
+    Function.Injective (secondsAfter b stamped c) := by
+  intro m n same
+  have seconds := congrArg DatatypeMap.Moment.second same
+  simp only [secondsAfter, add_right_inj] at seconds
+  have powers : (2 : ℚ) ^ (m + 1) = 2 ^ (n + 1) := by
+    rw [div_eq_div_iff (by positivity) (by positivity)] at seconds
+    exact (mul_left_cancel₀ (ne_of_gt pos) seconds).symm
+  have := pow_right_injective₀ (by norm_num : (0 : ℚ) < 2) (by norm_num : (2 : ℚ) ≠ 1) powers
+  omega
+
+/-- The first instants of the years before an instant's, with a time zone of
+    offset zero or without one. -/
+def yearBefore (h : DatatypeMap.Moment) (stamped : Bool) (n : ℕ) : DatatypeMap.Moment :=
+  ⟨h.year - 1 - n, 1, 1, 0, 0, 0, if stamped then some 0 else none⟩
+
+theorem yearBefore_facts {h : DatatypeMap.Moment} (vh : h.Valid) (zh : h.zone = none) (stamped : Bool) (n : ℕ) :
+    (yearBefore h stamped n).Valid ∧ (yearBefore h stamped n).zone.isSome = stamped ∧
+      (yearBefore h stamped n).key < h.key := by
+  have valid : (yearBefore h stamped n).Valid := by
+    refine ⟨le_rfl, by simp [yearBefore], le_rfl, by simp [yearBefore, DatatypeMap.daysIn], by simp [yearBefore],
+      by simp [yearBefore], le_rfl, by simp [yearBefore], ⟨0, 0, by simp [yearBefore]⟩, fun z hz => ?_⟩
+    cases stamped <;> simp [yearBefore] at hz
+    omega
+  refine ⟨valid, by cases stamped <;> rfl, ?_⟩
+  rw [Rowl.TimeOrder.key_lt_iff valid vh (by cases stamped <;> simp [yearBefore, zh])]
+  left
+  exact Rowl.TimeOrder.dayNumber_lt (Rowl.TimeOrder.valid_date valid) (Rowl.TimeOrder.valid_date vh)
+    (.inl (by simp only [yearBefore]; omega))
+
+theorem yearBefore_injective (h : DatatypeMap.Moment) (stamped : Bool) : Function.Injective (yearBefore h stamped) := by
+  intro m n same
+  have years := congrArg DatatypeMap.Moment.year same
+  simp only [yearBefore] at years
+  omega
+
+theorem momentIn_valid (stamped : Bool) (S : Set DatatypeMap.Moment) (n : ℕ) :
+    (momentIn stamped S n).Valid ∧ (momentIn stamped S n).zone.isSome = stamped := by
+  rcases pick_cases (momentAt stamped 0) (lineSet stamped S) n with mem | dflt
+  · exact ⟨mem.2.1, mem.2.2⟩
+  · rw [momentIn, dflt]
+    exact ⟨momentAt_valid stamped 0, momentAt_zone stamped 0⟩
+
 /-- The values of a format whose places run from `lo` to before `hi`, as the
     kernel clamps them, and that are not in `avoid`. -/
 def slotSet (dbl : Bool) (avoid : Set DatatypeMap.Binary) (lo hi : ℕ) : Set DatatypeMap.Binary :=
@@ -246,22 +411,25 @@ theorem binaryAt_injective {dbl : Bool} {avoid : Set DatatypeMap.Binary} {lo hi 
 
 /-- The regions of values that data nodes get: the reals of a level in the
     interval at a position of the cuts, strings of the letter a, tagged
-    strings, IRIs and octet sequences, time instants without and with a time
-    zone, the values of a format in a slot of places, and values outside every
-    datatype. -/
+    strings, IRIs and octet sequences, the time instants of a slot of the time
+    line without or with a time zone, the values of a format in a slot of
+    places, and values outside every datatype. -/
 inductive Region where
-  | number (position level : Nat) | string (level : Fin 7) | tagged | coded (s : Sequence) | moment (stamped : Bool)
+  | number (position level : Nat) | string (level : Fin 7) | tagged | coded (s : Sequence)
+  | moment (stamped : Bool) (slot : Set DatatypeMap.Moment)
   | binary (double : Bool) (avoid : Set DatatypeMap.Binary) (lo hi : ℕ) | other
 
 /-- Which indices of a region have values of their own. -/
 def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
   | .number p ℓ, n => ℓ ≤ 3 ∧ ((regionSet cs lits p ℓ).Infinite ∨ n < (regionSet cs lits p ℓ).ncard)
+  | .moment st S, n => (lineSet st S).Infinite ∨ n < (lineSet st S).ncard
   | .binary dbl avoid lo hi, n => n < (slotSet dbl avoid lo hi).ncard
   | _, _ => True
 
 /-- Whether a region has a value for every index. -/
 def RegionInfinite (cs : List regions.Cut) (lits : Set ℝ) : Region → Prop
   | .number p ℓ => ℓ ≤ 3 ∧ (regionSet cs lits p ℓ).Infinite
+  | .moment st S => (lineSet st S).Infinite
   | .binary _ _ _ _ => False
   | _ => True
 
@@ -284,7 +452,7 @@ noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : 
   | .string ℓ, n => embedValue (N.text (Rowl.Strings.stringAt ℓ.val n))
   | .tagged, n => embedValue (N.tagged (aText n) enTag)
   | .coded s, n => embedValue (N.coded (codedAt s n))
-  | .moment st, n => embedValue (N.moment (momentAt st n))
+  | .moment st S, n => embedValue (N.moment (momentIn st S n))
   | .binary dbl avoid lo hi, n => embedValue (formatValue N dbl (binaryAt dbl avoid lo hi n))
   | .other, n => ULift.up (.inr n)
 
@@ -362,6 +530,8 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     (bounded : ∀ p ℓ, r = .number p ℓ → p ≤ cs.length) (bounded' : ∀ p ℓ, r' = .number p ℓ → p ≤ cs.length)
     (coherent : ∀ dbl A lo hi A' lo' hi', r = .binary dbl A lo hi → r' = .binary dbl A' lo' hi' →
       ∀ b, b ∈ slotSet dbl A lo hi → b ∈ slotSet dbl A' lo' hi' → A = A' ∧ lo = lo' ∧ hi = hi')
+    (momentCoherent : ∀ st S st' S', r = .moment st S → r' = .moment st' S' →
+      ∀ m, m ∈ lineSet st S → m ∈ lineSet st' S' → st = st' ∧ S = S')
     (same : regionValue.{v,w} N cs lits r n = regionValue N cs lits r' n') : r = r' ∧ n = n' := by
   have tag := enTag_value
   cases r with
@@ -386,9 +556,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.real_coded _ _ (sequence_valid s' n'))
-    | moment st' =>
+    | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.real_moment _ _ (momentAt_valid st' n'))
+      exact absurd same (N.real_moment _ _ (momentIn_valid st' S' n').1)
     | binary dbl' A' lo' hi' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (real_format N _ dbl' (binaryAt_valid dbl' A' lo' hi' n'))
@@ -409,9 +579,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.text_coded _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (sequence_valid s' n'))
-    | moment st' =>
+    | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (momentAt_valid st' n'))
+      exact absurd same (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (momentIn_valid st' S' n').1)
     | binary dbl' A' lo' hi' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (text_format N _ (Rowl.Strings.stringAt_xml ℓ.isLt n) dbl' (binaryAt_valid dbl' A' lo' hi' n'))
@@ -430,9 +600,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.tagged_coded _ _ _ (aText_xml n) tag (sequence_valid s' n'))
-    | moment st' =>
+    | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.tagged_moment _ _ _ (aText_xml n) tag (momentAt_valid st' n'))
+      exact absurd same (N.tagged_moment _ _ _ (aText_xml n) tag (momentIn_valid st' S' n').1)
     | binary dbl' A' lo' hi' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (tagged_format N _ _ (aText_xml n) tag dbl' (binaryAt_valid dbl' A' lo' hi' n'))
@@ -452,35 +622,39 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       obtain ⟨rfl, rfl⟩ := sequence_injective (N.coded_injective _ _ (sequence_valid s n) (sequence_valid s' n') same)
       exact ⟨rfl, rfl⟩
-    | moment st' =>
+    | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.coded_moment _ _ (sequence_valid s n) (momentAt_valid st' n'))
+      exact absurd same (N.coded_moment _ _ (sequence_valid s n) (momentIn_valid st' S' n').1)
     | binary dbl' A' lo' hi' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (coded_format N _ (sequence_valid s n) dbl' (binaryAt_valid dbl' A' lo' hi' n'))
     | other => simp [regionValue, embedValue] at same
-  | moment st =>
+  | moment st S =>
+    have vm := (momentIn_valid st S n).1
     cases r' with
     | number p' ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.real_moment _ _ (momentAt_valid st n))
+      exact absurd same.symm (N.real_moment _ _ vm)
     | string ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') (momentAt_valid st n))
+      exact absurd same.symm (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') vm)
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.tagged_moment _ _ _ (aText_xml n') tag (momentAt_valid st n))
+      exact absurd same.symm (N.tagged_moment _ _ _ (aText_xml n') tag vm)
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.coded_moment _ _ (sequence_valid s' n') (momentAt_valid st n))
-    | moment st' =>
+      exact absurd same.symm (N.coded_moment _ _ (sequence_valid s' n') vm)
+    | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      obtain ⟨rfl, rfl⟩ :=
-        momentAt_injective (N.moment_injective _ _ (momentAt_valid st n) (momentAt_valid st' n') same)
-      exact ⟨rfl, rfl⟩
+      have values := N.moment_injective _ _ vm (momentIn_valid st' S' n').1 same
+      have member : momentIn st S n ∈ lineSet st S := pick_mem _ _ _ vr
+      have member' : momentIn st' S' n' ∈ lineSet st' S' := pick_mem _ _ _ vr'
+      rw [values] at member
+      obtain ⟨rfl, rfl⟩ := momentCoherent st S st' S' rfl rfl _ member member'
+      exact ⟨rfl, pick_injective _ _ vr vr' values⟩
     | binary dbl' A' lo' hi' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (moment_format N _ (momentAt_valid st n) dbl' (binaryAt_valid dbl' A' lo' hi' n'))
+      exact absurd same (moment_format N _ vm dbl' (binaryAt_valid dbl' A' lo' hi' n'))
     | other => simp [regionValue, embedValue] at same
   | binary dbl A lo hi =>
     have vb := binaryAt_valid dbl A lo hi n
@@ -497,9 +671,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same.symm (coded_format N _ (sequence_valid s' n') dbl vb)
-    | moment st' =>
+    | moment st' S' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (moment_format N _ (momentAt_valid st' n') dbl vb)
+      exact absurd same.symm (moment_format N _ (momentIn_valid st' S' n').1 dbl vb)
     | binary dbl' A' lo' hi' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       obtain ⟨rfl, values⟩ := format_injective N vb (binaryAt_valid dbl' A' lo' hi' n') same
@@ -514,7 +688,7 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | string ℓ' => simp [regionValue, embedValue] at same
     | tagged => simp [regionValue, embedValue] at same
     | coded s' => simp [regionValue, embedValue] at same
-    | moment st' => simp [regionValue, embedValue] at same
+    | moment st' S' => simp [regionValue, embedValue] at same
     | binary dbl' A' lo' hi' => simp [regionValue, embedValue] at same
     | other =>
       simp only [regionValue, ULift.up.injEq, Sum.inr.injEq] at same
@@ -538,9 +712,10 @@ theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {lits : Set �
   | coded s =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact (sequence_injective (N.coded_injective _ _ (sequence_valid s a) (sequence_valid s b) same)).2
-  | moment st =>
+  | moment st S =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-    exact (momentAt_injective (N.moment_injective _ _ (momentAt_valid st a) (momentAt_valid st b) same)).2
+    exact pick_injective _ _ (.inl infinite) (.inl infinite)
+      (N.moment_injective _ _ (momentIn_valid st S a).1 (momentIn_valid st S b).1 same)
   | binary dbl A lo hi => exact absurd infinite id
   | other =>
     simpa [regionValue] using same
@@ -572,7 +747,7 @@ def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datat
   | .string ℓ, n, k => Rowl.Strings.TextIn k (Rowl.Strings.stringAt ℓ.val n)
   | .tagged, _, k => k = .Plain
   | .coded s, _, k => k = sequenceKind s
-  | .moment st, _, k => k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true)
+  | .moment st _, _, k => k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true)
   | .binary dbl _ _ _, _, k => k = formatKind dbl
   | .other, _, _ => False
 
@@ -738,9 +913,10 @@ theorem coded_space (N : Normative D) (s : Sequence) (n : ℕ) (k : datatypes.Ki
 
 /-- A time instant of a region is in `xsd:dateTime`, and in
     `xsd:dateTimeStamp` when it has a time zone. -/
-theorem moment_space (N : Normative D) (st : Bool) (n : ℕ) (k : datatypes.Kind) :
-    D.valueSpace (typeOf k) (N.moment (momentAt st n)) ↔ k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true) := by
-  have valid := momentAt_valid st n
+theorem moment_space (N : Normative D) (st : Bool) (S : Set DatatypeMap.Moment) (n : ℕ) (k : datatypes.Kind) :
+    D.valueSpace (typeOf k) (N.moment (momentIn st S n)) ↔ k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true) := by
+  have valid := (momentIn_valid st S n).1
+  have zone := (momentIn_valid st S n).2
   by_cases mk : IsMomentKind k
   · cases k <;> simp only [IsMomentKind] at mk
     case DateTime =>
@@ -750,14 +926,11 @@ theorem moment_space (N : Normative D) (st : Bool) (n : ℕ) (k : datatypes.Kind
       simp only [reduceCtorEq, true_and, false_or]
       constructor
       · intro inside
-        obtain ⟨m, mv, zone, same⟩ := (N.stamp_space _).mp inside
+        obtain ⟨m, mv, zone', same⟩ := (N.stamp_space _).mp inside
         have := N.moment_injective _ _ valid mv same
-        subst this
-        cases st
-        · simp [momentAt] at zone
-        · rfl
+        exact zone.symm.trans (by rw [this]; exact Option.isSome_iff_ne_none.mpr zone')
       · rintro rfl
-        exact (N.stamp_space _).mpr ⟨_, valid, by simp [momentAt], rfl⟩
+        exact (N.stamp_space _).mpr ⟨_, valid, Option.isSome_iff_ne_none.mp zone, rfl⟩
   · constructor
     · intro inside
       exact absurd rfl (not_moment N mk inside _ valid)
@@ -787,7 +960,7 @@ theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) 
   | string ℓ => rw [regionValue, embedded_space, text_space N _ (Rowl.Strings.stringAt_xml ℓ.isLt n)]; rfl
   | tagged => rw [regionValue, embedded_space, tagged_space N _ _ (aText_xml n) enTag_value]; rfl
   | coded s => rw [regionValue, embedded_space, coded_space N s n]; rfl
-  | moment st => rw [regionValue, embedded_space, moment_space N st n]; rfl
+  | moment st S => rw [regionValue, embedded_space, moment_space N st S n]; rfl
   | binary dbl A lo hi => rw [regionValue, embedded_space, binary_space N dbl (binaryAt_valid dbl A lo hi n)]; rfl
   | other =>
     simp only [regionValue, embedValue, ULift.up.injEq, reduceCtorEq, and_false, exists_false, false_iff]
@@ -858,6 +1031,14 @@ noncomputable def slotLow (dbl : Bool) (d : Object') : ℕ := sSup (insert 0 (He
 noncomputable def slotHigh (dbl : Bool) (d : Object') : ℕ :=
   sInf (insert (placesEnd dbl) (FailedEdges context J dbl d))
 
+/-- The time instants of a line that a node's classes of the time cuts allow:
+    in exactly those cuts of the line whose classes hold at the node, and no
+    literal value's. -/
+def timeSlot (stamped : Bool) (d : Object') : Set DatatypeMap.Moment :=
+  {m | (∀ (i : Usize) (h : i.val < context.times.val.length), (context.times.val[i.val]'h).zoned = stamped →
+    (J.classes (timeClass i) d ↔ InTimeCut (context.times.val[i.val]'h) m)) ∧
+    m ∉ Rowl.DataTimes.literalMoments context.values.val}
+
 /-- The region of a node's values. -/
 noncomputable def regionOf (d : Object') : Region :=
   if NumericNode context J d then .number (positionOf context J order d) (levelOf context J d)
@@ -866,7 +1047,8 @@ noncomputable def regionOf (d : Object') : Region :=
   else if InUse context J .AnyUri d then .coded .uri
   else if InUse context J .HexBinary d then .coded .hex
   else if InUse context J .Base64Binary d then .coded .base64
-  else if InUse context J .DateTime d then .moment (decide (InUse context J .DateTimeStamp d))
+  else if InUse context J .DateTime d then
+    .moment (decide (InUse context J .DateTimeStamp d)) (timeSlot context J (decide (InUse context J .DateTimeStamp d)) d)
   else if InUse context J .Double d then
     .binary true (literalBinaries context.values.val true) (slotLow context J true d) (slotHigh context J true d)
   else if InUse context J .Float d then
@@ -1625,7 +1807,7 @@ theorem literal_cut (setting : Setting context capacity bits order J) (ordered :
 
 theorem real_used (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true) :
     Used context.kinds .Real = true :=
-  setting.good.2.2.2.2 ordered
+  setting.good.2.2.2.2.1 ordered
 
 /-- Only numbers are in the classes of cuts. -/
 theorem cut_real (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true)
@@ -1793,6 +1975,9 @@ noncomputable def litValue (val : datatypes.DataValue) : Values.{v,w} Native := 
 /-- The value of a real number. -/
 noncomputable def realValue (r : ℝ) : Values.{v,w} Native := embedValue (N.real r)
 
+/-- The value of a time instant. -/
+noncomputable def momentValue (m : DatatypeMap.Moment) : Values.{v,w} Native := embedValue (N.moment m)
+
 /-- Some data nodes that witness an element's data restriction, when it has
     enough of them. -/
 noncomputable def witnesses (z : Object') (atom : DataProperty × Option DataRange × Nat) : List Object' :=
@@ -1900,10 +2085,12 @@ variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap
   {shift : Object' → ℕ}
 
 /-- A shift of the indices of the elements' values that is none while numbers
-    are ordered or floating-point numbers are in use, so that the bounded runs
-    of integers and the floating-point numbers keep their room. -/
+    are ordered, floating-point numbers are in use or there are time cuts, so
+    that the bounded runs of integers, the floating-point numbers and the time
+    instants at an instant keep their room. -/
 def ShiftOk (context : data_ontology.Context) (shift : Object' → ℕ) : Prop :=
-  (context.kinds.ordered = true ∨ context.kinds.double = true ∨ context.kinds.float = true) → ∀ z, shift z = 0
+  (context.kinds.ordered = true ∨ context.kinds.double = true ∨ context.kinds.float = true ∨
+    context.times.val ≠ []) → ∀ z, shift z = 0
 
 theorem typeOf_not_literal (N : Normative D) (k : datatypes.Kind) : typeOf k ≠ literalDatatype := by
   intro same
@@ -1982,12 +2169,319 @@ theorem binary_coherent {d d' : Object'} :
   obtain ⟨_, sameLow, sameHigh⟩ := same_slot low high low' high'
   exact ⟨rfl, sameLow, sameHigh⟩
 
+/-! ### The slot of a node of the time instants -/
+
+theorem region_moment {d : Object'} {st : Bool} {S : Set DatatypeMap.Moment}
+    (h : regionOf context J order d = .moment st S) :
+    InUse context J .DateTime d ∧ st = decide (InUse context J .DateTimeStamp d) ∧ S = timeSlot context J st d := by
+  unfold regionOf at h
+  split_ifs at h
+  simp only [Region.moment.injEq] at h
+  obtain ⟨rfl, rfl⟩ := h
+  exact ⟨by assumption, rfl, rfl⟩
+
+/-- Two nodes whose slots of the time instants share a time instant have one
+    region. -/
+theorem moment_coherent {d d' : Object'} :
+    ∀ st S st' S', regionOf context J order d = .moment st S → regionOf context J order d' = .moment st' S' →
+      ∀ m, m ∈ lineSet st S → m ∈ lineSet st' S' → st = st' ∧ S = S' := by
+  intro st S st' S' h h' m inS inS'
+  obtain ⟨_, _, rfl⟩ := region_moment h
+  obtain ⟨_, _, rfl⟩ := region_moment h'
+  have lines : st = st' := inS.2.2.symm.trans inS'.2.2
+  subst lines
+  refine ⟨rfl, ?_⟩
+  have agree : ∀ (i : Usize) (hi : i.val < context.times.val.length), (context.times.val[i.val]'hi).zoned = st →
+      (J.classes (timeClass i) d ↔ J.classes (timeClass i) d') := fun i hi z =>
+    (inS.1.1 i hi z).trans (inS'.1.1 i hi z).symm
+  ext x
+  constructor
+  · rintro ⟨cuts, lit⟩
+    exact ⟨fun i hi z => (agree i hi z).symm.trans (cuts i hi z), lit⟩
+  · rintro ⟨cuts, lit⟩
+    exact ⟨fun i hi z => (agree i hi z).trans (cuts i hi z), lit⟩
+
+/-- The place of a time cut on the time line: its instant's place, past the
+    instant itself when it is open. -/
+def cutPlace (c : data_ontology.TimeCut) : ℚ ×ₗ Bool := toLex ((Rowl.Moments.momentOf c.instant).key, c.open)
+
+/-- The place of a time instant. -/
+def momentPlace (m : DatatypeMap.Moment) : ℚ ×ₗ Bool := toLex (m.key, false)
+
+theorem in_cut_place (c : data_ontology.TimeCut) (m : DatatypeMap.Moment) :
+    InTimeCut c m ↔ cutPlace c ≤ momentPlace m := by
+  unfold InTimeCut cutPlace momentPlace
+  rw [Prod.Lex.toLex_le_toLex]
+  constructor
+  · rintro (lt | ⟨eq, o⟩)
+    · exact .inl lt
+    · exact .inr ⟨eq, by rw [o]⟩
+  · rintro (lt | ⟨eq, le⟩)
+    · exact .inl lt
+    · refine .inr ⟨eq, ?_⟩
+      revert le
+      cases c.open <;> simp
+
+theorem cut_within_place (a b : data_ontology.TimeCut) :
+    Rowl.DataTimes.CutWithin a b ↔ cutPlace b ≤ cutPlace a := by
+  unfold Rowl.DataTimes.CutWithin cutPlace
+  rw [Prod.Lex.toLex_le_toLex]
+  constructor
+  · rintro (lt | ⟨eq, o⟩)
+    · exact .inl lt
+    · refine .inr ⟨eq.symm, ?_⟩
+      rcases o with o | o <;> rw [o] <;> simp
+  · rintro (lt | ⟨eq, le⟩)
+    · exact .inl lt
+    · refine .inr ⟨eq.symm, ?_⟩
+      revert le
+      cases a.open <;> cases b.open <;> simp
+
+/-- The time cuts of a line whose classes hold at a node. -/
+def HeldCuts (st : Bool) (d : Object') : Set Usize :=
+  {i | ∃ h : i.val < context.times.val.length, (context.times.val[i.val]'h).zoned = st ∧ J.classes (timeClass i) d}
+
+/-- The time cuts of a line whose classes do not hold at a node. -/
+def FailedCuts (st : Bool) (d : Object') : Set Usize :=
+  {i | ∃ h : i.val < context.times.val.length, (context.times.val[i.val]'h).zoned = st ∧
+    ¬ J.classes (timeClass i) d}
+
+/-- The place of the time cut at an index. -/
+noncomputable def cutPlaceAt (context : data_ontology.Context) (i : Usize) : ℚ ×ₗ Bool :=
+  if h : i.val < context.times.val.length then cutPlace (context.times.val[i.val]'h) else toLex (0, false)
+
+theorem cut_indices_finite (context : data_ontology.Context) :
+    {i : Usize | i.val < context.times.val.length}.Finite :=
+  (Set.finite_Iio context.times.val.length).preimage (fun _ _ _ _ e => UScalar.eq_of_val_eq e)
+
+theorem held_cuts_finite (st : Bool) (d : Object') : (HeldCuts (context := context) (J := J) st d).Finite :=
+  (cut_indices_finite context).subset fun _ ⟨h, _⟩ => h
+
+theorem failed_cuts_finite (st : Bool) (d : Object') : (FailedCuts (context := context) (J := J) st d).Finite :=
+  (cut_indices_finite context).subset fun _ ⟨h, _⟩ => h
+
+/-- A time instant is in a node's slot exactly when it is past the places of
+    the cuts of the line whose classes hold there and before the others. -/
+theorem slot_iff {st : Bool} {d : Object'} (m : DatatypeMap.Moment) :
+    (∀ (i : Usize) (h : i.val < context.times.val.length), (context.times.val[i.val]'h).zoned = st →
+      (J.classes (timeClass i) d ↔ InTimeCut (context.times.val[i.val]'h) m)) ↔
+    (∀ i ∈ HeldCuts (context := context) (J := J) st d, cutPlaceAt context i ≤ momentPlace m) ∧
+      (∀ j ∈ FailedCuts (context := context) (J := J) st d, momentPlace m < cutPlaceAt context j) := by
+  constructor
+  · intro cuts
+    refine ⟨fun i ⟨hi, zi, held⟩ => ?_, fun j ⟨hj, zj, failed⟩ => ?_⟩
+    · rw [cutPlaceAt, dif_pos hi, ← in_cut_place]
+      exact (cuts i hi zi).mp held
+    · rw [cutPlaceAt, dif_pos hj]
+      by_contra le
+      push Not at le
+      exact failed ((cuts j hj zj).mpr ((in_cut_place _ _).mpr le))
+  · rintro ⟨lows, highs⟩ i hi zi
+    rw [in_cut_place]
+    by_cases held : J.classes (timeClass i) d
+    · have low := lows i ⟨hi, zi, held⟩
+      rw [cutPlaceAt, dif_pos hi] at low
+      exact ⟨fun _ => low, fun _ => held⟩
+    · have high := highs i ⟨hi, zi, held⟩
+      rw [cutPlaceAt, dif_pos hi] at high
+      exact ⟨fun h => absurd h held, fun le => absurd (lt_of_le_of_lt le high) (lt_irrefl _)⟩
+
+/-- In a model of the encoding, the cuts of a line whose classes hold at a node
+    come before the others. -/
+theorem held_before (setting : Setting context capacity bits order J) {st : Bool} {d : Object'} :
+    ∀ i ∈ HeldCuts (context := context) (J := J) st d, ∀ j ∈ FailedCuts (context := context) (J := J) st d,
+      cutPlaceAt context i < cutPlaceAt context j := by
+  rintro i ⟨hi, zi, held⟩ j ⟨hj, zj, failed⟩
+  rw [cutPlaceAt, dif_pos hi, cutPlaceAt, dif_pos hj]
+  by_contra le
+  push Not at le
+  have ne : i ≠ j := fun e => by subst e; exact failed held
+  have pair := (setting.frame.times i (Nat.zero_le _)).2 j hi hj (zi.trans zj.symm) ne
+  exact failed (pair.1 ((cut_within_place _ _).mpr le) d held)
+
+theorem literal_moments_finite (values : List datatypes.DataValue) :
+    (Rowl.DataTimes.literalMoments values).Finite := by
+  apply (values.finite_toSet.image Rowl.DataTimes.momentValueOf).subset
+  rintro m ⟨y, mem, rfl⟩
+  exact ⟨_, mem, rfl⟩
+
+/-- A slot of the time instants is infinite when a one-to-one sequence of time
+    instants of its line falls in it. -/
+theorem slot_infinite_of {st : Bool} {d : Object'} (f : ℕ → DatatypeMap.Moment) (inj : Function.Injective f)
+    (each : ∀ n, (f n).Valid ∧ (f n).zone.isSome = st ∧
+      (∀ i ∈ HeldCuts (context := context) (J := J) st d, cutPlaceAt context i ≤ momentPlace (f n)) ∧
+      (∀ j ∈ FailedCuts (context := context) (J := J) st d, momentPlace (f n) < cutPlaceAt context j)) :
+    (lineSet st (timeSlot context J st d)).Infinite := by
+  apply ((Set.infinite_range_of_injective inj).sdiff (literal_moments_finite context.values.val)).mono
+  rintro m ⟨⟨n, rfl⟩, lit⟩
+  obtain ⟨valid, zone, lows, highs⟩ := each n
+  exact ⟨⟨(slot_iff (f n)).mpr ⟨lows, highs⟩, lit⟩, valid, zone⟩
+
+theorem place_lt_of_key {m : DatatypeMap.Moment} {c : data_ontology.TimeCut}
+    (lt : m.key < (Rowl.Moments.momentOf c.instant).key) : momentPlace m < cutPlace c := by
+  unfold momentPlace cutPlace
+  rw [Prod.Lex.toLex_lt_toLex]
+  exact .inl lt
+
+theorem place_le_of_key {m : DatatypeMap.Moment} {c : data_ontology.TimeCut}
+    (lt : (Rowl.Moments.momentOf c.instant).key < m.key) : cutPlace c ≤ momentPlace m := by
+  unfold momentPlace cutPlace
+  rw [Prod.Lex.toLex_le_toLex]
+  exact .inl lt
+
+/-- The slot of the time instants of a node: a time instant for every index,
+    or the time instants of its line at the instant of a closed and an open
+    cut of the line, one whose class holds at the node and one whose class
+    does not. -/
+theorem moment_cases (setting : Setting context capacity bits order J) (st : Bool) (d : Object') :
+    (lineSet st (timeSlot context J st d)).Infinite ∨
+      ∃ (i j : Usize) (hi : i.val < context.times.val.length) (hj : j.val < context.times.val.length),
+        (context.times.val[i.val]'hi).zoned = st ∧ (context.times.val[j.val]'hj).zoned = st ∧ i ≠ j ∧
+        (Rowl.Moments.momentOf (context.times.val[i.val]'hi).instant).key =
+          (Rowl.Moments.momentOf (context.times.val[j.val]'hj).instant).key ∧
+        (context.times.val[i.val]'hi).open = false ∧ (context.times.val[j.val]'hj).open = true ∧
+        J.classes (timeClass i) d ∧ ¬ J.classes (timeClass j) d ∧
+        lineSet st (timeSlot context J st d) =
+          Rowl.DataTimes.FreePoint context.values.val st (context.times.val[i.val]'hi).instant := by
+  -- the instant of a cut: a valid moment without a time zone
+  have instantOf : ∀ (k : Usize) (hk : k.val < context.times.val.length),
+      (Rowl.Moments.momentOf (context.times.val[k.val]'hk).instant).Valid ∧
+        (Rowl.Moments.momentOf (context.times.val[k.val]'hk).instant).zone = none := by
+    intro k hk
+    have gk := setting.good.2.2.2.2.2.1 _ (List.getElem_mem hk)
+    exact ⟨gk.1.2.2.2.2.2.2, by simp [Rowl.Moments.momentOf, gk.2.1]⟩
+  have order := held_before setting (st := st) (d := d)
+  rcases (HeldCuts (context := context) (J := J) st d).eq_empty_or_nonempty with heldEmpty | heldSome
+  · left
+    rcases (FailedCuts (context := context) (J := J) st d).eq_empty_or_nonempty with failedEmpty | failedSome
+    · -- the whole line
+      apply slot_infinite_of (momentAt st) (fun a b e => (momentAt_injective e).2)
+      intro n
+      exact ⟨momentAt_valid st n, momentAt_zone st n, by simp [heldEmpty], by simp [failedEmpty]⟩
+    · -- the years before the lowest cut whose class does not hold
+      obtain ⟨j0, ⟨hj0, zj0, failedJ0⟩, j0Min⟩ :=
+        Set.exists_min_image _ (cutPlaceAt context) (failed_cuts_finite st d) failedSome
+      obtain ⟨vh, zh⟩ := instantOf j0 hj0
+      apply slot_infinite_of (yearBefore (Rowl.Moments.momentOf (context.times.val[j0.val]'hj0).instant) st)
+        (yearBefore_injective _ st)
+      intro n
+      obtain ⟨v, z, lt⟩ := yearBefore_facts vh zh st n
+      refine ⟨v, z, by simp [heldEmpty], fun j jIn => lt_of_lt_of_le ?_ (j0Min j jIn)⟩
+      rw [cutPlaceAt, dif_pos hj0]
+      exact place_lt_of_key lt
+  · obtain ⟨i0, ⟨hi0, zi0, heldI0⟩, i0Max⟩ :=
+      Set.exists_max_image _ (cutPlaceAt context) (held_cuts_finite st d) heldSome
+    obtain ⟨vb, zb⟩ := instantOf i0 hi0
+    have sb := vb.2.2.2.2.2.2.2.1
+    have sd := vb.2.2.2.2.2.2.2.2.1
+    -- a time instant past the highest cut whose class holds is past every such cut
+    have lows : ∀ m : DatatypeMap.Moment,
+        (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).key < m.key →
+        ∀ i ∈ HeldCuts (context := context) (J := J) st d, cutPlaceAt context i ≤ momentPlace m := by
+      intro m lt i iIn
+      refine le_trans (i0Max i iIn) ?_
+      rw [cutPlaceAt, dif_pos hi0]
+      exact place_le_of_key lt
+    rcases (FailedCuts (context := context) (J := J) st d).eq_empty_or_nonempty with failedEmpty | failedSome
+    · -- the instants a little after the highest cut whose class holds
+      left
+      have pos : (0 : ℚ) < 60 - (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).second := by linarith
+      apply slot_infinite_of (secondsAfter (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant) st
+        (60 - (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).second))
+        (secondsAfter_injective _ st pos)
+      intro n
+      obtain ⟨v, z, key⟩ := secondsAfter_facts vb zb st pos le_rfl (decimal_sub (decimal_int 60) sd) n
+      have delta : (0 : ℚ) < (60 - (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).second) /
+          2 ^ (n + 1) := by positivity
+      exact ⟨v, z, lows _ (by rw [key]; linarith), by simp [failedEmpty]⟩
+    · obtain ⟨j0, ⟨hj0, zj0, failedJ0⟩, j0Min⟩ :=
+        Set.exists_min_image _ (cutPlaceAt context) (failed_cuts_finite st d) failedSome
+      have lt := order i0 ⟨hi0, zi0, heldI0⟩ j0 ⟨hj0, zj0, failedJ0⟩
+      rw [cutPlaceAt, dif_pos hi0, cutPlaceAt, dif_pos hj0] at lt
+      unfold cutPlace at lt
+      rw [Prod.Lex.toLex_lt_toLex] at lt
+      by_cases keys : (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).key =
+          (Rowl.Moments.momentOf (context.times.val[j0.val]'hj0).instant).key
+      · -- the time instants at one instant
+        right
+        have opens : (context.times.val[i0.val]'hi0).open = false ∧ (context.times.val[j0.val]'hj0).open = true := by
+          rcases lt with lt | ⟨_, o⟩
+          · exact absurd keys (ne_of_lt lt)
+          · revert o
+            cases (context.times.val[i0.val]'hi0).open <;> cases (context.times.val[j0.val]'hj0).open <;> simp
+        have ne : i0 ≠ j0 := fun e => by subst e; exact failedJ0 heldI0
+        refine ⟨i0, j0, hi0, hj0, zi0, zj0, ne, keys, opens.1, opens.2, heldI0, failedJ0, ?_⟩
+        ext m
+        constructor
+        · rintro ⟨⟨cuts, lit⟩, vm, zm⟩
+          obtain ⟨lowsM, highsM⟩ := (slot_iff m).mp cuts
+          have lo := lowsM i0 ⟨hi0, zi0, heldI0⟩
+          have hi := highsM j0 ⟨hj0, zj0, failedJ0⟩
+          rw [cutPlaceAt, dif_pos hi0] at lo
+          rw [cutPlaceAt, dif_pos hj0] at hi
+          unfold cutPlace momentPlace at lo hi
+          rw [Prod.Lex.toLex_le_toLex] at lo
+          rw [Prod.Lex.toLex_lt_toLex] at hi
+          refine ⟨⟨vm, zm, ?_⟩, lit⟩
+          rw [keys] at lo ⊢
+          rcases lo with lo | ⟨lo, _⟩
+          · rcases hi with hi | ⟨hi, _⟩
+            · exact absurd (lt_trans lo hi) (lt_irrefl _)
+            · exact hi
+          · exact lo.symm
+        · rintro ⟨⟨vm, zm, km⟩, lit⟩
+          refine ⟨⟨(slot_iff m).mpr ⟨fun i iIn => le_trans (i0Max i iIn) ?_, fun j jIn => lt_of_lt_of_le ?_ (j0Min j jIn)⟩,
+            lit⟩, vm, zm⟩
+          · rw [cutPlaceAt, dif_pos hi0]
+            unfold cutPlace momentPlace
+            rw [km, opens.1]
+          · rw [cutPlaceAt, dif_pos hj0]
+            unfold cutPlace momentPlace
+            rw [Prod.Lex.toLex_lt_toLex, km, keys, opens.2]
+            exact .inr ⟨rfl, by simp⟩
+      · -- the instants a little after the highest cut whose class holds, before the next cut
+        left
+        have keyLt : (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).key <
+            (Rowl.Moments.momentOf (context.times.val[j0.val]'hj0).instant).key := by
+          rcases lt with lt | ⟨e, _⟩
+          · exact lt
+          · exact absurd e keys
+        obtain ⟨vh, _⟩ := instantOf j0 hj0
+        have pos : (0 : ℚ) < min (60 - (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).second)
+            ((Rowl.Moments.momentOf (context.times.val[j0.val]'hj0).instant).key -
+              (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).key) :=
+          lt_min (by linarith) (by linarith)
+        apply slot_infinite_of (secondsAfter (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant) st _)
+          (secondsAfter_injective _ st pos)
+        intro n
+        obtain ⟨v, z, key⟩ := secondsAfter_facts vb zb st pos (min_le_left _ _)
+          (decimal_min (decimal_sub (decimal_int 60) sd) (decimal_sub (decimal_key vh) (decimal_key vb))) n
+        have big : (1 : ℚ) < 2 ^ (n + 1) := one_lt_pow₀ (by norm_num) (Nat.succ_ne_zero n)
+        have delta := div_lt_self pos big
+        have delta' : 0 < min (60 - (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).second)
+            ((Rowl.Moments.momentOf (context.times.val[j0.val]'hj0).instant).key -
+              (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).key) / 2 ^ (n + 1) := by positivity
+        have upper := min_le_right (60 - (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).second)
+          ((Rowl.Moments.momentOf (context.times.val[j0.val]'hj0).instant).key -
+            (Rowl.Moments.momentOf (context.times.val[i0.val]'hi0).instant).key)
+        refine ⟨v, z, lows _ (by rw [key]; linarith), fun j jIn => lt_of_lt_of_le ?_ (j0Min j jIn)⟩
+        rw [cutPlaceAt, dif_pos hj0]
+        exact place_lt_of_key (by rw [key]; linarith)
+
 /-- A format in use puts floating-point numbers in use. -/
 theorem float_used {dbl : Bool} {d : Object'} (h : InUse context J (floatKind dbl) d) :
     context.kinds.double = true ∨ context.kinds.float = true := by
   cases dbl
   · exact .inr (by simpa [Used, floatKind] using h.1)
   · exact .inl (by simpa [Used, floatKind] using h.1)
+
+theorem float_blocked {dbl : Bool} {d : Object'} (h : InUse context J (floatKind dbl) d) :
+    context.kinds.ordered = true ∨ context.kinds.double = true ∨ context.kinds.float = true ∨
+      context.times.val ≠ [] :=
+  (float_used h).elim (fun e => .inr (.inl e)) (fun e => .inr (.inr (.inl e)))
+
+theorem float_runs {dbl : Bool} {d : Object'} (h : InUse context J (floatKind dbl) d) : BoundsRuns context.kinds :=
+  (float_used h).elim (fun e => .inr (.inl e)) (fun e => .inr (.inr (.inl e)))
 
 theorem level_zero {d : Object'} (zero : levelOf context J d = 0) : InUse context J .Integer d := by
   unfold levelOf at zero
@@ -2030,11 +2524,12 @@ theorem finite_run (setting : Setting context capacity bits order J) {d : Object
 
 /-- The region of a node that is no number: values for every index, or the
     values of a format in use in the node's slot, without the literal
-    values. -/
+    values, or the time instants of the node's slot. -/
 theorem other_region {d : Object'} (numeric : ¬ NumericNode context J d) :
     RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d) ∨
-      ∃ dbl, regionOf context J order d = .binary dbl (literalBinaries context.values.val dbl)
-        (slotLow context J dbl d) (slotHigh context J dbl d) ∧ InUse context J (floatKind dbl) d := by
+      (∃ dbl, regionOf context J order d = .binary dbl (literalBinaries context.values.val dbl)
+        (slotLow context J dbl d) (slotHigh context J dbl d) ∧ InUse context J (floatKind dbl) d) ∨
+      ∃ st, regionOf context J order d = .moment st (timeSlot context J st d) := by
   unfold regionOf
   simp only [numeric, ↓reduceIte]
   split_ifs with h1 h2 h3 h4 h5 h6 h7 h8
@@ -2043,9 +2538,9 @@ theorem other_region {d : Object'} (numeric : ¬ NumericNode context J d) :
   · exact .inl trivial
   · exact .inl trivial
   · exact .inl trivial
-  · exact .inl trivial
-  · exact .inr ⟨true, rfl, h7⟩
-  · exact .inr ⟨false, rfl, h8⟩
+  · exact .inr (.inr ⟨_, rfl⟩)
+  · exact .inr (.inl ⟨true, rfl, h7⟩)
+  · exact .inr (.inl ⟨false, rfl, h8⟩)
   · exact .inl trivial
 
 /-- The cuts around a run, among the context's cuts. -/
@@ -2313,7 +2808,7 @@ theorem binary_peers_bound (setting : Setting context capacity bits order J) (co
       obtain ⟨_, succ, notLit, regionE⟩ := mem_peers.mp mem
       rw [region] at regionE
       obtain ⟨inUseE, _, lowE, highE⟩ := region_binary regionE
-      refine ⟨successor_super setting (.inr (float_used inUse)) succ, ?_,
+      refine ⟨successor_super setting (float_runs inUse) succ, ?_,
         fun ⟨i, hi, _, same⟩ => notLit ⟨i, hi, same⟩⟩
       have lowE' : slotLow context J dbl e ≤ position (Rowl.Floats.fmt dbl) b := by rw [← lowE]; exact low'
       have highE' : position (Rowl.Floats.fmt dbl) b < slotHigh context J dbl e := by rw [← highE]; exact high'
@@ -2323,6 +2818,85 @@ theorem binary_peers_bound (setting : Setting context capacity bits order J) (co
       · exact highs j hj ((edge_at_place low' high' j (highIn j hj)).mpr
           ((edge_at_place lowE' highE' j (highIn j hj)).mp holds))
     exact atMost_length (fact.2 pos small z (setting.thing z)) (List.nodup_dedup _) each
+  · have := peers_length (context := context) (J := J) (order := order) (atoms := atoms) z d
+    have := witness_list_length (context := context) (J := J) (atoms := atoms) z
+    omega
+
+/-- A finite slot of the time instants: the time instants of a line at the
+    instant of a closed cut whose class holds at the node and an open cut whose
+    class does not, with the axiom on them. -/
+theorem moment_point (setting : Setting context capacity bits order J) {d : Object'} {st : Bool}
+    {S : Set DatatypeMap.Moment} (region : regionOf context J order d = .moment st S)
+    (finite : ¬ (lineSet st S).Infinite) :
+    ∃ (i j : Usize) (hi : i.val < context.times.val.length) (hj : j.val < context.times.val.length),
+      (context.times.val[i.val]'hi).zoned = st ∧ (context.times.val[j.val]'hj).zoned = st ∧
+      Rowl.DataTimes.InPointClass J i j d ∧
+      Rowl.DataTimes.PointFact context capacity J st (context.times.val[i.val]'hi).instant i j ∧
+      lineSet st S = Rowl.DataTimes.FreePoint context.values.val st (context.times.val[i.val]'hi).instant ∧
+      context.times.val ≠ [] := by
+  obtain ⟨_, _, rfl⟩ := region_moment region
+  rcases moment_cases setting st d with inf | ⟨i, j, hi, hj, zi, zj, ne, keys, closed, opened, heldI, failedJ, eq⟩
+  · exact absurd inf finite
+  · have pair := (setting.frame.times i (Nat.zero_le _)).2 j hi hj (zi.trans zj.symm) ne
+    have fact := pair.2 keys closed opened
+    rw [zi] at fact
+    exact ⟨i, j, hi, hj, zi, zj, ⟨heldI, failedJ⟩, fact, eq, fun e => by simp [e] at hi⟩
+
+theorem point_named_literal {d : Object'} {st : Bool} {point : datatypes.Moment}
+    (named : Rowl.DataTimes.PointNamed context J st point d) : LiteralNode context J d := by
+  obtain ⟨k, hk, _, same⟩ := named
+  exact ⟨k, hk, same⟩
+
+/-- The time instants of a finite slot are counted by the kernel's count of
+    the values at its instant. -/
+theorem point_slot_card (setting : Setting context capacity bits order J) (st : Bool) {i : Usize}
+    (hi : i.val < context.times.val.length) :
+    (Rowl.DataTimes.FreePoint context.values.val st (context.times.val[i.val]'hi).instant).ncard =
+      Rowl.DataTimes.pointFree context st (context.times.val[i.val]'hi).instant := by
+  have gc := setting.good.2.2.2.2.2.1 _ (List.getElem_mem hi)
+  exact Rowl.DataTimes.free_point_card setting.good.1 st ⟨gc.1, gc.2.1, by have := gc.2.2; omega⟩
+
+/-- A node of a finite slot of the time instants that is no literal value's
+    individual has time instants of its own there. -/
+theorem moment_free_pos (setting : Setting context capacity bits order J) {d : Object'}
+    (notLiteral : ¬ LiteralNode context J d) {st : Bool} {S : Set DatatypeMap.Moment}
+    (region : regionOf context J order d = .moment st S) (finite : ¬ (lineSet st S).Infinite) :
+    0 < (lineSet st S).ncard := by
+  obtain ⟨i, j, hi, hj, zi, zj, inPoint, fact, eq, _⟩ := moment_point setting region finite
+  rw [eq, point_slot_card setting st hi]
+  by_contra zero
+  exact notLiteral (point_named_literal (fact.1 (by omega) d inPoint))
+
+/-- The peers of a node of a finite slot of the time instants fit in it: by
+    the axiom on the values at its instant when there are fewer of them than
+    the capacity, and otherwise because the witnesses are at most the
+    capacity. -/
+theorem moment_peers_bound (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
+    {z d : Object'} (notLiteral : ¬ LiteralNode context J d) {st : Bool} {S : Set DatatypeMap.Moment}
+    (region : regionOf context J order d = .moment st S) (finite : ¬ (lineSet st S).Infinite) :
+    (peers context J order atoms z d).length ≤ (lineSet st S).ncard := by
+  have pos := moment_free_pos setting notLiteral region finite
+  obtain ⟨m, inS⟩ := Set.nonempty_of_ncard_ne_zero (ne_of_gt pos)
+  obtain ⟨i, j, hi, hj, zi, zj, inPoint, fact, eq, nonempty⟩ := moment_point setting region finite
+  have stamp : context.kinds.stamp = true := setting.good.2.2.2.2.2.2 nonempty
+  rw [eq, point_slot_card setting st hi] at pos ⊢
+  obtain ⟨_, _, rfl⟩ := region_moment region
+  have each : ∀ e ∈ peers context J order atoms z d, J.objectProperties dataSuper z e ∧
+      Rowl.DataTimes.InPointClass J i j e ∧
+      ¬ Rowl.DataTimes.PointNamed context J st (context.times.val[i.val]'hi).instant e := by
+    intro e mem
+    obtain ⟨_, succ, notLit, regionE⟩ := mem_peers.mp mem
+    rw [region] at regionE
+    obtain ⟨_, _, slotE⟩ := region_moment regionE
+    have inSE : m ∈ timeSlot context J st e := slotE ▸ inS.1
+    have agree : ∀ (k : Usize) (hk : k.val < context.times.val.length), (context.times.val[k.val]'hk).zoned = st →
+        (J.classes (timeClass k) e ↔ J.classes (timeClass k) d) := fun k hk zk =>
+      (inSE.1 k hk zk).trans (inS.1.1 k hk zk).symm
+    exact ⟨successor_super setting (.inr (.inr (.inr stamp))) succ,
+      ⟨(agree i hi zi).mpr inPoint.1, fun h => inPoint.2 ((agree j hj zj).mp h)⟩,
+      fun named => notLit (point_named_literal named)⟩
+  by_cases small : Rowl.DataTimes.pointFree context st (context.times.val[i.val]'hi).instant < capacity
+  · exact atMost_length (fact.2 pos small z (setting.thing z)) (List.nodup_dedup _) each
   · have := peers_length (context := context) (J := J) (order := order) (atoms := atoms) z d
     have := witness_list_length (context := context) (J := J) (atoms := atoms) z
     omega
@@ -2346,13 +2920,20 @@ theorem placed_valid (setting : Setting context capacity bits order J) (count : 
       have bound := peers_bound setting count notLiteral numericNode infinite (z := z)
       rw [region_numeric numeric, level]
       exact ⟨Nat.zero_le _, .inr (lt_of_lt_of_le idx bound)⟩
-    · rcases other_region (context := context) (J := J) (order := order) numericNode with inf | ⟨dbl, region, inUse⟩
+    · rcases other_region (context := context) (J := J) (order := order) numericNode with
+        inf | ⟨dbl, region, inUse⟩ | ⟨st, region⟩
       · exact absurd inf infinite
       · have bound := binary_peers_bound setting count notLiteral inUse region (z := z)
-        rw [shiftOk (.inr (float_used inUse)) z, zero_add, region]
+        rw [shiftOk (float_blocked inUse) z, zero_add, region]
         show _ < _
         rw [slot_set_card setting]
         omega
+      · have finite : ¬ (lineSet st (timeSlot context J st d)).Infinite := by
+          rw [region] at infinite; exact infinite
+        obtain ⟨_, _, _, _, _, _, _, _, _, nonempty⟩ := moment_point setting region finite
+        have bound := moment_peers_bound setting count notLiteral region finite (z := z)
+        rw [shiftOk (.inr (.inr (.inr nonempty))) z, zero_add, region]
+        exact .inr (lt_of_lt_of_le idx bound)
 
 /-- The first index of a node's region is one it has a value for. -/
 theorem alone_valid (setting : Setting context capacity bits order J) {d : Object'}
@@ -2364,12 +2945,17 @@ theorem alone_valid (setting : Setting context capacity bits order J) {d : Objec
   · rw [region_start_finite context N order _ infinite, zero_add]
     by_cases numericNode : NumericNode context J d
     swap
-    · rcases other_region (context := context) (J := J) (order := order) numericNode with inf | ⟨dbl, region, inUse⟩
+    · rcases other_region (context := context) (J := J) (order := order) numericNode with
+        inf | ⟨dbl, region, inUse⟩ | ⟨st, region⟩
       · exact absurd inf infinite
       · rw [region]
         show 0 < _
         rw [slot_set_card setting]
         exact slot_free_pos setting notLiteral inUse
+      · have finite : ¬ (lineSet st (timeSlot context J st d)).Infinite := by
+          rw [region] at infinite; exact infinite
+        rw [region]
+        exact .inr (moment_free_pos setting notLiteral region finite)
     obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral numericNode infinite
     have integer : Used context.kinds .Integer = true := (level_zero level).1
     have gap := run_gap setting ordered pos inside (not_point setting ordered notLiteral pos inside) integer
@@ -2414,6 +3000,29 @@ theorem format_literal (N : Normative D) {values : List datatypes.DataValue} {va
     · exact ⟨x, member, (N.float_injective _ _ vb canonical.2 same).symm⟩
     · exact absurd same (N.double_float _ _ vb canonical.2)
 
+/-- A time instant that is a literal value's value is the time instant of a
+    kernel time instant. -/
+theorem moment_of_value (N : Normative D) {val : datatypes.DataValue} (canonical : Canonical val)
+    {m : DatatypeMap.Moment} (vm : m.Valid) (same : N.moment m = valueOf N val) :
+    ∃ y, val = .Moment y ∧ Rowl.Moments.momentOf y = m := by
+  cases val with
+  | Number n' w f =>
+    simp only [valueOf, Rowl.Datatypes.real_rat] at same
+    exact absurd same.symm (N.real_moment _ _ vm)
+  | Fraction n' a c =>
+    simp only [valueOf, Rowl.Datatypes.real_rat] at same
+    exact absurd same.symm (N.real_moment _ _ vm)
+  | Text t => exact absurd same.symm (N.text_moment _ _ canonical vm)
+  | Tagged t l => exact absurd same.symm (N.tagged_moment _ _ _ canonical.1 canonical.2 vm)
+  | Truth x => exact absurd same.symm (N.truth_moment x _ vm)
+  | Uri t => exact absurd same.symm (N.coded_moment (.uri t.val) _ canonical vm)
+  | Hex o => exact absurd same.symm (N.coded_moment (.hex o.val) _ trivial vm)
+  | Base64 o => exact absurd same.symm (N.coded_moment (.base64 o.val) _ trivial vm)
+  | Moment y =>
+    exact ⟨y, rfl, N.moment_injective _ _ (canonical : Rowl.Moments.CanonicalMoment y).2.2.2.2.2.2 vm same.symm⟩
+  | Double x => exact absurd same (N.moment_double m _ vm canonical.2)
+  | Float x => exact absurd same (N.moment_float m _ vm canonical.2)
+
 /-- The values of a node that is no literal value's individual are no
     literal values: a number region leaves the numbers of the literal values
     out, and the other regions start past the literal values. -/
@@ -2433,7 +3042,8 @@ theorem region_not_literal (setting : Setting context capacity bits order J) {d 
     · rw [Rowl.Datatypes.valueOf_number N number] at same
       exact mem.2.2 ⟨val, member, number, N.real_injective same⟩
     · exact real_ne_value N (setting.good.1.1 val member) number _ same
-  · rcases other_region (context := context) (J := J) (order := order) numeric with infinite | ⟨dbl, region, inUse⟩
+  · rcases other_region (context := context) (J := J) (order := order) numeric with
+      infinite | ⟨dbl, region, inUse⟩ | ⟨st, region⟩
     · intro same
       exact region_start_spec context N order _ infinite _ (Nat.le_add_right _ _) ⟨val, member, same⟩
     · have finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val)
@@ -2444,6 +3054,21 @@ theorem region_not_literal (setting : Setting context capacity bits order J) {d 
       simp only [regionValue, litValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact (binaryAt_mem valid).2
         (format_literal N member (setting.good.1.1 val member) dbl (binaryAt_valid _ _ _ _ _) same)
+    · by_cases inf : (lineSet st (timeSlot context J st d)).Infinite
+      · have infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val)
+            (regionOf context J order d) := by rw [region]; exact inf
+        intro same
+        exact region_start_spec context N order _ infinite _ (Nat.le_add_right _ _) ⟨val, member, same⟩
+      · have finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val)
+            (regionOf context J order d) := by rw [region]; exact inf
+        rw [region_start_finite context N order _ finite, zero_add, region] at valid
+        rw [region_start_finite context N order _ finite, zero_add, region]
+        intro same
+        simp only [regionValue, litValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+        have mem : momentIn st (timeSlot context J st d) n ∈ lineSet st (timeSlot context J st d) :=
+          pick_mem _ _ _ valid
+        obtain ⟨y, rfl, at_y⟩ := moment_of_value N (setting.good.1.1 _ member) mem.2.1 same
+        exact mem.1.2 ⟨y, member, at_y⟩
 
 /-- Whether a real of an interval is in a cut: exactly for the cuts before the
     interval. -/
@@ -2482,7 +3107,7 @@ theorem realValue_injective (N : Normative D) : Function.Injective (realValue.{v
 theorem value_node (setting : Setting context capacity bits order J) (o : Element J) {d : Object'} {n : ℕ}
     (valid : ¬ LiteralNode context J d → Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n)) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) d
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) d
       (valueAt.{u,v,w,x} context J N order d n) where
   kinds := fun k used => by
     rw [sound_types]
@@ -2569,7 +3194,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
           · exact absurd same.symm (N.real_tagged r _ _ (aText_xml _) enTag_value)
           all_goals first
             | exact absurd same.symm (N.real_coded r _ (sequence_valid _ _))
-            | exact absurd same.symm (N.real_moment r _ (momentAt_valid _ _))
+            | exact absurd same.symm (N.real_moment r _ (momentIn_valid _ _ _).1)
             | exact absurd same.symm (real_format N r _ (binaryAt_valid _ _ _ _ _))
   edges := fun double b hb e he => by
     obtain ⟨cb, vb, same⟩ := hb
@@ -2579,7 +3204,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       have values : context.values.val[i0.val] = floatLit double b :=
         Rowl.Datatypes.value_injective N (setting.good.1.1 _ (List.getElem_mem h0))
           (Rowl.DataComplete.canonical_float_lit cb vb) (embedValue_injective same)
-      have edgeFact := (setting.frame.values i0 h0).2.2.2.2 double
+      have edgeFact := (setting.frame.values i0 h0).2.2.2.2.1 double
       rw [values, Rowl.DataEdges.format_place_lit] at edgeFact
       exact edgeFact _ rfl e he
     · have v := valid ld
@@ -2618,12 +3243,55 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       | coded s' =>
         rw [hr] at inKind
         cases double <;> cases s' <;> simp [RegionIn, floatKind, sequenceKind] at inKind
-      | moment st =>
+      | moment st S =>
         rw [hr] at inKind
         cases double <;> simp [RegionIn, floatKind] at inKind
       | other =>
         rw [hr] at inKind
         exact inKind.elim
+  goodTimes := ⟨setting.good.2.2.2.2.2.1, setting.good.2.2.2.2.2.2⟩
+  times := fun m hm i h zone => by
+    obtain ⟨vm, same⟩ := hm
+    by_cases ld : LiteralNode context J d
+    · obtain ⟨i0, h0, rfl⟩ := ld
+      rw [literal_value_at setting i0 h0 n] at same
+      obtain ⟨y, at_y, rfl⟩ := moment_of_value N (setting.good.1.1 _ (List.getElem_mem h0)) vm
+        (embedValue_injective same).symm
+      exact (setting.frame.values i0 h0).2.2.2.2.2 y at_y i h (by rw [zone, momentOf_zoned])
+    · have v := valid ld
+      rw [region_value_at d ld] at same
+      cases hr : regionOf context J order d with
+      | moment st S =>
+        rw [hr] at same v
+        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+        have values := N.moment_injective _ _ (momentIn_valid st S _).1 vm same
+        have mem : momentIn st S _ ∈ lineSet st S := pick_mem _ _ _ v
+        rw [values] at mem
+        obtain ⟨_, _, rfl⟩ := region_moment hr
+        exact mem.1.1 i h (zone.trans mem.2.2)
+      | number p ℓ =>
+        rw [hr] at same
+        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+        exact absurd same (N.real_moment _ _ vm)
+      | string ℓ =>
+        rw [hr] at same
+        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+        exact absurd same (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ.isLt _) vm)
+      | tagged =>
+        rw [hr] at same
+        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+        exact absurd same (N.tagged_moment _ _ _ (aText_xml _) enTag_value vm)
+      | coded s' =>
+        rw [hr] at same
+        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+        exact absurd same (N.coded_moment _ _ (sequence_valid _ _) vm)
+      | binary dbl A lo hi =>
+        rw [hr] at same
+        simp only [regionValue, momentValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+        exact absurd same.symm (moment_format N _ vm dbl (binaryAt_valid _ _ _ _ _))
+      | other =>
+        rw [hr] at same
+        simp [regionValue, momentValue, embedValue] at same
 
 theorem peers_same {z d d' : Object'} (same : regionOf context J order d = regionOf context J order d') :
     peers context J order atoms z d = peers context J order atoms z d' := by
@@ -2659,7 +3327,7 @@ theorem nodeValue_injective (setting : Setting context capacity bits order J) (c
       obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d)
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d')
-        binary_coherent same
+        binary_coherent moment_coherent same
       rw [sameRegion] at sameIndex
       rw [peers_same sameRegion] at sameIndex
       have index : (peers context J order atoms z d').idxOf d = (peers context J order atoms z d').idxOf d' := by
@@ -2711,14 +3379,14 @@ theorem nodeValue_shared (setting : Setting context capacity bits order J) (coun
       obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d)
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d')
-        binary_coherent same
+        binary_coherent moment_coherent same
       rw [sameRegion] at sameIndex
       exact absurd (by omega) distinct
 
 /-- Each data node an element has a value at stands for it. -/
 theorem place_node (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) {z d : Object'} (placed : ValuedNode context J atoms z d) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) d
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) d
       (nodeValue.{u,v,w,x} context J N order atoms shift z d) :=
   value_node setting o (fun ld => placed_valid setting count shiftOk ld (placed.resolve_left ld).1
     (placed.resolve_left ld).2)
@@ -2771,7 +3439,7 @@ theorem sound_literal (o : Element J) {lt : Literal} {val : datatypes.DataValue}
   simp only [sound, litValue, value]
 
 theorem sound_range_frame (setting : Setting context capacity bits order J) (o : Element J) :
-    RangeFrame (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) where
+    RangeFrame (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) where
   literal := fun _ => .inl rfl
   thing := setting.thing
   literals := fun _ _ run => sound_literal o run
@@ -2845,6 +3513,51 @@ theorem sound_range_frame (setting : Setting context capacity bits order J) (o :
     have := Rowl.Datatypes.value_injective N (Rowl.DataComplete.canonical_float_lit cb vb)
       (Rowl.DataComplete.canonical_float_lit cb' vb') (embedValue_injective same)
     cases double <;> cases this <;> rfl
+  moments := fun x => by
+    rw [sound_types]
+    constructor
+    · rintro ⟨y, inside, rfl⟩
+      obtain ⟨m, vm, rfl⟩ := (N.datetime_space y).mp inside
+      exact ⟨m, vm, rfl⟩
+    · rintro ⟨m, vm, rfl⟩
+      exact ⟨_, (N.datetime_space _).mpr ⟨m, vm, rfl⟩, rfl⟩
+  stamps := fun x => by
+    rw [sound_types]
+    constructor
+    · rintro ⟨y, inside, rfl⟩
+      obtain ⟨m, vm, zm, rfl⟩ := (N.stamp_space y).mp inside
+      exact ⟨m, ⟨vm, rfl⟩, Option.isSome_iff_ne_none.mpr zm⟩
+    · rintro ⟨m, ⟨vm, rfl⟩, zm⟩
+      exact ⟨_, (N.stamp_space _).mpr ⟨m, vm, Option.isSome_iff_ne_none.mp zm, rfl⟩, rfl⟩
+  momentLits := fun _ _ => rfl
+  momentFacets := fun f F b facet run x => by
+    obtain ⟨r, run', facts, _⟩ := Rowl.Datatypes.literal_value_correct f.value
+    rw [run] at run'
+    cases Result.ok_injective run'
+    obtain ⟨canonical, _, _, _, rest⟩ := facts (.Moment b) rfl
+    obtain ⟨_, _, value⟩ := rest D N
+    have vb : (Rowl.Moments.momentOf b).Valid := canonical.2.2.2.2.2.2
+    simp only [sound]
+    rw [value, facetOf_some facet]
+    simp only [valueOf, moment_facet_value N F vb]
+    constructor
+    · rintro ⟨y0, ⟨m, vm, holds, rfl⟩, rfl⟩
+      exact ⟨m, ⟨vm, rfl⟩, holds⟩
+    · rintro ⟨m, ⟨vm, rfl⟩, holds⟩
+      exact ⟨_, ⟨m, vm, holds, rfl⟩, rfl⟩
+  momentReal := fun m x r hm same => by
+    obtain ⟨vm, rfl⟩ := hm
+    exact N.real_moment r m vm (embedValue_injective same).symm
+  momentBinary := fun m double b x hm hb => by
+    obtain ⟨vm, rfl⟩ := hm
+    obtain ⟨cb, vb, same⟩ := hb
+    have := embedValue_injective same
+    rw [Rowl.DataComplete.lit_float] at this
+    cases double
+    · exact N.moment_float m _ vm vb this
+    · exact N.moment_double m _ vm vb this
+  momentInjective := fun m m' x hm hm' =>
+    N.moment_injective _ _ hm.1 hm'.1 (embedValue_injective (hm.2.symm.trans hm'.2))
 
 theorem sound_atom (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) {p : DataProperty} {range : Option DataRange} {n : Nat} (member : (p, range, n) ∈ atoms)
@@ -2861,7 +3574,7 @@ theorem sound_atom (setting : Setting context capacity bits order J) (count : at
     rcases optional_range_meaning.{u,max v w,u,x} context range filler fillerRun with
       ⟨rfl, rfl⟩ | ⟨r, c, rfl, rfl, means⟩
     · simp [RangeHolds, Rowl.Concepts.FillerHolds]
-    · exact means _ J (litValue N) (realValue N) (sound_range_frame setting o) d _
+    · exact means _ J (litValue N) (realValue N) (momentValue N) (sound_range_frame setting o) d _
         (place_node setting count shiftOk o placed)
   constructor
   · rintro ⟨f, fInj, each⟩
@@ -2915,7 +3628,7 @@ theorem sound_simulates (setting : Setting context capacity bits order J) (count
 
 theorem sound_placed (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) :
-    Placed context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (litValue N) (realValue N)
+    Placed context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (litValue N) (realValue N) (momentValue N)
       (fun z y d => Place.{u,v,w,x} context J N order atoms shift z.1 y d) where
   functional := fun z _ d d' pl pl' =>
     nodeValue_injective setting count shiftOk z.1 pl.1 pl'.1 (pl.2.trans pl'.2.symm)
@@ -2993,7 +3706,7 @@ theorem sound_satisfies (N : Normative D) {context : data_ontology.Context} (goo
     ⟨good, frame, enough, sorted, fine, valuesCut, jThing, jTop, jBottom⟩
   refine ⟨bits, order, o, setting, names, fun atoms covers count => ?_⟩
   exact (means.1 (sound.{u,v,w,x} context J N order atoms (fun _ => 0) o) J Subtype.val (Known J) atoms (litValue N)
-    (realValue N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)
+    (realValue N) (momentValue N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)
     (sound_range_frame setting o)
     (fun item mem a inside => covers a (List.mem_flatMap.mpr ⟨item, mem, inside⟩)) names).1 newHolds
 
@@ -3034,16 +3747,17 @@ theorem filler_anonymous (N : Normative D) (g : AnonymousIndividual → Object')
     have node := value_node (N := N) (atoms := []) (shift := fun _ => 0) (n := 0) setting o (d := d)
       (fun ld => alone_valid setting ld)
     have frame0 : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) (withAnonymous J g)
-        (litValue N) (realValue N) := sound_range_frame (shift := fun _ => 0) setting o
+        (litValue N) (realValue N) (momentValue N) := sound_range_frame (shift := fun _ => 0) setting o
     have frameJ : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
-        (realValue N) :=
+        (realValue N) (momentValue N) :=
       ⟨frame0.literal, frame0.thing, frame0.literals, frame0.injective, frame0.numbers, frame0.numeric,
         frame0.facets, frame0.binaries, frame0.binaryFacets, frame0.binaryReal, frame0.binaryApart,
-        frame0.binaryInjective⟩
+        frame0.binaryInjective, frame0.moments, frame0.stamps, frame0.momentLits, frame0.momentFacets,
+        frame0.momentReal, frame0.momentBinary, frame0.momentInjective⟩
     have nodeJ : NodeValue context (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
-        (realValue N) d (valueAt.{u,0,w,x} context (withAnonymous J g) N order d 0) :=
-      ⟨node.kinds, node.values, node.cuts, node.edges⟩
-    exact (means _ _ _ _ frame0 d _ node).symm.trans (means _ J _ _ frameJ d _ nodeJ)
+        (realValue N) (momentValue N) d (valueAt.{u,0,w,x} context (withAnonymous J g) N order d 0) :=
+      ⟨node.kinds, node.values, node.cuts, node.edges, node.goodTimes, node.times⟩
+    exact (means _ _ _ _ _ frame0 d _ node).symm.trans (means _ J _ _ _ frameJ d _ nodeJ)
 
 /-- A correspondence with an interpretation of the encoding with other
     anonymous individuals is one with the interpretation itself, for the

@@ -983,8 +983,8 @@ theorem interpretation_anonymous {Native : Type w} {D : DatatypeMap Native} {emb
     (g : AnonymousIndividual → Object) : IsInterpretation D embed V (withAnonymous I g) := interp
 
 theorem lifted_anonymous (context : data_ontology.Context) (I : Interpretation Object Value)
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (x0 : Object) (g : AnonymousIndividual → Object) :
-    withAnonymous (lifted context I lit num x0) (Sum.inl ∘ g) = lifted context (withAnonymous I g) lit num x0 := rfl
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (x0 : Object) (g : AnonymousIndividual → Object) :
+    withAnonymous (lifted context I lit num mom x0) (Sum.inl ∘ g) = lifted context (withAnonymous I g) lit num mom x0 := rfl
 
 theorem class_denote_named (J : Interpretation Object Value) (c : Class) (y : Object) :
     classDenote J (.Class c) y ↔ J.classes c y := by
@@ -1063,7 +1063,7 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
       have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good capacity capSmall items enc
         encRun sat
       apply (encodedComplete answer h D V vocab).mpr
-      exact ⟨Object ⊕ Value, Value, embed, lifted context I (litOf N embed) (numOf N embed) x0, vocab,
+      exact ⟨Object ⊕ Value, Value, embed, lifted context I (litOf N embed) (numOf N embed) (momOf N embed) x0, vocab,
         lifted_interpretation N x0 interp, Sum.inl ∘ g, by rw [lifted_anonymous]; exact sat'⟩
 
 /-- The individuals of a question that a prepared closure names are named
@@ -1154,9 +1154,9 @@ theorem lifted_model {Object : Type u} {Value : Type (max w v)} {Native : Type w
   obtain ⟨x0⟩ := I.objectsNonempty
   have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good capacity capSmall items enc encRun
     sat
-  refine ⟨lifted context I (litOf N embed) (numOf N embed) x0,
+  refine ⟨lifted context I (litOf N embed) (numOf N embed) (momOf N embed) x0,
     ⟨vocab, lifted_interpretation N x0 interp, Sum.inl ∘ g, ?_⟩,
-    fun z => lifted_element N x0 z, fun a plainA => lifted_plain_name plainA,
+    fun z => lifted_element N x0 z, fun a plainA => lifted_plain_name (num := numOf N embed) (mom := momOf N embed) plainA,
     fun e mem e' run z => lifted_class N x0 vocab interp good run (plain e mem) z⟩
   rw [lifted_anonymous]
   exact sat'

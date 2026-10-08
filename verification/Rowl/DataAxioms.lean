@@ -635,10 +635,10 @@ theorem encode_object_members_spec (context : data_ontology.Context) (members : 
     at its individual, and `owl:topDataProperty` relates everything. -/
 structure Placed (context : data_ontology.Context) (I : Interpretation Object Value)
     (J : Interpretation Object' Value') (obj : Object → Object') (lit : datatypes.DataValue → Value)
-    (num : ℝ → Value) (place : Object → Value → Object' → Prop) : Prop where
+    (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (place : Object → Value → Object' → Prop) : Prop where
   functional : ∀ z v d d', place z v d → place z v d' → d = d'
   injective : ∀ z v v' d, place z v d → place z v' d → v = v'
-  nodes : ∀ z v d, place z v d → NodeValue context I J lit num d v
+  nodes : ∀ z v d, place z v d → NodeValue context I J lit num mom d v
   data : ∀ p role, data_ontology.data_role context p = .ok (some role) → ∀ z v,
     (I.dataProperties p z v ↔ ∃ d, place z v d ∧ objectRelation J role (obj z) d)
   literals : ∀ z lt a, data_ontology.literal_individual context lt = .ok (some a) →
@@ -1158,9 +1158,9 @@ theorem characteristic_means (sim : Simulates context I J obj known atoms) {role
 /-! #### Data property axioms -/
 
 section Data
-variable {lit : datatypes.DataValue → Value} {num : ℝ → Value} {place : Object → Value → Object' → Prop}
+variable {lit : datatypes.DataValue → Value} {num : ℝ → Value} {mom : Rowl.DatatypeMap.Moment → Value} {place : Object → Value → Object' → Prop}
 
-theorem data_edge (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
+theorem data_edge (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
     (inert : Inert context J obj place) {p : DataProperty} {role : ObjectPropertyExpression}
     (roleRun : data_ontology.data_role context p = .ok (some role)) {y d : Object'}
     (related : objectRelation J role y d) : ∃ z v, y = obj z ∧ place z v d ∧ I.dataProperties p z v := by
@@ -1168,7 +1168,7 @@ theorem data_edge (sim : Simulates context I J obj known atoms) (placed : Placed
   obtain ⟨v, pl⟩ := inert.placed p role roleRun z d related
   exact ⟨z, v, rfl, pl, (placed.data p role roleRun z v).mpr ⟨d, pl, related⟩⟩
 
-theorem sub_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
+theorem sub_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
     {p q : DataProperty} {rp rq : ObjectPropertyExpression}
     (pRun : data_ontology.data_role context p = .ok (some rp)) (qRun : data_ontology.data_role context q = .ok (some rq)) :
     (satisfies J (.SubObjectPropertyOf (.Single rp) rq) → satisfies I (.SubDataPropertyOf p q)) ∧
@@ -1185,7 +1185,7 @@ theorem sub_data_means (sim : Simulates context I J obj known atoms) (placed : P
     rw [placed.functional z v d d' pl pl']
     exact rel'
 
-theorem equivalent_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
+theorem equivalent_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
     {ps : AtLeastTwo DataProperty} {roles : AtLeastTwo ObjectPropertyExpression}
     (pairs : List.Forall₂ (fun r p => data_ontology.data_role context p = .ok (some r)) roles.elements ps.elements) :
     (satisfies J (.EquivalentObjectProperties roles) → satisfies I (.EquivalentDataProperties ps)) ∧
@@ -1215,7 +1215,7 @@ theorem equivalent_data_means (sim : Simulates context I J obj known atoms) (pla
     apply propext
     exact ⟨one pRun qRun (same p memP q memQ) y d, one qRun pRun (same q memQ p memP) y d⟩
 
-theorem disjoint_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
+theorem disjoint_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
     {ps : AtLeastTwo DataProperty} {roles : AtLeastTwo ObjectPropertyExpression}
     (pairs : List.Forall₂ (fun r p => data_ontology.data_role context p = .ok (some r)) roles.elements ps.elements) :
     (satisfies J (.DisjointObjectProperties roles) → satisfies I (.DisjointDataProperties ps)) ∧
@@ -1236,7 +1236,7 @@ theorem disjoint_data_means (sim : Simulates context I J obj known atoms) (place
     rw [same] at rel'
     exact apart (z, v) ⟨hp, (placed.data q rq qRun z v).mpr ⟨yd.2, pl, rel'⟩⟩
 
-theorem data_domain_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
+theorem data_domain_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
     {p : DataProperty} {rp : ObjectPropertyExpression} (pRun : data_ontology.data_role context p = .ok (some rp))
     {e e' : ClassExpression} (means : ClassMeans.{u,v,w,x} context e e')
     (atomsIn : ∀ a ∈ classAtoms e, a ∈ atoms) (indsIn : ∀ a ∈ classIndividuals e, known a) :
@@ -1253,8 +1253,8 @@ theorem data_domain_means (sim : Simulates context I J obj known atoms) (placed 
     obtain ⟨z, v, rfl, _, hp⟩ := data_edge sim placed inert pRun rel
     exact (at_ z).mp (holds z v hp)
 
-theorem data_range_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
-    (frame : RangeFrame I J lit num) {p : DataProperty} {rp : ObjectPropertyExpression}
+theorem data_range_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
+    (frame : RangeFrame I J lit num mom) {p : DataProperty} {rp : ObjectPropertyExpression}
     (pRun : data_ontology.data_role context p = .ok (some rp)) {r : DataRange} {r' : ClassExpression}
     (means : RangeMeans.{u,v,w,x} context r r') :
     (satisfies J (.ObjectPropertyRange rp r') → satisfies I (.DataPropertyRange p r)) ∧
@@ -1264,12 +1264,12 @@ theorem data_range_means (sim : Simulates context I J obj known atoms) (placed :
   constructor
   · intro holds z v hp
     obtain ⟨d, pl, rel⟩ := (placed.data p rp pRun z v).mp hp
-    exact (means I J lit num frame d v (placed.nodes z v d pl)).mpr (holds _ _ rel)
+    exact (means I J lit num mom frame d v (placed.nodes z v d pl)).mpr (holds _ _ rel)
   · intro inert holds y d rel
     obtain ⟨z, v, rfl, pl, hp⟩ := data_edge sim placed inert pRun rel
-    exact (means I J lit num frame d v (placed.nodes z v d pl)).mp (holds z v hp)
+    exact (means I J lit num mom frame d v (placed.nodes z v d pl)).mp (holds z v hp)
 
-theorem functional_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
+theorem functional_data_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
     {p : DataProperty} {rp : ObjectPropertyExpression} (pRun : data_ontology.data_role context p = .ok (some rp)) :
     (satisfies J (.FunctionalObjectProperty rp) → satisfies I (.FunctionalDataProperty p)) ∧
     (Inert context J obj place → satisfies I (.FunctionalDataProperty p) →
@@ -1291,7 +1291,7 @@ theorem functional_data_means (sim : Simulates context I J obj known atoms) (pla
     subst this
     exact placed.functional z v1 d1 d2 pl1 pl2
 
-theorem data_assertion_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num place)
+theorem data_assertion_means (sim : Simulates context I J obj known atoms) (placed : Placed context I J obj lit num mom place)
     {p : DataProperty} {rp : ObjectPropertyExpression} (pRun : data_ontology.data_role context p = .ok (some rp))
     {lt : Literal} {lv : Individual} (litRun : data_ontology.literal_individual context lt = .ok (some lv))
     {a : Individual} (knownA : known a) :
@@ -1361,8 +1361,8 @@ def AxiomMeans (context : data_ontology.Context) (ax : Axiom) (new : List Annota
   ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
     (I : Interpretation Object Value) (J : Interpretation Object' Value') (obj : Object → Object')
     (known : Individual → Prop) (atoms : List (DataProperty × Option DataRange × Nat))
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (place : Object → Value → Object' → Prop),
-    Simulates context I J obj known atoms → Placed context I J obj lit num place → RangeFrame I J lit num →
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (place : Object → Value → Object' → Prop),
+    Simulates context I J obj known atoms → Placed context I J obj lit num mom place → RangeFrame I J lit num mom →
     (∀ a ∈ axiomAtoms ax, a ∈ atoms) → (∀ a ∈ axiomIndividuals ax, known a) →
       ((∀ b ∈ new, satisfies J b.axiom) → satisfies I ax) ∧
       (Inert context J obj place → satisfies I ax → ∀ b ∈ new, satisfies J b.axiom)
@@ -1387,13 +1387,13 @@ theorem means_of_single {context : data_ontology.Context} {ax ax' : Axiom} {new 
     (core : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
       (I : Interpretation Object Value) (J : Interpretation Object' Value') (obj : Object → Object')
       (known : Individual → Prop) (atoms : List (DataProperty × Option DataRange × Nat))
-      (lit : datatypes.DataValue → Value) (num : ℝ → Value) (place : Object → Value → Object' → Prop),
-      Simulates context I J obj known atoms → Placed context I J obj lit num place → RangeFrame I J lit num →
+      (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (place : Object → Value → Object' → Prop),
+      Simulates context I J obj known atoms → Placed context I J obj lit num mom place → RangeFrame I J lit num mom →
       (∀ a ∈ axiomAtoms ax, a ∈ atoms) → (∀ a ∈ axiomIndividuals ax, known a) →
         (satisfies J ax' → satisfies I ax) ∧ (Inert context J obj place → satisfies I ax → satisfies J ax')) :
     AxiomMeans.{u,v,w,x} context ax new := by
-  intro Object Value Object' Value' I J obj known atoms lit num place sim placed frame atomsIn indsIn
-  obtain ⟨sound, complete⟩ := core I J obj known atoms lit num place sim placed frame atomsIn indsIn
+  intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed frame atomsIn indsIn
+  obtain ⟨sound, complete⟩ := core I J obj known atoms lit num mom place sim placed frame atomsIn indsIn
   refine ⟨fun holds => sound (holds _ mainIn), fun inert holds b mem => ?_⟩
   rcases cover b mem with rfl | f
   · exact complete inert holds
@@ -1409,14 +1409,14 @@ theorem keep_spec (context : data_ontology.Context) (ax : Axiom) (out : alloc.ve
     (run : data_ontology.encode_axiom context ax out = .ok (some out)) (noInds : axiomIndividuals ax = [])
     (holds : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
       (I : Interpretation Object Value) (J : Interpretation Object' Value') (obj : Object → Object')
-      (lit : datatypes.DataValue → Value) (num : ℝ → Value) (place : Object → Value → Object' → Prop),
-      Placed context I J obj lit num place → satisfies I ax) :
+      (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (place : Object → Value → Object' → Prop),
+      Placed context I J obj lit num mom place → satisfies I ax) :
     AxiomSpec.{u,v,w,x} context ax out := by
   refine ⟨some out, run, fun out' h => ?_⟩
   cases h
   refine ⟨[], by simp, ?_, by simp [noInds], fun J _ => by simp [noInds]⟩
-  intro Object Value Object' Value' I J obj known atoms lit num place _ placed _ _ _
-  exact ⟨fun _ => holds I J obj lit num place placed, fun _ _ b mem => by simp at mem⟩
+  intro Object Value Object' Value' I J obj known atoms lit num mom place _ placed _ _ _
+  exact ⟨fun _ => holds I J obj lit num mom place placed, fun _ _ b mem => by simp at mem⟩
 
 theorem sub_class_spec (context : data_ontology.Context) (sub sup : ClassExpression)
     (out : alloc.vec.Vec AnnotatedAxiom) : AxiomSpec.{u,v,w,x} context (.SubClassOf sub sup) out := by
@@ -1447,7 +1447,7 @@ theorem sub_class_spec (context : data_ontology.Context) (sub sup : ClassExpress
             by rw [c5, c4, c3, object_facts_append]; simp [bare], ?_, ?_, ?_⟩
           · refine means_of_single (inds := classIndividuals sub ++ classIndividuals sup)
               (by intro b mem; simpa using mem) (by simp) (fun a m => by rw [inds]; exact m) ?_
-            intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ atomsIn indsIn
+            intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ atomsIn indsIn
             obtain ⟨sound, complete⟩ := sub_class_means sim (means1 left rfl) (means2 right rfl) atomsIn indsIn
             exact ⟨sound, fun inert => complete (quiet_of sim inert)⟩
           · rw [inds]
@@ -1476,7 +1476,7 @@ theorem classes_spec (context : data_ontology.Context) (xs : AtLeastTwo ClassExp
         by rw [c2]; simp [bare], ?_, by rw [inds _ (.inl rfl)]; exact p2, ?_⟩
       · refine means_of_single (inds := xs.elements.flatMap classIndividuals)
           (by intro b mem; simpa using mem) (by simp) (fun a m => by rw [inds _ (.inl rfl)]; exact m) ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ atomsIn indsIn
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ atomsIn indsIn
         obtain ⟨sound, complete⟩ := equivalent_classes_means sim (pairs xs'' rfl) atomsIn indsIn
         exact ⟨sound, fun inert => complete (quiet_of sim inert)⟩
       · exact fun J => names_of_facts (fun a m => by rw [inds _ (.inl rfl)] at m; exact m) (fun b m => by simp [m]) J
@@ -1491,7 +1491,7 @@ theorem classes_spec (context : data_ontology.Context) (xs : AtLeastTwo ClassExp
         by rw [c2]; simp [bare], ?_, by rw [inds _ (.inr rfl)]; exact p2, ?_⟩
       · refine means_of_single (inds := xs.elements.flatMap classIndividuals)
           (by intro b mem; simpa using mem) (by simp) (fun a m => by rw [inds _ (.inr rfl)]; exact m) ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ atomsIn indsIn
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ atomsIn indsIn
         obtain ⟨sound, complete⟩ := disjoint_classes_means sim (pairs xs'' rfl) atomsIn indsIn
         exact ⟨sound, fun inert => complete (quiet_of sim inert)⟩
       · exact fun J => names_of_facts (fun a m => by rw [inds _ (.inr rfl)] at m; exact m) (fun b m => by simp [m]) J
@@ -1518,7 +1518,7 @@ theorem disjoint_union_spec (context : data_ontology.Context) (c : Class) (xs : 
       by rw [c2]; simp [bare], ?_, by rw [inds]; exact p2, ?_⟩
     · refine means_of_single (inds := xs.elements.flatMap classIndividuals)
         (by intro b mem; simpa using mem) (by simp) (fun a m => by rw [inds]; exact m) ?_
-      intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ atomsIn indsIn
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ atomsIn indsIn
       obtain ⟨sound, complete⟩ := disjoint_union_means sim reserved notThing (pairs xs'' rfl) atomsIn indsIn
       exact ⟨sound, fun inert => complete (quiet_of sim inert)⟩
     · exact fun J => names_of_facts (fun a m => by rw [inds] at m; exact m) (fun b m => by simp [m]) J
@@ -1528,8 +1528,8 @@ theorem push_means {context : data_ontology.Context} {ax ax' : Axiom} {out out' 
     (core : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
       (I : Interpretation Object Value) (J : Interpretation Object' Value') (obj : Object → Object')
       (known : Individual → Prop) (atoms : List (DataProperty × Option DataRange × Nat))
-      (lit : datatypes.DataValue → Value) (num : ℝ → Value) (place : Object → Value → Object' → Prop),
-      Simulates context I J obj known atoms → Placed context I J obj lit num place → RangeFrame I J lit num →
+      (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (place : Object → Value → Object' → Prop),
+      Simulates context I J obj known atoms → Placed context I J obj lit num mom place → RangeFrame I J lit num mom →
       (∀ a ∈ axiomAtoms ax, a ∈ atoms) → (∀ a ∈ axiomIndividuals ax, known a) →
         (satisfies J ax' → satisfies I ax) ∧ (Inert context J obj place → satisfies I ax → satisfies J ax')) :
     ∃ new, out'.val = out.val ++ new ∧ AxiomMeans.{u,v,w,x} context ax new ∧
@@ -1634,7 +1634,7 @@ theorem sub_property_spec (context : data_ontology.Context) (sub : SubObjectProp
         · simp [t, guard t, universal_correct, run1, run2, run3]
         · simp [t, universal_correct, run1, run2, run3]
       · refine push_means (contents3 out' h) rfl ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ _
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ _
         have equal := sub_property_means sim subIn ⟨supPlain, supCtx⟩ guard
         exact ⟨equal.mp, fun _ => equal.mpr⟩
 
@@ -1651,7 +1651,7 @@ theorem equivalent_properties_spec (context : data_ontology.Context) (roles : At
     subst roles'
     obtain ⟨r2, run2, contents2⟩ := push_spec out (.EquivalentObjectProperties roles)
     refine ⟨r2, by simp [anyTop, run1, run2], fun out' h => push_means (contents2 out' h) rfl ?_⟩
-    intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ _
+    intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ _
     have equal := equivalent_properties_means sim (fun r mem => ⟨inside r mem, fun t => anyTop ⟨r, mem, t⟩⟩)
     exact ⟨equal.mp, fun _ => equal.mpr⟩
 
@@ -1666,7 +1666,7 @@ theorem disjoint_properties_spec (context : data_ontology.Context) (roles : AtLe
     subst roles'
     obtain ⟨r2, run2, contents2⟩ := push_spec out (.DisjointObjectProperties roles)
     refine ⟨r2, by simp [run1, run2], fun out' h => push_means (contents2 out' h) rfl ?_⟩
-    intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ _
+    intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ _
     have equal := disjoint_properties_means sim inside
     exact ⟨equal.mp, fun _ => equal.mpr⟩
 
@@ -1692,7 +1692,7 @@ theorem inverse_properties_spec (context : data_ontology.Context) (p q : ObjectP
       subst p' q'
       obtain ⟨r3, run3, contents3⟩ := push_spec out (.InverseObjectProperties p q)
       refine ⟨r3, by simp [run1, run2, run3], fun out' h => push_means (contents3 out' h) rfl ?_⟩
-      intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ _
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ _
       have equal := inverse_properties_means sim ⟨⟨pPlain, pCtx⟩, pTop⟩ ⟨⟨qPlain, qCtx⟩, qTop⟩
       exact ⟨equal.mp, fun _ => equal.mpr⟩
 
@@ -1753,7 +1753,7 @@ theorem domain_spec (context : data_ontology.Context) (role : ObjectPropertyExpr
       fun J => names_of_facts (fun a m => by rw [inds] at m; exact m) (fun b m => by simp [m]) J⟩
     refine means_of_single (inds := classIndividuals e) (by intro b mem; simp at mem; tauto) (by simp)
       (fun a m => by rw [inds]; exact m) ?_
-    intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ atomsIn indsIn
+    intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ atomsIn indsIn
     have equal := domain_means sim inside means atomsIn indsIn
     by_cases top : RoleOf role = topObject
     · simp only [top, ↓reduceIte]
@@ -1769,7 +1769,7 @@ theorem domain_spec (context : data_ontology.Context) (role : ObjectPropertyExpr
       fun J => names_of_facts (fun a m => by rw [inds] at m; exact m) (fun b m => by simp [m]) J⟩
     refine means_of_single (inds := classIndividuals e) (by intro b mem; simp at mem; tauto) (by simp)
       (fun a m => by rw [inds]; exact m) ?_
-    intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ atomsIn indsIn
+    intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ atomsIn indsIn
     have equal := domain_means sim inside means atomsIn indsIn
     by_cases top : RoleOf role = topObject
     · simp only [top, ↓reduceIte]
@@ -1816,7 +1816,7 @@ theorem characteristic_spec (context : data_ontology.Context) (role : ObjectProp
     obtain ⟨r2, run2, contents2⟩ := push_spec out ax
     refine ⟨r2, by rw [role_axiom_eq context role role kind out run1, chosen]; exact run2,
       fun out' h => push_means (contents2 out' h) noInds ?_⟩
-    intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ _
+    intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ _
     have e := equal I J obj known atoms sim ⟨plain, ctx⟩
     exact ⟨e.mp, fun _ => e.mpr⟩
 
@@ -1870,14 +1870,14 @@ theorem reflexive_spec (context : data_ontology.Context) (role : ObjectPropertyE
     by_cases top : RoleOf role = topObject
     · obtain ⟨r2, run2, contents2⟩ := push_spec out (.ReflexiveObjectProperty role)
       refine ⟨r2, by simp [run1, universal_correct, top, run2], fun out' h => push_means (contents2 out' h) rfl ?_⟩
-      intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ _
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ _
       have e := (reflexive_means sim ⟨plain, ctx⟩).1 top
       exact ⟨e.mp, fun _ => e.mpr⟩
     · obtain ⟨r2, run2, contents2⟩ := push_spec out
         (.SubClassOf (.ObjectComplementOf (.Class dataClass)) (.ObjectHasSelf role))
       refine ⟨r2, by simp [run1, universal_correct, top, object_class_eq, run2],
         fun out' h => push_means (contents2 out' h) rfl ?_⟩
-      intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ _
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ _
       have e := (reflexive_means sim ⟨plain, ctx⟩).2 top
       exact ⟨e.mp, fun _ => e.mpr⟩
 
@@ -1891,7 +1891,7 @@ theorem sub_data_spec (context : data_ontology.Context) (p q : DataProperty) (ou
     · have run : data_ontology.encode_axiom context (.SubDataPropertyOf p topData) out = .ok (some out) := by
         rw [data_ontology.encode_axiom, is_top_data_correct]; simp [reserved_correct, reserved]
       refine keep_spec context _ out run rfl ?_
-      intro Object Value Object' Value' I J obj lit num place placed
+      intro Object Value Object' Value' I J obj lit num mom place placed
       simp only [satisfies]
       exact fun z v _ => placed.top z v
   rw [AxiomSpec, data_ontology.encode_axiom, is_top_data_correct]
@@ -1906,7 +1906,7 @@ theorem sub_data_spec (context : data_ontology.Context) (p q : DataProperty) (ou
     | some rq =>
       obtain ⟨r3, run3, contents3⟩ := push_spec out (.SubObjectPropertyOf (.Single rp) rq)
       refine ⟨r3, by simp [run1, run2, run3], fun out' h => push_means (contents3 out' h) rfl ?_⟩
-      intro Object Value Object' Value' I J obj known atoms lit num place sim placed _ _ _
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed _ _ _
       exact sub_data_means sim placed run1 run2
 
 theorem data_lists_spec (context : data_ontology.Context) (ps : AtLeastTwo DataProperty)
@@ -1921,7 +1921,7 @@ theorem data_lists_spec (context : data_ontology.Context) (ps : AtLeastTwo DataP
     | some roles =>
       obtain ⟨r2, run2, contents2⟩ := push_spec out (.EquivalentObjectProperties roles)
       refine ⟨r2, by simp [run1, run2], fun out' h => push_means (contents2 out' h) rfl ?_⟩
-      intro Object Value Object' Value' I J obj known atoms lit num place sim placed _ _ _
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed _ _ _
       exact equivalent_data_means sim placed (pairs roles rfl)
   · rw [AxiomSpec, data_ontology.encode_axiom]
     cases r1 with
@@ -1929,7 +1929,7 @@ theorem data_lists_spec (context : data_ontology.Context) (ps : AtLeastTwo DataP
     | some roles =>
       obtain ⟨r2, run2, contents2⟩ := push_spec out (.DisjointObjectProperties roles)
       refine ⟨r2, by simp [run1, run2], fun out' h => push_means (contents2 out' h) rfl ?_⟩
-      intro Object Value Object' Value' I J obj known atoms lit num place sim placed _ _ _
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed _ _ _
       exact disjoint_data_means sim placed (pairs roles rfl)
 
 theorem data_domain_spec (context : data_ontology.Context) (p : DataProperty) (e : ClassExpression)
@@ -1956,7 +1956,7 @@ theorem data_domain_spec (context : data_ontology.Context) (p : DataProperty) (e
           fun J => names_of_facts (fun a m => by rw [inds] at m; exact m) (fun b m => by simp [m]) J⟩
         refine means_of_single (inds := classIndividuals e) (by intro b mem; simp at mem; tauto) (by simp)
           (fun a m => by rw [inds]; exact m) ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim placed _ atomsIn indsIn
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed _ atomsIn indsIn
         exact data_domain_means sim placed run1 (means2 e' rfl) atomsIn indsIn
 
 theorem data_range_spec (context : data_ontology.Context) (p : DataProperty) (r : DataRange)
@@ -1972,7 +1972,7 @@ theorem data_range_spec (context : data_ontology.Context) (p : DataProperty) (r 
     | some r' =>
       obtain ⟨r3, run3, contents3⟩ := push_spec out (.ObjectPropertyRange rp r')
       refine ⟨r3, by simp [run1, run2, run3], fun out' h => push_means (contents3 out' h) rfl ?_⟩
-      intro Object Value Object' Value' I J obj known atoms lit num place sim placed frame _ _
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed frame _ _
       exact data_range_means sim placed frame run1 (means2 r' rfl)
 
 theorem functional_data_spec (context : data_ontology.Context) (p : DataProperty)
@@ -1984,7 +1984,7 @@ theorem functional_data_spec (context : data_ontology.Context) (p : DataProperty
   | some rp =>
     obtain ⟨r2, run2, contents2⟩ := push_spec out (.FunctionalObjectProperty rp)
     refine ⟨r2, by simp [run1, run2], fun out' h => push_means (contents2 out' h) rfl ?_⟩
-    intro Object Value Object' Value' I J obj known atoms lit num place sim placed _ _ _
+    intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed _ _ _
     exact functional_data_means sim placed run1
 
 theorem individuals_spec (context : data_ontology.Context) (xs : AtLeastTwo Individual)
@@ -2012,7 +2012,7 @@ theorem individuals_spec (context : data_ontology.Context) (xs : AtLeastTwo Indi
           fun J => names_of_facts (fun a m => by rw [inds] at m; exact m) (fun b m => by simp [m]) J⟩
         refine means_of_single (inds := xs.elements) (by intro b mem; simpa using mem) (by simp)
           (fun a m => by rw [inds]; exact m) ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ indsIn
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ indsIn
         have e := (same_individuals_means sim indsIn).1
         exact ⟨e.mp, fun _ => e.mpr⟩
   · rw [AxiomSpec, data_ontology.encode_axiom]
@@ -2034,7 +2034,7 @@ theorem individuals_spec (context : data_ontology.Context) (xs : AtLeastTwo Indi
           fun J => names_of_facts (fun a m => by rw [inds] at m; exact m) (fun b m => by simp [m]) J⟩
         refine means_of_single (inds := xs.elements) (by intro b mem; simpa using mem) (by simp)
           (fun a m => by rw [inds]; exact m) ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ indsIn
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ indsIn
         have e := (same_individuals_means sim indsIn).2
         exact ⟨e.mp, fun _ => e.mpr⟩
 
@@ -2065,7 +2065,7 @@ theorem class_assertion_spec (context : data_ontology.Context) (e : ClassExpress
           ?_, ?_, ?_⟩
         · refine means_of_single (inds := classIndividuals e) (by intro b mem; simp at mem; tauto) (by simp)
             (fun b m => by rw [inds]; exact List.mem_cons_of_mem _ m) ?_
-          intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ atomsIn indsIn
+          intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ atomsIn indsIn
           have e := class_assertion_means sim (means1 e' rfl) atomsIn
             (fun b m => indsIn b (by rw [inds]; exact List.mem_cons_of_mem _ m)) (indsIn a (by rw [inds]; simp))
           exact ⟨e.mp, fun _ => e.mpr⟩
@@ -2144,7 +2144,7 @@ theorem object_assertions_axiom_spec (context : data_ontology.Context) (role : O
         fun J => names_of_facts (fun c m => by rw [inds] at m; exact m) (fun f m => by simp [m]) J⟩
       refine means_of_single (inds := [a, b]) (by intro f mem; simp at mem; tauto) (by simp)
         (fun c m => by rw [inds]; exact m) ?_
-      intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ indsIn
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ indsIn
       have e := (object_assertion_means sim ⟨plain, ctx⟩ (indsIn a (by rw [inds]; simp))
         (indsIn b (by rw [inds]; simp))).1
       exact ⟨e.mp, fun _ => e.mpr⟩
@@ -2163,7 +2163,7 @@ theorem object_assertions_axiom_spec (context : data_ontology.Context) (role : O
         fun J => names_of_facts (fun c m => by rw [inds] at m; exact m) (fun f m => by simp [m]) J⟩
       refine means_of_single (inds := [a, b]) (by intro f mem; simp at mem; tauto) (by simp)
         (fun c m => by rw [inds]; exact m) ?_
-      intro Object Value Object' Value' I J obj known atoms lit num place sim _ _ _ indsIn
+      intro Object Value Object' Value' I J obj known atoms lit num mom place sim _ _ _ indsIn
       have e := (object_assertion_means sim ⟨plain, ctx⟩ (indsIn a (by rw [inds]; simp))
         (indsIn b (by rw [inds]; simp))).2
       exact ⟨e.mp, fun _ => e.mpr⟩
@@ -2221,7 +2221,7 @@ theorem data_assertions_spec (context : data_ontology.Context) (p : DataProperty
           fun J => names_of_facts (fun c m => by rw [inds] at m; exact m) (fun f m => by simp [m]) J⟩
         refine means_of_single (inds := [a]) (by intro f mem; simp at mem; tauto) (by simp)
           (fun c m => by rw [inds]; exact m) ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim placed _ _ indsIn
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed _ _ indsIn
         have e := (data_assertion_means sim placed run1 run2 (indsIn a (by rw [inds]; simp))).1
         exact ⟨e.mp, fun _ => e.mpr⟩
   · rw [AxiomSpec, data_ontology.encode_axiom]
@@ -2240,7 +2240,7 @@ theorem data_assertions_spec (context : data_ontology.Context) (p : DataProperty
           fun J => names_of_facts (fun c m => by rw [inds] at m; exact m) (fun f m => by simp [m]) J⟩
         refine means_of_single (inds := [a]) (by intro f mem; simp at mem; tauto) (by simp)
           (fun c m => by rw [inds]; exact m) ?_
-        intro Object Value Object' Value' I J obj known atoms lit num place sim placed _ _ indsIn
+        intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed _ _ indsIn
         have e := (data_assertion_means sim placed run1 run2 (indsIn a (by rw [inds]; simp))).2
         exact ⟨e.mp, fun _ => e.mpr⟩
 
@@ -2250,7 +2250,7 @@ theorem encode_axiom_meaning (context : data_ontology.Context) (ax : Axiom) (out
     AxiomSpec.{u,v,w,x} context ax out := by
   cases ax with
   | Declaration d =>
-    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ => trivial)
+    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ _ => trivial)
   | SubClassOf sub sup => exact sub_class_spec context sub sup out
   | EquivalentClasses xs => exact (classes_spec context xs out).1
   | DisjointClasses xs => exact (classes_spec context xs out).2
@@ -2284,12 +2284,12 @@ theorem encode_axiom_meaning (context : data_ontology.Context) (ax : Axiom) (out
   | DataPropertyAssertion p a lt => exact (data_assertions_spec context p a lt out).1
   | NegativeDataPropertyAssertion p a lt => exact (data_assertions_spec context p a lt out).2
   | AnnotationAssertion _ _ _ =>
-    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ => trivial)
+    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ _ => trivial)
   | SubAnnotationPropertyOf _ _ =>
-    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ => trivial)
+    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ _ => trivial)
   | AnnotationPropertyDomain _ _ =>
-    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ => trivial)
+    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ _ => trivial)
   | AnnotationPropertyRange _ _ =>
-    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ => trivial)
+    exact keep_spec context _ out (by rw [data_ontology.encode_axiom]) rfl (fun _ _ _ _ _ _ _ _ => trivial)
 
 end Rowl.DataAxioms

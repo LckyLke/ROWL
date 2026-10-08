@@ -20,7 +20,7 @@
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 
 use crate::datatypes::{DataValue, Moment};
-use crate::numbers::{add_naturals, subtract_naturals};
+use crate::numbers::{add_naturals, compare_naturals, subtract_naturals};
 
 pub(crate) fn is_digit(byte: u8) -> bool {
     (48 <= byte) & (byte <= 57)
@@ -302,6 +302,197 @@ fn next_day(moment: Moment) -> Moment {
             ..moment
         }
     }
+}
+/// The digits and the sign of the year before a year: one more in size for a
+/// negative year, and -1 before year zero.
+fn previous_year(negative: bool, year: &Vec<u8>) -> (bool, Vec<u8>) {
+    let mut one = Vec::new();
+    one.push(49);
+    if negative {
+        (true, add_naturals(year, &one))
+    } else if year.len() == 0 {
+        (true, one)
+    } else {
+        (false, subtract_naturals(year, &one))
+    }
+}
+/// The same time on the day after the moment's day.
+fn following_day(moment: Moment) -> Moment {
+    if moment.day < month_days(&moment.year, moment.month) {
+        Moment {
+            day: moment.day + 1,
+            ..moment
+        }
+    } else if moment.month < 12 {
+        Moment {
+            month: moment.month + 1,
+            day: 1,
+            ..moment
+        }
+    } else {
+        let (negative, year) = next_year(moment.negative, &moment.year);
+        Moment {
+            negative,
+            year,
+            month: 1,
+            day: 1,
+            ..moment
+        }
+    }
+}
+/// The same time on the day before the moment's day.
+fn previous_day(moment: Moment) -> Moment {
+    if 1 < moment.day {
+        Moment {
+            day: moment.day - 1,
+            ..moment
+        }
+    } else if 1 < moment.month {
+        let day = month_days(&moment.year, moment.month - 1);
+        Moment {
+            month: moment.month - 1,
+            day,
+            ..moment
+        }
+    } else {
+        let (negative, year) = previous_year(moment.negative, &moment.year);
+        Moment {
+            negative,
+            year,
+            month: 12,
+            day: 31,
+            ..moment
+        }
+    }
+}
+/// The moment at the clock time `clock` (minutes after midnight, below a
+/// day) of the moment's day, without a time zone.
+fn at_clock(moment: Moment, clock: u16) -> Moment {
+    Moment {
+        hour: (clock / 60) as u8,
+        minute: (clock % 60) as u8,
+        zone: None,
+        ..moment
+    }
+}
+/// The moment `minutes` (at most 840) later on the clock, or earlier when not
+/// `later`, without a time zone: the date moves to the next or the previous
+/// day when the clock passes midnight.
+pub(crate) fn shifted(moment: Moment, later: bool, minutes: u16) -> Moment {
+    let clock = (moment.hour as u16) * 60 + (moment.minute as u16);
+    if later {
+        if clock + minutes < 1440 {
+            at_clock(moment, clock + minutes)
+        } else {
+            following_day(at_clock(moment, clock + minutes - 1440))
+        }
+    } else if minutes <= clock {
+        at_clock(moment, clock - minutes)
+    } else {
+        previous_day(at_clock(moment, clock + 1440 - minutes))
+    }
+}
+/// The instant of a time instant on its time line, without a time zone: the
+/// time in UTC for one with a time zone, and the time as written otherwise.
+pub fn instant(moment: &Moment) -> Moment {
+    let copy = Moment {
+        negative: moment.negative,
+        year: copy_span(&moment.year, 0, moment.year.len(), Vec::new()),
+        month: moment.month,
+        day: moment.day,
+        hour: moment.hour,
+        minute: moment.minute,
+        second: moment.second,
+        fraction: copy_span(&moment.fraction, 0, moment.fraction.len(), Vec::new()),
+        zone: None,
+    };
+    match &moment.zone {
+        Some((west, hours, minutes)) => {
+            shifted(copy, *west, (*hours as u16) * 60 + (*minutes as u16))
+        }
+        None => copy,
+    }
+}
+/// Whether the moment has a time zone.
+pub fn zoned(moment: &Moment) -> bool {
+    match &moment.zone {
+        Some(_) => true,
+        None => false,
+    }
+}
+/// The first order when it decides, and the second otherwise: 0 before, 1
+/// the same, 2 after.
+fn then(first: u8, second: u8) -> u8 {
+    if first == 1 {
+        second
+    } else {
+        first
+    }
+}
+/// The order of two small numbers.
+fn small_order(left: u8, right: u8) -> u8 {
+    if left < right {
+        0
+    } else if right < left {
+        2
+    } else {
+        1
+    }
+}
+/// The order of two signed years written without leading zeros.
+fn year_order(left_negative: bool, left: &Vec<u8>, right_negative: bool, right: &Vec<u8>) -> u8 {
+    if left_negative {
+        if right_negative {
+            2 - compare_naturals(left, right)
+        } else {
+            0
+        }
+    } else if right_negative {
+        2
+    } else {
+        compare_naturals(left, right)
+    }
+}
+/// The digit of a fraction at `index`, and 0 past its end.
+fn fraction_digit(fraction: &Vec<u8>, index: usize) -> u8 {
+    if index < fraction.len() {
+        fraction[index]
+    } else {
+        48
+    }
+}
+/// The order of two fractions of a second from the digit `index` on.
+fn fraction_order(left: &Vec<u8>, right: &Vec<u8>, index: usize) -> u8 {
+    if (index < left.len()) | (index < right.len()) {
+        then(
+            small_order(fraction_digit(left, index), fraction_digit(right, index)),
+            fraction_order(left, right, index + 1),
+        )
+    } else {
+        1
+    }
+}
+/// The order of two instants on a time line: 0 before, 1 the same, 2 after.
+pub fn instant_order(left: &Moment, right: &Moment) -> u8 {
+    then(
+        year_order(left.negative, &left.year, right.negative, &right.year),
+        then(
+            small_order(left.month, right.month),
+            then(
+                small_order(left.day, right.day),
+                then(
+                    small_order(left.hour, right.hour),
+                    then(
+                        small_order(left.minute, right.minute),
+                        then(
+                            small_order(left.second, right.second),
+                            fraction_order(&left.fraction, &right.fraction, 0),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
 }
 /// The value of a moment as written: itself when its time is on the clock,
 /// the first instant of the next day for `24:00:00`, and `None` otherwise.

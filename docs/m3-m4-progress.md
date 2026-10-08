@@ -7067,3 +7067,92 @@ and 35 in the new module `Rowl.DataEdges`) and 42 definitions, and removes the
 8 theorems and 3 definitions of the old room. Totals are 6043 audited
 theorems, 2003 definitions, 689 Rust regressions, 24 Python binding tests and
 6236 ledger obligations.
+
+## Range facets on time instants
+
+`xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
+`xsd:maxExclusive` now restrict `xsd:dateTime` and `xsd:dateTimeStamp`. Of the
+facets, the length facets, `xsd:pattern` and `rdf:langRange` remain.
+
+Specification. `Rowl.DatatypeMap` places each moment on the time line: the
+seconds since the first instant of year 1 in the proleptic Gregorian calendar,
+less its offset (`Moment.key`, with `daysBefore` for the days of the months
+before its own). `Moment.Lt` is the order of XML Schema 1.1 §D.2.1: by the
+places when both moments or neither have a time zone, and otherwise only when
+the comparison holds for every offset from -14:00 to +14:00 that the one
+without a time zone could have, fourteen hours either way. `Moment.Same` holds
+of one place with both or neither zoned, so one place at two offsets is equal
+but two values, and `Moment.Le` is either. The facet spaces of the two
+datatypes are the range facets with a time instant as bound
+(`datetime_facets`, `stamp_facets`), and a facet value is the set of instants
+on the bound's side, one set for every datatype as for the numbers, so a bound
+of another datatype leaves no values. The model map satisfies the new laws
+(`model_moment_facet`).
+
+Order. `Rowl.TimeOrder` proves the calendar: day numbers grow with the dates
+and tell them apart (`dayNumber_lt_iff`, `dayNumber_injective`), so places
+order the moments of one offset lexicographically (`key_lt_iff`) and fix a
+moment with its offset (`key_injective`). A moment moved on the clock by up to
+a day keeps its place less the minutes moved (`shiftBy`, `key_shiftBy`), and
+the moments with a time zone at the place of one without a time zone are
+1681, one for each offset (`zonedAt_card`). In the kernel,
+`moments::instant` moves a time stamp to the instant without a time zone at
+its place, carrying over the day, month and year boundaries and leap years
+(`instant_spec`, with `following_day_spec`, `previous_day_spec`,
+`previous_year_spec`), `moments::shifted` moves an instant by up to fourteen
+hours (`shifted_spec`), and `moments::instant_order` compares two instants by
+year, month, day, hour, minute, second and the digits of the fraction
+(`instant_order_spec`, `key_lex`).
+
+Encoding. Each range facet with a time instant as bound becomes cuts of the
+two time lines (`time_facet_cuts`): at its place on the bound's own line,
+closed or open as the facet says, and fourteen hours past it on the other
+line, an open cut for a lower bound and the complement of a closed one for an
+upper bound. Each cut gets a class (`timeClass`) of the instants of its line
+past it, or at or past it when it is closed (`InTimeCut`), and a facet becomes
+the union of its parts on the two lines (`time_facet_class_meaning`). The
+kernel adds (`time_axioms`) each cut's class inside the class of its line,
+the time stamps or the instants of `xsd:dateTime` outside them, the class of
+each cut inside the class of every cut of the line that holds all of it
+(`CutWithin`), each literal time instant in exactly the classes of the cuts of
+its line that it is in (`time_memberships`), and, for a closed and an open cut
+of a line at one place, an axiom on the instants of the line there that are
+no literal values, counted exactly (`free_point_card`): with none, the class
+of the place holds only at its literal values' individuals; with fewer than
+the capacity, at most that many nodes of the place are along `U` at any
+element (`PointFact`, `point_axiom_spec`, `TimeFacts`). The roles of the data
+properties are below `U` whenever time stamps are in use (`BoundsRuns`).
+
+Values. A range frame now carries the time instants of the model by their
+moments (`MomentAt`), as it carries the reals, since a model has instants with
+years too long for any kernel moment; a literal time instant is the value of
+its moment (`momentLits`).
+
+Proofs. An OWL model lifts as before: a node is in a time cut's class exactly
+when it is an instant of the cut's line in the cut, and the axiom on a place
+counts its instants (`lifted_times`). From a model of the encoding, each time
+node gets the instants of its line that are in exactly the cuts whose classes
+hold there and are no literal values (`timeSlot`). The cut classes of a node
+are ordered, those that hold before those that do not (`held_before`), so the
+slot is the instants between the highest held cut and the lowest failed one
+(`slot_iff`): infinitely many, found a little past the highest held cut within
+its minute or in the years before the lowest failed one (`secondsAfter`,
+`yearBefore`), or the instants at the place of a closed and an open cut
+(`moment_cases`), where an unnamed node finds instants of its own
+(`moment_free_pos`) with room for its peers by the axiom on the place or by
+the capacity (`moment_peers_bound`). Nodes whose slots share an instant share
+the slot (`moment_coherent`), so values stay one to one.
+
+The regressions check the kernel's instants and their order across offsets,
+midnight, the end of a year, leap days, long years, years before the common
+era, fractions of a second and `24:00:00`, and in the queries the order of
+the facets across offsets and lines, the fourteen hours between the lines, a
+bound of another datatype leaving no values, the time stamps of a range, the
+one value at a place without a time zone and the several at one with a time
+zone, the instants between two places, an empty range, and subsumption and
+instances along the facets.
+
+This block adds 176 public theorems (64 in the new module `Rowl.TimeOrder`
+and 21 in the new module `Rowl.DataTimes`) and 57 definitions. Totals are
+6219 audited theorems, 2060 definitions, 694 Rust regressions, 24 Python
+binding tests and 6412 ledger obligations.

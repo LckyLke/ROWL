@@ -191,6 +191,7 @@ import Rowl.DatatypeMap
 import Rowl.Numbers
 import Rowl.Strings
 import Rowl.Moments
+import Rowl.TimeOrder
 import Rowl.Floats
 import Rowl.FloatOrder
 import Rowl.Datatypes
@@ -200,6 +201,7 @@ import Rowl.DataMeaning
 import Rowl.DataAxioms
 import Rowl.DataRegions
 import Rowl.DataEdges
+import Rowl.DataTimes
 import Rowl.DataReals
 import Rowl.DataStructure
 import Rowl.DataComplete

@@ -243,15 +243,170 @@ fn time_instants_are_reasoned_about_by_value() {
         consistent("SubClassOf(:Stay DataMinCardinality(3 :visit DataIntersectionOf(xsd:dateTime DataComplementOf(xsd:dateTimeStamp))))\nClassAssertion(:Stay :s)"),
         Some(true)
     );
-    // Restrictions of time instants by facets, and literals outside the
-    // lexical space, get no answer.
-    assert_eq!(
-        consistent("DataPropertyRange(:admitted DatatypeRestriction(xsd:dateTime xsd:minInclusive \"2000-01-01T00:00:00Z\"^^xsd:dateTime))"),
-        None
-    );
+    // Literals outside the lexical space get no answer.
     assert_eq!(
         consistent("DataPropertyAssertion(:admitted :a \"2023-02-29T00:00:00Z\"^^xsd:dateTime)"),
         None
+    );
+}
+
+/// A time instant of `xsd:dateTime`.
+fn at(lexical: &str) -> String {
+    format!("\"{lexical}\"^^xsd:dateTime")
+}
+
+/// A restriction of `xsd:dateTime` by one facet.
+fn times(facet: &str, bound: &str) -> String {
+    format!(
+        "DatatypeRestriction(xsd:dateTime xsd:{facet} {})",
+        at(bound)
+    )
+}
+
+#[test]
+fn time_ranges_follow_the_order_of_xml_schema() {
+    // OWL 2 Structural Specification, section 4.7: instants are compared on
+    // the time line, whatever their time zone offsets.
+    let since = times("minInclusive", "1956-01-01T04:00:00-05:00");
+    assert_eq!(dose_in(&since, &at("1956-01-01T10:00:00Z")), Some(true));
+    assert_eq!(dose_in(&since, &at("1956-01-01T09:00:00Z")), Some(true));
+    assert_eq!(dose_in(&since, &at("1956-01-01T08:59:59.5Z")), Some(false));
+    assert_eq!(
+        dose_in(&since, &at("1956-01-01T10:00:00+01:00")),
+        Some(true)
+    );
+    // An instant without a time zone is after one with a time zone only when
+    // it is so even at +14:00, so the example's instant is not in the range.
+    assert_eq!(dose_in(&since, &at("1956-01-01T10:00:00")), Some(false));
+    assert_eq!(dose_in(&since, &at("1956-01-01T23:00:00")), Some(false));
+    assert_eq!(dose_in(&since, &at("1956-01-01T23:00:00.001")), Some(true));
+    let until = times("maxExclusive", "2020-01-01T12:00:00");
+    assert_eq!(dose_in(&until, &at("2020-01-01T11:59:59")), Some(true));
+    assert_eq!(dose_in(&until, &at("2020-01-01T12:00:00")), Some(false));
+    assert_eq!(dose_in(&until, &at("2019-12-31T22:00:00Z")), Some(false));
+    assert_eq!(dose_in(&until, &at("2019-12-31T21:59:59Z")), Some(true));
+    assert_eq!(
+        dose_in(&until, &at("2020-01-01T11:59:59+14:00")),
+        Some(true)
+    );
+    // The day before and after the bound, across a year and a leap day.
+    let leap = times("minExclusive", "2024-02-28T23:30:00-01:00");
+    assert_eq!(dose_in(&leap, &at("2024-02-29T00:30:00Z")), Some(false));
+    assert_eq!(dose_in(&leap, &at("2024-02-29T00:30:01Z")), Some(true));
+    assert_eq!(dose_in(&leap, &at("2024-02-29T14:30:00")), Some(false));
+    assert_eq!(dose_in(&leap, &at("2024-02-29T14:30:01")), Some(true));
+    let new_year = times("maxInclusive", "0000-01-01T05:00:00+06:00");
+    assert_eq!(dose_in(&new_year, &at("-0001-12-31T23:00:00Z")), Some(true));
+    assert_eq!(
+        dose_in(&new_year, &at("-0001-12-31T23:00:01Z")),
+        Some(false)
+    );
+    assert_eq!(dose_in(&new_year, &at("-0001-12-31T08:59:59")), Some(true));
+    assert_eq!(dose_in(&new_year, &at("-0001-12-31T09:00:00")), Some(false));
+    // Bounds of other datatypes leave no values.
+    assert_eq!(
+        doses_in(
+            1,
+            "DatatypeRestriction(xsd:dateTime xsd:minInclusive \"1\"^^xsd:integer)"
+        ),
+        Some(false)
+    );
+    assert_eq!(
+        doses_in(
+            1,
+            &format!(
+                "DatatypeRestriction(xsd:integer xsd:minInclusive {})",
+                at("2020-01-01T00:00:00Z")
+            )
+        ),
+        Some(false)
+    );
+    // A time stamp range holds only instants with a time zone.
+    let stamps = format!(
+        "DatatypeRestriction(xsd:dateTimeStamp xsd:minInclusive {})",
+        at("2020-01-01T00:00:00")
+    );
+    assert_eq!(dose_in(&stamps, &at("2020-01-02T00:00:00")), Some(false));
+    assert_eq!(dose_in(&stamps, &at("2020-01-01T14:00:00Z")), Some(false));
+    assert_eq!(dose_in(&stamps, &at("2020-01-01T14:00:01Z")), Some(true));
+}
+
+#[test]
+fn time_ranges_count_their_values() {
+    // One instant without a time zone is one value.
+    let noon = format!(
+        "DatatypeRestriction(xsd:dateTime xsd:minInclusive {} xsd:maxInclusive {})",
+        at("2020-01-01T12:00:00"),
+        at("2020-01-01T12:00:00")
+    );
+    assert_eq!(doses_in(1, &noon), Some(true));
+    assert_eq!(doses_in(2, &noon), Some(false));
+    assert_eq!(
+        consistent(&format!(
+            "SubClassOf(:A DataMinCardinality(1 :dose {noon}))\nClassAssertion(:A :a)\nFunctionalDataProperty(:dose)\nDataPropertyAssertion(:dose :a {})",
+            at("2020-01-01T12:00:00")
+        )),
+        Some(true)
+    );
+    // One instant with a time zone is one value for each of 1681 offsets.
+    let instant = format!(
+        "DatatypeRestriction(xsd:dateTime xsd:minInclusive {} xsd:maxInclusive {})",
+        at("2020-01-01T12:00:00Z"),
+        at("2020-01-01T12:00:00Z")
+    );
+    assert_eq!(doses_in(3, &instant), Some(true));
+    assert_eq!(
+        consistent(&format!(
+            "SubClassOf(:A DataMinCardinality(2 :dose {instant}))\nClassAssertion(:A :a)\nDataPropertyAssertion(:dose :a {})\nDataPropertyAssertion(:dose :a {})",
+            at("2020-01-01T13:00:00+01:00"),
+            at("2020-01-01T11:00:00-01:00")
+        )),
+        Some(true)
+    );
+    // Between two instants there are infinitely many.
+    let minute = format!(
+        "DatatypeRestriction(xsd:dateTime xsd:minExclusive {} xsd:maxExclusive {})",
+        at("2020-01-01T12:00:00"),
+        at("2020-01-01T12:00:01")
+    );
+    assert_eq!(doses_in(5, &minute), Some(true));
+    // An empty range: after the instant and not after it.
+    let empty = format!(
+        "DatatypeRestriction(xsd:dateTime xsd:minExclusive {} xsd:maxInclusive {})",
+        at("2020-01-01T12:00:00Z"),
+        at("2020-01-01T12:00:00Z")
+    );
+    assert_eq!(doses_in(1, &empty), Some(false));
+}
+
+#[test]
+fn subsumption_follows_time_ranges() {
+    let text = "Prefix(:=<https://example.org/d/>)
+Ontology(<https://example.org/d/onto>
+EquivalentClasses(:Recent DataSomeValuesFrom(:admitted DatatypeRestriction(xsd:dateTime xsd:minInclusive \"2021-01-01T00:00:00Z\"^^xsd:dateTime)))
+EquivalentClasses(:Modern DataSomeValuesFrom(:admitted DatatypeRestriction(xsd:dateTime xsd:minInclusive \"2020-01-01T00:00:00Z\"^^xsd:dateTime)))
+DataPropertyAssertion(:admitted :a \"2021-06-01T08:30:00+02:00\"^^xsd:dateTime)
+DataPropertyAssertion(:admitted :b \"2020-06-01T08:30:00\"^^xsd:dateTime)
+)
+";
+    let Ok(reasoner) = Reasoner::from_functional(text.as_bytes(), &default_limits()) else {
+        panic!("the document must load");
+    };
+    let recent = rowl::reasoner::named("https://example.org/d/Recent");
+    let modern = rowl::reasoner::named("https://example.org/d/Modern");
+    assert_eq!(reasoner.subsumed(&recent, &modern), Some(true));
+    assert_eq!(reasoner.subsumed(&modern, &recent), Some(false));
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/a", &recent),
+        Some(true)
+    );
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/b", &modern),
+        Some(true)
+    );
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/b", &recent),
+        Some(false)
     );
 }
 

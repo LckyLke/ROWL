@@ -92,7 +92,7 @@ use crate::alc_ontology::{intern, position};
 use crate::concepts::copy_individual;
 use crate::datatypes::{
     facet_of, in_kind, kind_of, literal_value, lower_bound, numeric, same_value, upper_bound,
-    Binary, DataValue, Facet, Kind,
+    Binary, DataValue, Facet, Kind, Moment,
 };
 use crate::floats;
 use crate::key_ontology;
@@ -101,6 +101,7 @@ use crate::model::{
     FacetRestriction, Individual, Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty,
     ObjectPropertyExpression, SubObjectPropertyExpression,
 };
+use crate::moments::{instant, instant_order, shifted, zoned};
 use crate::nnf::copy_bytes;
 use crate::probes::Natural;
 use crate::regions::{
@@ -134,12 +135,22 @@ pub struct Kinds {
     pub float: bool,
     pub ordered: bool,
 }
+/// A cut of a time line: the time instants with a time zone (`zoned`) or
+/// without one whose instant on their line comes after `instant`, or at it
+/// when not `open`.
+pub struct TimeCut {
+    pub zoned: bool,
+    pub instant: Moment,
+    pub open: bool,
+}
+
 /// What the encoding of a closure and its questions knows: the distinct
 /// literal values, the datatypes in use, the named object properties other than
 /// the universal role, the data properties other than the top and bottom
 /// ones, the cuts of the numbers that facets, bounds of datatypes and
-/// literal values make, and the edges that facets make among the places of
-/// the values of `xsd:double` and of `xsd:float`.
+/// literal values make, the edges that facets make among the places of
+/// the values of `xsd:double` and of `xsd:float`, and the cuts that facets
+/// make on the time lines of the time instants with and without a time zone.
 pub struct Context {
     pub values: Vec<DataValue>,
     pub kinds: Kinds,
@@ -148,6 +159,7 @@ pub struct Context {
     pub cuts: Vec<Cut>,
     pub double_edges: Vec<u128>,
     pub float_edges: Vec<u128>,
+    pub times: Vec<TimeCut>,
 }
 
 fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
@@ -353,6 +365,10 @@ fn cut_class(index: usize) -> ClassExpression {
 }
 /// The class `F` of the values of `xsd:double` (`double`) or `xsd:float` at
 /// or above the edge at `index`.
+/// The class of the values of the time cut at `index`.
+fn time_class(index: usize) -> ClassExpression {
+    class_named(tagged_name(b'T', bytes(index, 0, Vec::new())))
+}
 fn edge_class(double: bool, index: usize) -> ClassExpression {
     let mut rest = Vec::new();
     rest.push(if double { 1 } else { 0 });
@@ -793,6 +809,125 @@ fn edges_context(context: Context, restrictions: &Vec<FacetRestriction>, index: 
         context
     }
 }
+/// Whether the time cut is on the line `zoned` at `instant` on the side
+/// `open`.
+fn same_time_cut(cut: &TimeCut, zoned: bool, instant: &Moment, open: bool) -> bool {
+    (cut.zoned == zoned) & (cut.open == open) & (instant_order(&cut.instant, instant) == 1)
+}
+/// The index of the time cut on the line `zoned` at `instant` on the side
+/// `open` in `times[index..]`.
+fn time_cut_index(
+    times: &Vec<TimeCut>,
+    zoned: bool,
+    instant: &Moment,
+    open: bool,
+    index: usize,
+) -> Option<usize> {
+    if index < times.len() {
+        if same_time_cut(&times[index], zoned, instant, open) {
+            Some(index)
+        } else {
+            time_cut_index(times, zoned, instant, open, index + 1)
+        }
+    } else {
+        None
+    }
+}
+/// `times` with the time cut, once.
+fn add_time_cut(mut times: Vec<TimeCut>, zoned: bool, instant: Moment, open: bool) -> Vec<TimeCut> {
+    match time_cut_index(&times, zoned, &instant, open, 0) {
+        Some(_) => times,
+        None => {
+            if times.len() < usize::MAX {
+                times.push(TimeCut {
+                    zoned,
+                    instant,
+                    open,
+                });
+            }
+            times
+        }
+    }
+}
+/// `times` with the cuts of a range facet with a time instant as bound: on
+/// the bound's own line at its instant, and on the other line fourteen hours
+/// after it for a lower bound and before it for an upper bound, since a time
+/// instant is only before or after one of the other line when it is so for
+/// every time zone offset (XML Schema 1.1 Part 2 §D.2.1).
+fn time_facet_cuts(times: Vec<TimeCut>, facet: Facet, bound: &Moment) -> Vec<TimeCut> {
+    let line = zoned(bound);
+    match facet {
+        Facet::MinInclusive => add_time_cut(
+            add_time_cut(times, line, instant(bound), false),
+            !line,
+            shifted(instant(bound), true, 840),
+            true,
+        ),
+        Facet::MinExclusive => add_time_cut(
+            add_time_cut(times, line, instant(bound), true),
+            !line,
+            shifted(instant(bound), true, 840),
+            true,
+        ),
+        Facet::MaxInclusive => add_time_cut(
+            add_time_cut(times, line, instant(bound), true),
+            !line,
+            shifted(instant(bound), false, 840),
+            false,
+        ),
+        Facet::MaxExclusive => add_time_cut(
+            add_time_cut(times, line, instant(bound), false),
+            !line,
+            shifted(instant(bound), false, 840),
+            false,
+        ),
+    }
+}
+/// The context with the time cuts of a range facet with a time instant as
+/// bound.
+fn time_context(mut context: Context, restriction: &FacetRestriction) -> Context {
+    match (
+        facet_of(&restriction.facet),
+        literal_value(&restriction.value),
+    ) {
+        (Some(facet), Some(DataValue::Moment(bound))) => {
+            if bounded_year(&bound) {
+                context.times = time_facet_cuts(context.times, facet, &bound);
+            }
+            context
+        }
+        _ => context,
+    }
+}
+/// The context with the time cuts of the facet restrictions
+/// `restrictions[index..]`.
+fn times_context(context: Context, restrictions: &Vec<FacetRestriction>, index: usize) -> Context {
+    if index < restrictions.len() {
+        times_context(
+            time_context(context, &restrictions[index]),
+            restrictions,
+            index + 1,
+        )
+    } else {
+        context
+    }
+}
+/// Whether the kind is `xsd:dateTime` or `xsd:dateTimeStamp`.
+fn time_kind(kind: Kind) -> bool {
+    match kind {
+        Kind::DateTime => true,
+        Kind::DateTimeStamp => true,
+        _ => false,
+    }
+}
+/// The kinds with the time stamps in use, whose class tells the two time
+/// lines apart.
+fn with_stamps(kinds: Kinds) -> Kinds {
+    Kinds {
+        stamp: true,
+        ..kinds
+    }
+}
 /// Whether the kind is `xsd:double` or `xsd:float`.
 fn binary_kind(kind: Kind) -> bool {
     match kind {
@@ -835,6 +970,11 @@ fn range_context(mut context: Context, range: &DataRange) -> Context {
                     let context = kind_context(context, kind);
                     let context = edge_context(context, &restrictions.first);
                     edges_context(context, &restrictions.rest, 0)
+                } else if time_kind(kind) {
+                    context.kinds = with_stamps(context.kinds);
+                    let context = kind_context(context, kind);
+                    let context = time_context(context, &restrictions.first);
+                    times_context(context, &restrictions.rest, 0)
                 } else {
                     context.kinds = with_order(context.kinds);
                     let context = kind_context(context, kind);
@@ -1010,6 +1150,7 @@ fn closure_context(items: &Vec<AnnotatedAxiom>) -> Context {
             cuts: Vec::new(),
             double_edges: Vec::new(),
             float_edges: Vec::new(),
+            times: Vec::new(),
         },
         items,
         0,
@@ -1334,11 +1475,105 @@ fn binary_facet_class(
         }
     }
 }
+/// The class of the values of a time line: the time stamps, or the time
+/// instants without a time zone.
+fn time_line(zoned: bool) -> ClassExpression {
+    if zoned {
+        kind_class(Kind::DateTimeStamp)
+    } else {
+        and(
+            kind_class(Kind::DateTime),
+            not(kind_class(Kind::DateTimeStamp)),
+        )
+    }
+}
+/// The class of the values of a time line in a time cut of the context, or
+/// outside it when not `inside`.
+fn time_part(
+    context: &Context,
+    zoned: bool,
+    instant: &Moment,
+    open: bool,
+    inside: bool,
+) -> Option<ClassExpression> {
+    match time_cut_index(&context.times, zoned, instant, open, 0) {
+        Some(index) => {
+            if inside {
+                Some(and(time_line(zoned), time_class(index)))
+            } else {
+                Some(and(time_line(zoned), not(time_class(index))))
+            }
+        }
+        None => None,
+    }
+}
+/// The part of a range facet with a time instant as bound on the bound's own
+/// line: at or after its instant, after it, at or before it, or before it.
+fn same_line_part(context: &Context, facet: Facet, bound: &Moment) -> Option<ClassExpression> {
+    let line = zoned(bound);
+    match facet {
+        Facet::MinInclusive => time_part(context, line, &instant(bound), false, true),
+        Facet::MinExclusive => time_part(context, line, &instant(bound), true, true),
+        Facet::MaxInclusive => time_part(context, line, &instant(bound), true, false),
+        Facet::MaxExclusive => time_part(context, line, &instant(bound), false, false),
+    }
+}
+/// The part of a range facet with a time instant as bound on the other line:
+/// more than fourteen hours after its instant for a lower bound, and more than
+/// fourteen hours before it for an upper bound.
+fn other_line_part(context: &Context, facet: Facet, bound: &Moment) -> Option<ClassExpression> {
+    let line = zoned(bound);
+    match facet {
+        Facet::MinInclusive => time_part(
+            context,
+            !line,
+            &shifted(instant(bound), true, 840),
+            true,
+            true,
+        ),
+        Facet::MinExclusive => time_part(
+            context,
+            !line,
+            &shifted(instant(bound), true, 840),
+            true,
+            true,
+        ),
+        Facet::MaxInclusive => time_part(
+            context,
+            !line,
+            &shifted(instant(bound), false, 840),
+            false,
+            false,
+        ),
+        Facet::MaxExclusive => time_part(
+            context,
+            !line,
+            &shifted(instant(bound), false, 840),
+            false,
+            false,
+        ),
+    }
+}
+/// The class expression of a range facet with a time instant as bound on the
+/// time instants: its parts on both lines.
+fn time_facet_class(context: &Context, facet: Facet, bound: &Moment) -> Option<ClassExpression> {
+    if bounded_year(bound) {
+        match (
+            same_line_part(context, facet, bound),
+            other_line_part(context, facet, bound),
+        ) {
+            (Some(same), Some(other)) => Some(or(same, other)),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
 /// The class expression of a facet restriction on the values of a kind: a
 /// range facet with a numeric bound, whose cut is in the context, on a
-/// numeric kind, or with a bound of `xsd:double` or `xsd:float` on that
-/// format; a range facet whose bound is of another of these datatypes has no
-/// values in the kind.
+/// numeric kind, with a bound of `xsd:double` or `xsd:float` on that format,
+/// or with a time instant as bound on the time instants; a range facet whose
+/// bound is of another of these datatypes has no values in the kind.
 fn facet_class(
     context: &Context,
     kind: Kind,
@@ -1355,6 +1590,11 @@ fn facet_class(
             },
             DataValue::Float(bound) => match kind {
                 Kind::Float => binary_facet_class(context, false, facet, &bound),
+                _ => Some(nothing()),
+            },
+            DataValue::Moment(bound) => match kind {
+                Kind::DateTime => time_facet_class(context, facet, &bound),
+                Kind::DateTimeStamp => time_facet_class(context, facet, &bound),
                 _ => Some(nothing()),
             },
             _ => {
@@ -1398,14 +1638,14 @@ fn facet_classes(
         Some(out)
     }
 }
-/// The class expression of a datatype restriction of a numeric datatype, or
-/// of `xsd:double` or `xsd:float`.
+/// The class expression of a datatype restriction of a numeric datatype, of
+/// `xsd:double` or `xsd:float`, or of `xsd:dateTime` or `xsd:dateTimeStamp`.
 fn restriction_range(
     context: &Context,
     kind: Kind,
     restrictions: &NonEmpty<FacetRestriction>,
 ) -> Option<ClassExpression> {
-    if (numeric_kind(kind) & context.kinds.ordered) | binary_kind(kind) {
+    if (numeric_kind(kind) & context.kinds.ordered) | binary_kind(kind) | time_kind(kind) {
         match (
             kind_range(context, kind),
             facet_class(context, kind, &restrictions.first),
@@ -2990,6 +3230,51 @@ fn edge_memberships(
         Some(out)
     }
 }
+/// Whether a literal value is a time instant on the line `line`.
+fn on_line(value: &DataValue, line: bool) -> bool {
+    match value {
+        DataValue::Moment(moment) => zoned(moment) == line,
+        _ => false,
+    }
+}
+/// Whether a literal value is a time instant in the time cut: after its
+/// instant, or at it when the cut is not open.
+fn in_time_cut(cut: &TimeCut, value: &DataValue) -> bool {
+    match value {
+        DataValue::Moment(moment) => {
+            let order = instant_order(&instant(moment), &cut.instant);
+            (order == 2) | ((order == 1) & !cut.open)
+        }
+        _ => false,
+    }
+}
+/// `out` with the literal value at `index`, when it is a time instant, in the
+/// class of every time cut of its line from `cut` on that it is in, and
+/// outside the others of its line.
+fn time_memberships(
+    context: &Context,
+    index: usize,
+    cut: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (index < context.values.len()) & (cut < context.times.len()) {
+        if on_line(&context.values[index], context.times[cut].zoned) {
+            match member(
+                time_class(cut),
+                in_time_cut(&context.times[cut], &context.values[index]),
+                value_individual(index),
+                out,
+            ) {
+                Some(out) => time_memberships(context, index, cut + 1, out),
+                None => None,
+            }
+        } else {
+            time_memberships(context, index, cut + 1, out)
+        }
+    } else {
+        Some(out)
+    }
+}
 /// `out` with the classes of the literal values from `index` on: `D`, each
 /// kind class in use or its complement, the classes of the numbers at and
 /// above a numeric value, the classes of the edges at and below the place of
@@ -3069,6 +3354,10 @@ fn value_axioms(
             None => return None,
         };
         let out = match edge_memberships(context, false, index, 0, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match time_memberships(context, index, 0, out) {
             Some(out) => out,
             None => return None,
         };
@@ -3328,12 +3617,20 @@ fn least_axiom(order: &Vec<usize>, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annot
         Some(out)
     }
 }
-/// Whether a literal value is no number or a number short enough to compare.
+/// Whether the year of a time instant is short enough to move by a few days.
+fn bounded_year(moment: &Moment) -> bool {
+    moment.year.len() < usize::MAX / 16
+}
+/// Whether a literal value is no number or a number short enough to compare,
+/// and no time instant or one whose year is short enough to move.
 fn value_fits(value: &DataValue) -> bool {
     if numeric(value) {
         fits(value)
     } else {
-        true
+        match value {
+            DataValue::Moment(moment) => bounded_year(moment),
+            _ => true,
+        }
     }
 }
 /// Whether every literal value of `values[index..]` is no number or a number
@@ -3356,9 +3653,9 @@ fn encodable(context: &Context) -> bool {
 }
 /// Whether the encoding bounds the data nodes of an element along `U`: the
 /// integers are in use while numbers are ordered, or floating-point numbers
-/// are in use.
+/// or time stamps are in use.
 fn bounds_runs(kinds: &Kinds) -> bool {
-    (kinds.ordered & kinds.integer) | kinds.double | kinds.float
+    (kinds.ordered & kinds.integer) | kinds.double | kinds.float | kinds.stamp
 }
 /// `out` with the axioms of the ordered numbers, when numbers are ordered: the
 /// first cut inside the reals and the chain of the cuts; and every data
@@ -3772,6 +4069,204 @@ fn binary_axioms(
         Some(out)
     }
 }
+/// The number of the values of a time line at one instant: one for each time
+/// zone offset from -14:00 to +14:00 in minutes with a time zone, and one
+/// without.
+fn point_size(zoned: bool) -> usize {
+    if zoned {
+        1681
+    } else {
+        1
+    }
+}
+/// Whether a literal value is a time instant of the line `line` at the
+/// instant `point`.
+fn at_point(value: &DataValue, line: bool, point: &Moment) -> bool {
+    match value {
+        DataValue::Moment(moment) => {
+            (zoned(moment) == line) & (instant_order(&instant(moment), point) == 1)
+        }
+        _ => false,
+    }
+}
+/// `found` with the individuals of the literal values of `values[index..]`
+/// of the line at the instant.
+fn point_literals(
+    context: &Context,
+    line: bool,
+    point: &Moment,
+    index: usize,
+    found: Option<NonEmpty<Individual>>,
+) -> Option<NonEmpty<Individual>> {
+    if index < context.values.len() {
+        if at_point(&context.values[index], line, point) {
+            point_literals(
+                context,
+                line,
+                point,
+                index + 1,
+                add_named(found, value_individual(index)),
+            )
+        } else {
+            point_literals(context, line, point, index + 1, found)
+        }
+    } else {
+        found
+    }
+}
+/// `count` plus the number of the literal values of `values[index..]` of the
+/// line at the instant.
+fn point_count(context: &Context, line: bool, point: &Moment, index: usize, count: usize) -> usize {
+    if index < context.values.len() {
+        if at_point(&context.values[index], line, point) & (count < usize::MAX) {
+            point_count(context, line, point, index + 1, count + 1)
+        } else {
+            point_count(context, line, point, index + 1, count)
+        }
+    } else {
+        count
+    }
+}
+/// The class of the values at the instant of the time cuts at `closed`, the
+/// cut at the instant, and `open`, the cut after it.
+fn point_class(closed: usize, open: usize) -> ClassExpression {
+    and(time_class(closed), not(time_class(open)))
+}
+/// `out` with the axiom on the values of the line at the instant of the time
+/// cuts at `closed` and `open` that are no literal values: none of them when
+/// there are none, and at most their number at any element along `U` when
+/// there are fewer than `capacity`.
+fn point_axiom(
+    context: &Context,
+    line: bool,
+    closed: usize,
+    open: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if closed < context.times.len() {
+        let point = &context.times[closed].instant;
+        let size = point_size(line);
+        let named = point_count(context, line, point, 0, 0);
+        let free = if named <= size { size - named } else { 0 };
+        let found = point_literals(context, line, point, 0, None);
+        if free == 0 {
+            match found {
+                None => push(
+                    out,
+                    Axiom::SubClassOf(point_class(closed, open), not(point_class(closed, open))),
+                ),
+                Some(list) => push(
+                    out,
+                    Axiom::SubClassOf(
+                        point_class(closed, open),
+                        ClassExpression::ObjectOneOf(list),
+                    ),
+                ),
+            }
+        } else if free < capacity {
+            let filler = match found {
+                None => point_class(closed, open),
+                Some(list) => and(
+                    point_class(closed, open),
+                    not(ClassExpression::ObjectOneOf(list)),
+                ),
+            };
+            push(
+                out,
+                Axiom::SubClassOf(
+                    thing(),
+                    ClassExpression::ObjectMaxCardinality(
+                        natural_of(free),
+                        data_super(),
+                        Some(Box::new(filler)),
+                    ),
+                ),
+            )
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms between the time cuts at `first` and `second`: the
+/// class of the first inside the class of the second when the second comes
+/// before it on their line or is the same cut, and the axiom on the values at
+/// an instant when the first is the cut at the instant and the second the cut
+/// after it.
+fn time_pair_axioms(
+    context: &Context,
+    capacity: usize,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (first < context.times.len()) & (second < context.times.len()) {
+        let left = &context.times[first];
+        let right = &context.times[second];
+        if (left.zoned == right.zoned) & (first != second) {
+            let order = instant_order(&left.instant, &right.instant);
+            if (order == 2) | ((order == 1) & (left.open | !right.open)) {
+                push(
+                    out,
+                    Axiom::SubClassOf(time_class(first), time_class(second)),
+                )
+            } else if (order == 1) & !left.open & right.open {
+                point_axiom(context, left.zoned, first, second, capacity, out)
+            } else {
+                Some(out)
+            }
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms between the time cut at `first` and those of
+/// `times[second..]`.
+fn time_pairs(
+    context: &Context,
+    capacity: usize,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if second < context.times.len() {
+        match time_pair_axioms(context, capacity, first, second, out) {
+            Some(out) => time_pairs(context, capacity, first, second + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms of the time cuts of `times[index..]`: each cut's
+/// class inside the class of its line, and the axioms between it and every
+/// cut.
+fn time_axioms(
+    context: &Context,
+    capacity: usize,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if index < context.times.len() {
+        let out = match push(
+            out,
+            Axiom::SubClassOf(time_class(index), time_line(context.times[index].zoned)),
+        ) {
+            Some(out) => out,
+            None => return None,
+        };
+        match time_pairs(context, capacity, index, 0, out) {
+            Some(out) => time_axioms(context, capacity, index + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
 /// The encoding of a closure in the context: its axioms' encodings, then the
 /// axioms of the object and data properties, of the kinds, of the ordered
 /// numbers and of the literal values, and the further individual that is no
@@ -3810,6 +4305,10 @@ pub fn encode(
         None => return None,
     };
     let out = match binary_axioms(context, false, capacity, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match time_axioms(context, capacity, 0, out) {
         Some(out) => out,
         None => return None,
     };

@@ -336,7 +336,8 @@ properties:
 - **Keys:** `HasKey` with object and data properties: two named patients
   with the same `:ssn` value are the same patient.
 - **Not yet:** keys with data properties next to datatype restrictions,
-  subtypes of `xsd:integer` or floating-point numbers, `owl:topDataProperty`
+  subtypes of `xsd:integer`, floating-point numbers or range facets on time
+  instants, `owl:topDataProperty`
   other than as a superproperty, and a few corner cases that
   [docs/status.md](docs/status.md) lists. They are answered "unknown".
 
@@ -359,14 +360,20 @@ properties:
   `:age` a name for its data range, usable in data ranges like any datatype
   (but not restricted by facets), also in other definitions and in questions.
 - **Facets:** `xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
-  `xsd:maxExclusive` on the numeric datatypes and on `xsd:double` and
-  `xsd:float`. Numbers are compared exactly: `"8001/2"^^owl:rational` and
-  `"4000.5"^^xsd:decimal` are the same value. Floating-point numbers follow
-  XML Schema's order: `-0` and `+0` are equal there, so `xsd:double[>= 0]`
-  holds both zeros, NaN is comparable to nothing, and a range counts its
-  values exactly (one `xsd:float` lies strictly between `1` and `1.0000002`).
+  `xsd:maxExclusive` on the numeric datatypes, on `xsd:double` and
+  `xsd:float`, and on `xsd:dateTime` and `xsd:dateTimeStamp`. Numbers are
+  compared exactly: `"8001/2"^^owl:rational` and `"4000.5"^^xsd:decimal` are
+  the same value. Floating-point numbers follow XML Schema's order: `-0` and
+  `+0` are equal there, so `xsd:double[>= 0]` holds both zeros, NaN is
+  comparable to nothing, and a range counts its values exactly (one
+  `xsd:float` lies strictly between `1` and `1.0000002`). So do time instants:
+  an instant without a time zone comes after a time stamp only when it does
+  for every offset from -14:00 to +14:00, so
+  `xsd:dateTime[>= "2024-01-01T00:00:00Z"]` holds `2024-01-01T14:00:01` but
+  not `2024-01-01T13:59:59`, and the values at one instant are counted: one
+  for each offset from -14:00 to +14:00 with a time zone, and one without.
 - **Not yet:** `rdf:XMLLiteral`, and the other facets (such as `xsd:length`,
-  `xsd:pattern`, and facets on time instants).
+  `xsd:pattern` and `rdf:langRange`).
 
 ### Questions
 

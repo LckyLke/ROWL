@@ -37,7 +37,11 @@ of the datatype's value space). The values of `xsd:double` and `xsd:float`
 are those of their binary formats (`Binary`), each datatype apart from the
 reals and from the other; their range facets take a constraining value of the
 datatype and select its values on the facet's side in the order of XML Schema,
-in which the two zeros are equal and NaN is comparable to no value. `Normative`
+in which the two zeros are equal and NaN is comparable to no value. The range
+facets of `xsd:dateTime` and `xsd:dateTimeStamp` take a time instant and select
+the time instants on its side in the order of XML Schema: by their places on the
+time line (`Moment.key`), and between an instant with a time zone and one
+without only when that holds for every offset the latter could have. `Normative`
 says that a datatype map agrees with the OWL 2 datatype map on these datatypes
 and facets and leaves every other datatype open.
 -/
@@ -378,6 +382,36 @@ def nextDate (year : ℤ) (month day : ℕ) : ℤ × ℕ × ℕ :=
   if day < daysIn year month then (year, month, day + 1)
   else if month < 12 then (year, month + 1, 1) else (year + 1, 1, 1)
 
+/-- The days of the months of a year before a month. -/
+def daysBefore (year : ℤ) (month : ℕ) : ℕ := ((List.range (month - 1)).map fun k => daysIn year (k + 1)).sum
+
+/-- The place of a moment on the time line in seconds (XML Schema 1.1 Part 2
+    §E.3.4, ·timeOnTimeline·): the days of the years before its year in the
+    proleptic Gregorian calendar, of the months before its month and of the
+    days before its day, its time of the day, and its time zone offset taken
+    away; a moment without a time zone is placed as at UTC. -/
+def Moment.key (m : Moment) : ℚ :=
+  ((31536000 * (m.year - 1) + 86400 * ((m.year - 1) / 400 - (m.year - 1) / 100 + (m.year - 1) / 4) +
+    86400 * (daysBefore m.year m.month : ℤ) + 86400 * ((m.day : ℤ) - 1) + 3600 * (m.hour : ℤ) +
+    60 * ((m.minute : ℤ) - m.zone.getD 0) : ℤ) : ℚ) + m.second
+
+/-- `a` is before `b` in the order of XML Schema 1.1 (Part 2 §D.2.1, OWL 2
+    Structural Specification §4.7): by their places on the time line when both
+    have a time zone or neither has, and otherwise only when it is so for
+    every offset the one without a time zone could have, -14:00 to +14:00. -/
+def Moment.Lt (a b : Moment) : Prop :=
+  (a.zone.isSome = b.zone.isSome ∧ a.key < b.key) ∨
+    (a.zone.isSome = true ∧ b.zone = none ∧ a.key < b.key - 50400) ∨
+    (a.zone = none ∧ b.zone.isSome = true ∧ a.key + 50400 < b.key)
+
+/-- `a` and `b` are equal in the order of XML Schema: at one place on the time
+    line, both with a time zone or both without one. Equal values with
+    different offsets are still different values. -/
+def Moment.Same (a b : Moment) : Prop := a.zone.isSome = b.zone.isSome ∧ a.key = b.key
+
+/-- `a` is at or before `b`. -/
+def Moment.Le (a b : Moment) : Prop := a.Lt b ∨ a.Same b
+
 /-- `text` is a lexical form of `xsd:dateTime` for the moment `m` (XML Schema
     1.1 Part 2 §3.3.7): a year, `-`, a month, `-`, a day of the month, `T`, a
     time `hh:mm:ss` with an optional fraction `.d+` of a second, and an optional
@@ -520,7 +554,11 @@ def BinaryForm (f : FloatFormat) (text : List U8) (b : Binary) : Prop :=
     form; and the values of `xsd:dateTime` are the images of the valid moments,
     injectively and apart from every other value, those of
     `xsd:dateTimeStamp` the images of the moments with a time zone, and each
-    lexical form has the value of its moment; and the values of `xsd:double`
+    lexical form has the value of its moment, and their facet spaces are the
+    four range facets with a time instant as constraining value, one with a
+    time zone for `xsd:dateTimeStamp`, whose facet values are the time
+    instants on the facet's side of it in the order of XML Schema
+    (`Moment.Le`, `Moment.Lt`); and the values of `xsd:double`
     and `xsd:float` are the images of the values of their formats, injectively,
     the two datatypes apart from each other and from every other value
     (OWL 2 Structural Specification §4.2), each lexical form with the value
@@ -632,6 +670,17 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
   datetime_value : ∀ t m, MomentForm t m → D.lexicalValue dateTimeType t = moment m
   stamp_lexical : ∀ t, D.lexicalSpace dateTimeStampType t ↔ ∃ m, MomentForm t m ∧ m.zone ≠ none
   stamp_value : ∀ t m, MomentForm t m → m.zone ≠ none → D.lexicalValue dateTimeStampType t = moment m
+  datetime_facets : ∀ f v, D.facetSpace dateTimeType f v ↔ f ∈ rangeFacets ∧ ∃ m, m.Valid ∧ v = moment m
+  stamp_facets : ∀ f v, D.facetSpace dateTimeStampType f v ↔
+    f ∈ rangeFacets ∧ ∃ m, m.Valid ∧ m.zone ≠ none ∧ v = moment m
+  min_inclusive_moment : ∀ b y, b.Valid →
+    (D.facetValue minInclusiveFacet (moment b) y ↔ ∃ x, x.Valid ∧ b.Le x ∧ y = moment x)
+  max_inclusive_moment : ∀ b y, b.Valid →
+    (D.facetValue maxInclusiveFacet (moment b) y ↔ ∃ x, x.Valid ∧ x.Le b ∧ y = moment x)
+  min_exclusive_moment : ∀ b y, b.Valid →
+    (D.facetValue minExclusiveFacet (moment b) y ↔ ∃ x, x.Valid ∧ b.Lt x ∧ y = moment x)
+  max_exclusive_moment : ∀ b y, b.Valid →
+    (D.facetValue maxExclusiveFacet (moment b) y ↔ ∃ x, x.Valid ∧ x.Lt b ∧ y = moment x)
   double : Binary → Native
   float : Binary → Native
   double_injective : ∀ a b, a.Valid doubleFormat → b.Valid doubleFormat → double a = double b → a = b

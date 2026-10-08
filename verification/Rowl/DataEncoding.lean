@@ -1,4 +1,5 @@
 import Rowl.Datatypes
+import Rowl.TimeOrder
 import Rowl.Regions
 import Rowl.AlcOntology
 import Rowl.Concepts
@@ -286,6 +287,8 @@ def cutName (index : Nat) : List U8 := 0#u8 :: 71#u8 :: eightBytes index 8
 /-- The name of the role above every data property's role. -/
 def superName : List U8 := [0#u8, 85#u8]
 
+/-- The name of the class of the values of the time cut at an index. -/
+def timeName (index : Nat) : List U8 := 0#u8 :: 84#u8 :: eightBytes index 8
 def edgeName (double : Bool) (index : Nat) : List U8 :=
   0#u8 :: 70#u8 :: (if double then 1#u8 else 0#u8) :: eightBytes index 8
 
@@ -390,6 +393,25 @@ theorem edge_class_eq (double : Bool) (index : Usize) :
 theorem edgeClass_name (double : Bool) (index : Usize) :
     (edgeClass double index).iri.spelling.val = edgeName double index.val :=
   (Classical.choose_spec (edge_class_correct double index)).2
+
+theorem time_class_correct (index : Usize) :
+    ∃ c : Class, data_ontology.time_class index = .ok (.Class c) ∧ c.iri.spelling.val = timeName index.val := by
+  obtain ⟨b, bytesRun, bytesValue⟩ := bytes_correct index 0#usize (alloc.vec.Vec.new U8) (by simp)
+    (by simp [new_val]; scalar_tac)
+  obtain ⟨v, run, value⟩ := tagged_name_correct 84#u8 b
+    (by rw [bytesValue]; simp [new_val, eightBytes_length]; scalar_tac)
+  refine ⟨⟨⟨v⟩⟩, by simp [data_ontology.time_class, bytesRun, run, class_named_correct], ?_⟩
+  simp [value, bytesValue, new_val, timeName]
+
+/-- The class of the values of the time cut at an index. -/
+noncomputable def timeClass (index : Usize) : Class :=
+  Classical.choose (time_class_correct index)
+
+theorem time_class_eq (index : Usize) : data_ontology.time_class index = .ok (.Class (timeClass index)) :=
+  (Classical.choose_spec (time_class_correct index)).1
+
+theorem timeClass_name (index : Usize) : (timeClass index).iri.spelling.val = timeName index.val :=
+  (Classical.choose_spec (time_class_correct index)).2
 
 /-- The edges of a floating-point format in a context: of `xsd:double`
     (`double`) or of `xsd:float`. -/
@@ -540,14 +562,20 @@ def GoodValues (values : List datatypes.DataValue) : Prop := (∀ v ∈ values, 
 def GoodCuts (cuts : List regions.Cut) : Prop :=
   (∀ c ∈ cuts, Rowl.Datatypes.CanonicalNumeric c.value) ∧ cuts.Nodup
 
+/-- Time cuts at kernel instants with room for their years. -/
+def GoodTimes (times : List data_ontology.TimeCut) : Prop :=
+  ∀ c ∈ times, Rowl.TimeOrder.InstantOk c.instant (Usize.max / 2)
+
 /-- A context whose literal values are canonical, each once, whose object
     properties are neither the encoding's nor the universal role, whose data
-    properties are neither of the two built-in ones, and whose cuts are of
-    canonical numbers, each once. -/
+    properties are neither of the two built-in ones, whose cuts are of
+    canonical numbers, each once, and whose time cuts are at kernel
+    instants, with the time stamps in use when there are time cuts. -/
 def Good (context : data_ontology.Context) : Prop :=
   GoodValues context.values.val ∧ (∀ r ∈ context.roles.val, ¬ Reserved r.iri.spelling.val ∧ r ≠ topObject) ∧
     (∀ p ∈ context.data.val, p ≠ topData ∧ p ≠ bottomData) ∧ GoodCuts context.cuts.val ∧
-    (context.kinds.ordered = true → context.kinds.real = true)
+    (context.kinds.ordered = true → context.kinds.real = true) ∧ GoodTimes context.times.val ∧
+    (context.times.val ≠ [] → context.kinds.stamp = true)
 
 theorem value_index_correct (values : alloc.vec.Vec datatypes.DataValue) (value : datatypes.DataValue)
     (index : Usize) :
@@ -817,7 +845,8 @@ theorem add_bound_good (cuts : alloc.vec.Vec regions.Cut) (bound : Option dataty
     exact ⟨r, by rw [data_ontology.add_bound]; exact run, good⟩
 
 theorem kind_context_good (context : data_ontology.Context) (k : datatypes.Kind) :
-    ∃ r, data_ontology.kind_context context k = .ok r ∧ (Good context → Good r) := by
+    ∃ r, data_ontology.kind_context context k = .ok r ∧ (Good context → Good r) ∧
+      (context.kinds.stamp = true → r.kinds.stamp = true) := by
   rw [data_ontology.kind_context]
   obtain ⟨kinds, kindsRun⟩ := with_kind_eq context.kinds k
   obtain ⟨lo, loRun, _, loSome⟩ := Rowl.Datatypes.lower_bound_correct k
@@ -830,8 +859,12 @@ theorem kind_context_good (context : data_ontology.Context) (k : datatypes.Kind)
       kinds.real = true := by
     intro h o
     cases k <;> simp [data_ontology.with_kind] at kindsRun <;> subst kindsRun <;> simp_all
+  have stamps : context.kinds.stamp = true → kinds.stamp = true := by
+    intro h
+    cases k <;> simp [data_ontology.with_kind] at kindsRun <;> subst kindsRun <;> simp_all
   refine ⟨{ context with kinds := kinds, cuts := c2 }, by simp [kindsRun, loRun, run1, hiRun, run2],
-    fun good => ⟨good.1, good.2.1, good.2.2.1, good2 (good1 good.2.2.2.1), keeps' good.2.2.2.2⟩⟩
+    fun good => ⟨good.1, good.2.1, good.2.2.1, good2 (good1 good.2.2.2.1), keeps' good.2.2.2.2.1, good.2.2.2.2.2.1,
+      fun ne => stamps (good.2.2.2.2.2.2 ne)⟩, stamps⟩
 
 theorem facet_context_good (context : data_ontology.Context) (restriction : FacetRestriction) :
     ∃ r, data_ontology.facet_context context restriction = .ok r ∧ (Good context → Good r) := by
@@ -977,6 +1010,213 @@ theorem edges_context_good (context : data_ontology.Context) (restrictions : all
 termination_by restrictions.val.length - index.val
 decreasing_by omega
 
+/-! ### The time cuts of a context -/
+
+/-- The time cut is on the line `zoned` at the place of `instant` on the time
+    line, on the side `o`. -/
+def CutAt (cut : data_ontology.TimeCut) (zoned : Bool) (instant : datatypes.Moment) (o : Bool) : Prop :=
+  cut.zoned = zoned ∧ cut.open = o ∧
+    (Rowl.Moments.momentOf cut.instant).key = (Rowl.Moments.momentOf instant).key
+
+theorem same_time_cut_spec (cut : data_ontology.TimeCut) (gc : Rowl.TimeOrder.InstantOk cut.instant 0)
+    (zoned : Bool) (instant : datatypes.Moment) (gi : Rowl.TimeOrder.InstantOk instant 0) (o : Bool) :
+    data_ontology.same_time_cut cut zoned instant o = .ok (decide (CutAt cut zoned instant o)) := by
+  rw [data_ontology.same_time_cut]
+  obtain ⟨r, run, value⟩ := Rowl.TimeOrder.instant_order_spec cut.instant instant gc.1 gi.1 gc.2.1 gi.2.1
+  have one : r = 1#u8 ↔ (Rowl.Moments.momentOf cut.instant).key = (Rowl.Moments.momentOf instant).key := by
+    rw [← Rowl.TimeOrder.ordOf_eq_one (Rowl.Moments.momentOf cut.instant).key (Rowl.Moments.momentOf instant).key,
+      ← value]
+    constructor
+    · intro e; rw [e]; rfl
+    · intro e; exact UScalar.eq_of_val_eq (by simpa using e)
+  simp only [run, bind_ok, CutAt]
+  congr 1
+  by_cases h1 : cut.zoned = zoned <;> by_cases h2 : cut.open = o <;> by_cases h3 : r = 1#u8 <;>
+    simp_all
+
+theorem same_time_cut_ok (cut : data_ontology.TimeCut) (zoned : Bool) (instant : datatypes.Moment) (o : Bool) :
+    ∃ b, data_ontology.same_time_cut cut zoned instant o = .ok b := by
+  rw [data_ontology.same_time_cut]
+  obtain ⟨r, run⟩ := Rowl.TimeOrder.instant_order_ok cut.instant instant
+  simp only [run, bind_ok]
+  exact ⟨_, rfl⟩
+
+/-- The kernel finds a time cut it is asked for or none, for any time cuts. -/
+theorem time_cut_index_found (times : alloc.vec.Vec data_ontology.TimeCut) (zoned : Bool)
+    (instant : datatypes.Moment) (o : Bool) (index : Usize) :
+    ∃ r, data_ontology.time_cut_index times zoned instant o index = .ok r ∧
+      ∀ i, r = some i → ∃ h : i.val < times.val.length,
+        data_ontology.same_time_cut (times.val[i.val]'h) zoned instant o = .ok true := by
+  rw [data_ontology.time_cut_index]
+  by_cases inside : index.val < times.val.length
+  · have lookup : times.index_usize index = .ok times.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    obtain ⟨b, bRun⟩ := same_time_cut_ok times.val[index.val] zoned instant o
+    cases b with
+    | true =>
+      refine ⟨some index, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, bRun],
+        fun i e => ?_⟩
+      cases e
+      exact ⟨inside, bRun⟩
+    | false =>
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      obtain ⟨r, run, facts⟩ := time_cut_index_found times zoned instant o next
+      exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, bRun, advance, run], facts⟩
+  · exact ⟨none, by simp [UScalar.lt_equiv, inside], by simp⟩
+termination_by times.val.length - index.val
+decreasing_by simp_all; omega
+
+theorem time_cut_index_spec (times : alloc.vec.Vec data_ontology.TimeCut) (good : GoodTimes times.val)
+    (zoned : Bool) (instant : datatypes.Moment) (gi : Rowl.TimeOrder.InstantOk instant 0) (o : Bool)
+    (index : Usize) :
+    ∃ r, data_ontology.time_cut_index times zoned instant o index = .ok r ∧
+      ∀ i, r = some i → ∃ h : i.val < times.val.length, CutAt (times.val[i.val]'h) zoned instant o := by
+  rw [data_ontology.time_cut_index]
+  by_cases inside : index.val < times.val.length
+  · have lookup : times.index_usize index = .ok times.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have gc := good _ (List.getElem_mem inside)
+    have cutOk : Rowl.TimeOrder.InstantOk times.val[index.val].instant 0 := ⟨gc.1, gc.2.1, by have := gc.2.2; omega⟩
+    by_cases hit : CutAt times.val[index.val] zoned instant o
+    · refine ⟨some index, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup,
+        same_time_cut_spec _ cutOk zoned instant gi o, hit], fun i e => ?_⟩
+      cases e
+      exact ⟨inside, hit⟩
+    · obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      obtain ⟨r, run, facts⟩ := time_cut_index_spec times good zoned instant gi o next
+      exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup,
+        same_time_cut_spec _ cutOk zoned instant gi o, hit, advance, run], facts⟩
+  · exact ⟨none, by simp [UScalar.lt_equiv, inside], by simp⟩
+termination_by times.val.length - index.val
+decreasing_by simp_all; omega
+
+theorem add_time_cut_good (times : alloc.vec.Vec data_ontology.TimeCut) (good : GoodTimes times.val)
+    (zoned : Bool) (instant : datatypes.Moment) (gi : Rowl.TimeOrder.InstantOk instant (Usize.max / 2))
+    (o : Bool) :
+    ∃ r, data_ontology.add_time_cut times zoned instant o = .ok r ∧ GoodTimes r.val := by
+  rw [data_ontology.add_time_cut]
+  obtain ⟨r, run, _⟩ := time_cut_index_spec times good zoned instant ⟨gi.1, gi.2.1, by have := gi.2.2; omega⟩ o
+    0#usize
+  cases r with
+  | some _ => exact ⟨times, by simp [run], good⟩
+  | none =>
+    by_cases room : times.val.length < Usize.max
+    · have room' : alloc.vec.Vec.len times < core.num.Usize.MAX := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+      obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists
+        (alloc.vec.Vec.push_spec times ({ zoned := zoned, instant := instant, «open» := o } : data_ontology.TimeCut)
+          room)
+      refine ⟨pushed, by simp [run, room', push], ?_⟩
+      intro c mem
+      rw [contents] at mem
+      rcases List.mem_append.mp mem with old | new
+      · exact good c old
+      · simp at new; subst new; exact gi
+    · have full : ¬ alloc.vec.Vec.len times < core.num.Usize.MAX := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+      exact ⟨times, by simp [run, full], good⟩
+
+theorem time_facet_cuts_good (times : alloc.vec.Vec data_ontology.TimeCut) (good : GoodTimes times.val)
+    (F : datatypes.Facet) (bound : datatypes.Moment) (c : Rowl.Moments.CanonicalMoment bound)
+    (small : bound.year.val.length < Usize.max / 16) :
+    ∃ r, data_ontology.time_facet_cuts times F bound = .ok r ∧ GoodTimes r.val := by
+  rw [data_ontology.time_facet_cuts, Rowl.TimeOrder.zoned_spec]
+  have big : 4294967295 ≤ Usize.max := by
+    have := Usize.max_def
+    rcases System.Platform.numBits_eq with e | e <;> simp_all [Usize.numBits]
+  obtain ⟨m, mRun, mOk, _⟩ := Rowl.TimeOrder.instant_canonical bound c (room := Usize.max / 2 + 2)
+    (by omega)
+  have mOk' : Rowl.TimeOrder.InstantOk m (Usize.max / 2) := ⟨mOk.1, mOk.2.1, by have := mOk.2.2; omega⟩
+  have step : ∀ (n : U16), n.val ≤ 840 → ∀ (later o o' : Bool) (line : Bool), ∃ r,
+      (do
+        let m ← moments.instant bound
+        let v ← data_ontology.add_time_cut times line m o
+        let m1 ← moments.shifted m later n
+        data_ontology.add_time_cut v (¬ line) m1 o' : Result (alloc.vec.Vec data_ontology.TimeCut)) = .ok r ∧
+        GoodTimes r.val := by
+    intro n le later o o' line
+    obtain ⟨v, vRun, vGood⟩ := add_time_cut_good times good line m mOk' o
+    obtain ⟨m1, m1Run, m1Ok, _⟩ := Rowl.TimeOrder.shifted_canonical m later n le mOk
+    obtain ⟨r, rRun, rGood⟩ := add_time_cut_good v vGood (¬ line) m1 m1Ok o'
+    refine ⟨r, ?_, rGood⟩
+    rw [mRun, bind_ok, vRun, bind_ok, m1Run, bind_ok]
+    exact rRun
+  have le : (840#u16).val ≤ 840 := by simp
+  cases F with
+  | MinInclusive =>
+    obtain ⟨r, run, rGood⟩ := step 840#u16 le true false true bound.zone.isSome
+    refine ⟨r, ?_, rGood⟩
+    rw [bind_ok]
+    exact run
+  | MaxInclusive =>
+    obtain ⟨r, run, rGood⟩ := step 840#u16 le false true false bound.zone.isSome
+    refine ⟨r, ?_, rGood⟩
+    rw [bind_ok]
+    exact run
+  | MinExclusive =>
+    obtain ⟨r, run, rGood⟩ := step 840#u16 le true true true bound.zone.isSome
+    refine ⟨r, ?_, rGood⟩
+    rw [bind_ok]
+    exact run
+  | MaxExclusive =>
+    obtain ⟨r, run, rGood⟩ := step 840#u16 le false false false bound.zone.isSome
+    refine ⟨r, ?_, rGood⟩
+    rw [bind_ok]
+    exact run
+
+theorem bounded_year_eq (m : datatypes.Moment) :
+    data_ontology.bounded_year m = .ok (decide (m.year.val.length < Usize.max / 16)) := by
+  rw [data_ontology.bounded_year]
+  obtain ⟨q, div, qValue⟩ := UScalar.div_spec core.num.Usize.MAX (y := 16#usize) (by simp)
+  simp only [div, bind_ok, UScalar.lt_equiv, alloc.vec.Vec.len_val, qValue, usize_max_val]
+  simp
+
+theorem time_context_good (context : data_ontology.Context) (good : Good context)
+    (stamp : context.kinds.stamp = true) (restriction : FacetRestriction) :
+    ∃ r, data_ontology.time_context context restriction = .ok r ∧ Good r ∧ r.kinds.stamp = true := by
+  rw [data_ontology.time_context, Rowl.Datatypes.facet_of_correct]
+  obtain ⟨result, run, some', _⟩ := Rowl.Datatypes.literal_value_correct.{0} restriction.value
+  rw [run]
+  cases facet : Rowl.Datatypes.facetOf restriction.facet with
+  | none => exact ⟨context, by simp, good, stamp⟩
+  | some F =>
+    cases result with
+    | none => exact ⟨context, by simp, good, stamp⟩
+    | some value =>
+      have canonical := (some' value rfl).1
+      cases value with
+      | Moment bound =>
+        by_cases small : bound.year.val.length < Usize.max / 16
+        · obtain ⟨r, rRun, rGood⟩ := time_facet_cuts_good context.times good.2.2.2.2.2.1 F bound canonical small
+          exact ⟨{ context with times := r }, by simp [bounded_year_eq, small, rRun],
+            ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, good.2.2.2.2.1, rGood, fun _ => stamp⟩, stamp⟩
+        · exact ⟨context, by simp [bounded_year_eq, small], good, stamp⟩
+      | _ => exact ⟨context, by simp, good, stamp⟩
+
+theorem times_context_good (context : data_ontology.Context) (restrictions : alloc.vec.Vec FacetRestriction)
+    (index : Usize) (good : Good context) (stamp : context.kinds.stamp = true) :
+    ∃ r, data_ontology.times_context context restrictions index = .ok r ∧ Good r ∧ r.kinds.stamp = true := by
+  rw [data_ontology.times_context]
+  by_cases inside : index.val < restrictions.val.length
+  · have lookup : restrictions.index_usize index = .ok restrictions.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    obtain ⟨c, run, cGood, cStamp⟩ := time_context_good context good stamp restrictions.val[index.val]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨r, rest, rGood, rStamp⟩ := times_context_good c restrictions next cGood cStamp
+    exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run, advance, rest], rGood,
+      rStamp⟩
+  · exact ⟨context, by simp [UScalar.lt_equiv, inside], good, stamp⟩
+termination_by restrictions.val.length - index.val
+decreasing_by omega
+
+theorem time_kind_eq (k : datatypes.Kind) :
+    data_ontology.time_kind k = .ok (decide (k = .DateTime ∨ k = .DateTimeStamp)) := by
+  cases k <;> simp [data_ontology.time_kind]
+
 theorem binary_kind_eq (k : datatypes.Kind) :
     data_ontology.binary_kind k = .ok (decide (k = .Double ∨ k = .Float)) := by
   cases k <;> simp [data_ontology.binary_kind]
@@ -1006,7 +1246,7 @@ theorem range_context_good (range : DataRange) (context : data_ontology.Context)
     cases kindOf dt with
     | none => exact ⟨context, by simp, good⟩
     | some k =>
-      obtain ⟨r, run, rGood⟩ := kind_context_good context k
+      obtain ⟨r, run, rGood, _⟩ := kind_context_good context k
       exact ⟨r, by simp [run], rGood good⟩
   | Intersection members =>
     rw [data_ontology.range_context]
@@ -1040,7 +1280,7 @@ theorem range_context_good (range : DataRange) (context : data_ontology.Context)
     have good0 : Good { context with kinds := kinds } := by
       simp [data_ontology.with_order] at kindsRun
       subst kindsRun
-      exact ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, fun _ => rfl⟩
+      exact ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, fun _ => rfl, good.2.2.2.2.2.1, good.2.2.2.2.2.2⟩
     cases kindOf dt with
     | none =>
       obtain ⟨c2, run2, good2⟩ := facet_context_good { context with kinds := kinds } restrictions.first
@@ -1048,14 +1288,23 @@ theorem range_context_good (range : DataRange) (context : data_ontology.Context)
       exact ⟨r, by simp [kindsRun, run2, run], rGood⟩
     | some k =>
       by_cases binary : k = .Double ∨ k = .Float
-      · obtain ⟨c1, run1, good1⟩ := kind_context_good context k
+      · obtain ⟨c1, run1, good1, _⟩ := kind_context_good context k
         obtain ⟨c2, run2, good2⟩ := edge_context_good c1 restrictions.first
         obtain ⟨r, run, rGood⟩ := edges_context_good c2 restrictions.rest 0#usize (good2 (good1 good))
         exact ⟨r, by simp [binary_kind_eq, binary, run1, run2, run], rGood⟩
-      · obtain ⟨c1, run1, good1⟩ := kind_context_good { context with kinds := kinds } k
-        obtain ⟨c2, run2, good2⟩ := facet_context_good c1 restrictions.first
-        obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 (good1 good0))
-        exact ⟨r, by simp [binary_kind_eq, binary, kindsRun, run1, run2, run], rGood⟩
+      · by_cases time : k = .DateTime ∨ k = .DateTimeStamp
+        · have goodS : Good { context with kinds := { context.kinds with stamp := true } } :=
+            ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, good.2.2.2.2.1, good.2.2.2.2.2.1, fun _ => rfl⟩
+          obtain ⟨c1, run1, good1, stamp1⟩ :=
+            kind_context_good { context with kinds := { context.kinds with stamp := true } } k
+          obtain ⟨c2, run2, good2, stamp2⟩ := time_context_good c1 (good1 goodS) (stamp1 rfl) restrictions.first
+          obtain ⟨r, run, rGood, _⟩ := times_context_good c2 restrictions.rest 0#usize good2 stamp2
+          exact ⟨r, by simp [binary_kind_eq, binary, time_kind_eq, time, data_ontology.with_stamps, run1, run2, run],
+            rGood⟩
+        · obtain ⟨c1, run1, good1, _⟩ := kind_context_good { context with kinds := kinds } k
+          obtain ⟨c2, run2, good2⟩ := facet_context_good c1 restrictions.first
+          obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 (good1 good0))
+          exact ⟨r, by simp [binary_kind_eq, binary, time_kind_eq, time, kindsRun, run1, run2, run], rGood⟩
 termination_by sizeOf range
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -1311,8 +1560,8 @@ theorem closure_context_good (items : alloc.vec.Vec AnnotatedAxiom) :
         false false false false false false false)
       (alloc.vec.Vec.new ObjectProperty)
       (alloc.vec.Vec.new DataProperty) (alloc.vec.Vec.new regions.Cut) (alloc.vec.Vec.new U128)
-      (alloc.vec.Vec.new U128)) := by
-    simp [Good, GoodValues, GoodCuts, new_val]
+      (alloc.vec.Vec.new U128) (alloc.vec.Vec.new data_ontology.TimeCut)) := by
+    simp [Good, GoodValues, GoodCuts, GoodTimes, new_val]
   obtain ⟨r, run, rGood⟩ := items_context_good _ items 0#usize empty
   exact ⟨r, by simp [data_ontology.no_kinds, run], rGood⟩
 

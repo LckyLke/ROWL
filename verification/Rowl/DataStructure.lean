@@ -1,4 +1,4 @@
-import Rowl.DataEdges
+import Rowl.DataTimes
 
 /-!
 The whole encoding of a closure by `data_ontology`: the axioms its axioms become
@@ -9,9 +9,12 @@ from elements that are no data nodes to data nodes, the kinds in use are
 included in and disjoint from each other as their datatypes are, the booleans
 are the two truth values, each literal value's individual is a data node in the
 kinds its value is in, with a pattern of bit classes that tells it apart from
-the other literal values and, when numbers are ordered, in the cuts of its
-number, the axioms of the cuts hold (`RegionFacts`), and the further individual
-is no data node (`Frame`).
+the other literal values, when numbers are ordered, in the cuts of its number,
+in the edges of a floating-point value's format at or below its place and in
+the time cuts of a time instant's line that it is in, the axioms of the cuts
+(`RegionFacts`), of the edges (`Rowl.DataEdges.EdgeFacts`) and of the time cuts
+(`Rowl.DataTimes.TimeFacts`) hold, and the further individual is no data node
+(`Frame`).
 -/
 namespace Rowl.DataStructure
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -37,8 +40,8 @@ def ItemsMeans (context : data_ontology.Context) (items new : List AnnotatedAxio
   (∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
     (I : Interpretation Object Value) (J : Interpretation Object' Value') (obj : Object → Object')
     (known : Individual → Prop) (atoms : List (DataProperty × Option DataRange × Nat))
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (place : Object → Value → Object' → Prop),
-    Simulates context I J obj known atoms → Placed context I J obj lit num place → RangeFrame I J lit num →
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (place : Object → Value → Object' → Prop),
+    Simulates context I J obj known atoms → Placed context I J obj lit num mom place → RangeFrame I J lit num mom →
     (∀ item ∈ items, ∀ a ∈ axiomAtoms item.axiom, a ∈ atoms) →
     (∀ item ∈ items, ∀ a ∈ axiomIndividuals item.axiom, known a) →
       ((∀ b ∈ new, satisfies J b.axiom) → ∀ item ∈ items, satisfies I item.axiom) ∧
@@ -49,7 +52,7 @@ def ItemsMeans (context : data_ontology.Context) (items new : List AnnotatedAxio
 
 theorem items_means_nil (context : data_ontology.Context) : ItemsMeans.{u,v,w,x} context [] [] := by
   refine ⟨?_, by simp, fun _ _ => by simp⟩
-  intro Object Value Object' Value' I J obj known atoms lit num place _ _ _ _ _
+  intro Object Value Object' Value' I J obj known atoms lit num mom place _ _ _ _ _
   exact ⟨fun _ => by simp, fun _ _ => by simp⟩
 
 theorem items_means_cons {context : data_ontology.Context} {item : AnnotatedAxiom}
@@ -60,10 +63,10 @@ theorem items_means_cons {context : data_ontology.Context} {item : AnnotatedAxio
     (tail : ItemsMeans.{u,v,w,x} context rest new2) : ItemsMeans.{u,v,w,x} context (item :: rest) (new1 ++ new2) := by
   obtain ⟨tailMeans, tailPlain, tailNames⟩ := tail
   refine ⟨?_, ?_, ?_⟩
-  · intro Object Value Object' Value' I J obj known atoms lit num place sim placed frame atomsIn indsIn
-    obtain ⟨sound1, complete1⟩ := means I J obj known atoms lit num place sim placed frame
+  · intro Object Value Object' Value' I J obj known atoms lit num mom place sim placed frame atomsIn indsIn
+    obtain ⟨sound1, complete1⟩ := means I J obj known atoms lit num mom place sim placed frame
       (atomsIn item List.mem_cons_self) (indsIn item List.mem_cons_self)
-    obtain ⟨sound2, complete2⟩ := tailMeans I J obj known atoms lit num place sim placed frame
+    obtain ⟨sound2, complete2⟩ := tailMeans I J obj known atoms lit num mom place sim placed frame
       (fun i m => atomsIn i (List.mem_cons_of_mem _ m)) (fun i m => indsIn i (List.mem_cons_of_mem _ m))
     constructor
     · intro holds i mem
@@ -1116,7 +1119,7 @@ theorem cut_members_spec (context : data_ontology.Context) (good : Good context)
     by_cases number : Rowl.Datatypes.IsNumber context.values.val[index.val]
     · have member := List.getElem_mem inside
       have cv := canonical_numeric (good.1.1 _ member) number
-      obtain ⟨r, run, f⟩ := cut_memberships_spec context fine index inside cv (fit _ member number) 0#usize out
+      obtain ⟨r, run, f⟩ := cut_memberships_spec context fine index inside cv ((fit _ member).1 number) 0#usize out
       refine ⟨r, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
         Rowl.Datatypes.numeric_correct, number, run], fun out' hr => ?_⟩
       obtain ⟨new, c, m⟩ := f out' hr
@@ -1246,10 +1249,125 @@ theorem edge_memberships_spec (context : data_ontology.Context) (good : Good con
 termination_by (edgesOf context double).val.length - edge.val
 decreasing_by omega
 
+/-- What the axioms of a literal time instant say of the time cuts of its
+    line: its individual is in the class of every cut of its line that it is
+    in, and outside the others. -/
+def TimeMemberFact (context : data_ontology.Context) (J : Interpretation Object' Value') (i : Usize)
+    (h : i.val < context.values.val.length) : Prop :=
+  ∀ (y : datatypes.Moment), context.values.val[i.val] = .Moment y →
+    ∀ (c : Usize) (hc : c.val < context.times.val.length), (context.times.val[c.val]'hc).zoned = y.zone.isSome →
+      (J.classes (timeClass c) (J.namedIndividuals (valueIndividual i)) ↔
+        InTimeCut (context.times.val[c.val]'hc) (Rowl.Moments.momentOf y))
+
+/-- The memberships of a literal time instant in the classes of the time cuts
+    of its line from `cut` on. -/
+theorem time_memberships_spec (context : data_ontology.Context) (good : Good context) (fit : ValuesFit context)
+    (index : Usize) (h : index.val < context.values.val.length) (cut : Usize) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.time_memberships context index cut out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔
+          ∀ (y : datatypes.Moment), context.values.val[index.val] = .Moment y →
+            ∀ (c : Usize) (hc : c.val < context.times.val.length), cut.val ≤ c.val →
+              (context.times.val[c.val]'hc).zoned = y.zone.isSome →
+              (J.classes (timeClass c) (J.namedIndividuals (valueIndividual index)) ↔
+                InTimeCut (context.times.val[c.val]'hc) (Rowl.Moments.momentOf y))) := by
+  rw [data_ontology.time_memberships]
+  by_cases inside : cut.val < context.times.val.length
+  · have lookupV : context.values.index_usize index = .ok context.values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem h]
+    have lookupT : context.times.index_usize cut = .ok context.times.val[cut.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have cond : (decide (index < alloc.vec.Vec.len context.values) &&
+        decide (cut < alloc.vec.Vec.len context.times)) = true := by
+      simp [UScalar.lt_equiv, h, inside]
+    have member := List.getElem_mem h
+    have gc := good.2.2.2.2.2.1 _ (List.getElem_mem inside)
+    have gc0 : Rowl.TimeOrder.InstantOk context.times.val[cut.val].instant 0 :=
+      ⟨gc.1, gc.2.1, by have := gc.2.2; omega⟩
+    have lineIs := Rowl.DataTimes.on_line_spec context.values.val[index.val] context.times.val[cut.val].zoned
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := cut) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = cut.val + 1 := by simpa using nextValue
+    simp only [cond, ↓reduceIte, alloc.vec.Vec.index_slice_index, lookupV, lookupT, bind_ok, lineIs]
+    by_cases onLine : Rowl.DataTimes.OnLineValue context.times.val[cut.val].zoned context.values.val[index.val]
+    · have cutIs := Rowl.DataTimes.in_time_cut_spec context.times.val[cut.val] gc0 context.values.val[index.val]
+        (good.1.1 _ member) (fit _ member).2
+      obtain ⟨r1, run1, c1⟩ := member_spec (.Class (timeClass cut))
+        (decide (Rowl.DataTimes.InCutValue context.times.val[cut.val] context.values.val[index.val]))
+        (.Named (valueIndividual index)) out
+      cases r1 with
+      | none =>
+        exact ⟨none, by simp only [onLine, decide_true, ↓reduceIte, time_class_eq, cutIs, value_individual_eq,
+          bind_ok, run1], by simp⟩
+      | some o1 =>
+        obtain ⟨r2, run2, f2⟩ := time_memberships_spec context good fit index h next o1
+        refine ⟨r2, by simp only [onLine, decide_true, ↓reduceIte, time_class_eq, cutIs, value_individual_eq,
+          bind_ok, run1, advance, run2], fun out' hr => ?_⟩
+        obtain ⟨n2, c2, m2⟩ := f2 out' hr
+        refine ⟨bare (.ClassAssertion (if decide (Rowl.DataTimes.InCutValue context.times.val[cut.val]
+            context.values.val[index.val]) = true then .Class (timeClass cut)
+            else .ObjectComplementOf (.Class (timeClass cut))) (.Named (valueIndividual index))) :: n2,
+          by rw [c2, c1 o1 rfl]; simp, fun J => ?_⟩
+        simp only [List.mem_cons, forall_eq_or_imp, m2 J, nextIndex]
+        have here := member_holds J (timeClass cut)
+          (Rowl.DataTimes.InCutValue context.times.val[cut.val] context.values.val[index.val])
+          (.Named (valueIndividual index))
+        simp only [decide_eq_true_eq, bare] at here ⊢
+        rw [here]
+        simp only [individual]
+        obtain ⟨y0, e0, z0⟩ := onLine
+        have inCut : Rowl.DataTimes.InCutValue context.times.val[cut.val] context.values.val[index.val] ↔
+            InTimeCut context.times.val[cut.val] (Rowl.Moments.momentOf y0) := by
+          constructor
+          · rintro ⟨y', e', holds⟩
+            rw [e0] at e'
+            cases e'
+            exact holds
+          · intro holds
+            exact ⟨y0, e0, holds⟩
+        rw [inCut]
+        constructor
+        · rintro ⟨first, rest⟩ y ey c hc low zc
+          by_cases same : c = cut
+          · subst same
+            rw [e0] at ey
+            cases ey
+            exact first
+          · have : c.val ≠ cut.val := fun e => same (UScalar.eq_of_val_eq e)
+            exact rest y ey c hc (by omega) zc
+        · intro all
+          exact ⟨all y0 e0 cut inside le_rfl z0.symm, fun y ey c hc low zc => all y ey c hc (by omega) zc⟩
+    · obtain ⟨r2, run2, f2⟩ := time_memberships_spec context good fit index h next out
+      refine ⟨r2, by simp only [onLine, decide_false, Bool.false_eq_true, ↓reduceIte, bind_ok, advance, run2],
+        fun out' hr => ?_⟩
+      obtain ⟨n2, c2, m2⟩ := f2 out' hr
+      refine ⟨n2, c2, fun J => ?_⟩
+      rw [m2 J, nextIndex]
+      constructor
+      · intro rest y ey c hc low zc
+        by_cases same : c = cut
+        · subst same
+          exact absurd ⟨y, ey, zc.symm⟩ onLine
+        · have : c.val ≠ cut.val := fun e => same (UScalar.eq_of_val_eq e)
+          exact rest y ey c hc (by omega) zc
+      · intro all y ey c hc low zc
+        exact all y ey c hc (by omega) zc
+  · have cond : (decide (index < alloc.vec.Vec.len context.values) &&
+        decide (cut < alloc.vec.Vec.len context.times)) = false := by
+      simp [UScalar.lt_equiv, inside]
+    refine ⟨some out, by simp only [cond, Bool.false_eq_true, ↓reduceIte], fun out' hr =>
+      ⟨[], by cases hr; simp, fun J => ?_⟩⟩
+    simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
+    intro y ey c hc low
+    omega
+termination_by context.times.val.length - cut.val
+decreasing_by all_goals omega
+
 /-- What the axioms of one literal value say: its individual is a data node,
     in the classes of the kinds in use its value is in, with the bit classes
     of its index, in the cuts of its own number, and in the classes of the
-    edges at or below the place of a floating-point value. -/
+    edges at or below the place of a floating-point value, and in the classes
+    of the time cuts of its line it is in, for a time instant. -/
 def ValueFact (context : data_ontology.Context) (bits : Usize) (J : Interpretation Object' Value') (i : Usize)
     (h : i.val < context.values.val.length) : Prop :=
   J.classes dataClass (J.namedIndividuals (valueIndividual i)) ∧
@@ -1257,7 +1375,7 @@ def ValueFact (context : data_ontology.Context) (bits : Usize) (J : Interpretati
     (J.classes (kindClass k) (J.namedIndividuals (valueIndividual i)) ↔ InKind context.values.val[i.val] k)) ∧
   (∀ j : Usize, j.val < bits.val →
     (J.classes (bitClass j) (J.namedIndividuals (valueIndividual i)) ↔ i.val.testBit j.val = true)) ∧
-  CutFact context J i h ∧ EdgeFact context J i h
+  CutFact context J i h ∧ EdgeFact context J i h ∧ TimeMemberFact context J i h
 
 set_option maxRecDepth 4096 in
 theorem value_axioms_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
@@ -1365,18 +1483,24 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
         rune1, rune2], by simp⟩
     | some oe2 =>
-    obtain ⟨r7, run7, f7⟩ := bit_members_spec.{w,x} index 0#usize bits oe2
+    obtain ⟨rt, runt, ft⟩ := time_memberships_spec.{w,x} context good fit index inside 0#usize oe2
+    cases rt with
+    | none =>
+      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
+        rune1, rune2, runt], by simp⟩
+    | some ot =>
+    obtain ⟨r7, run7, f7⟩ := bit_members_spec.{w,x} index 0#usize bits ot
     cases r7 with
     | none =>
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
-        rune1, rune2, run7], by simp⟩
+        rune1, rune2, runt, run7], by simp⟩
     | some o7 =>
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val + 1 := by simpa using nextValue
     obtain ⟨rest, restRun, restFacts⟩ := value_axioms_spec context good fine fit next bits o7
     refine ⟨rest, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
-      rune1, rune2, run7, advance, restRun], fun out' h => ?_⟩
+      rune1, rune2, runt, run7, advance, restRun], fun out' h => ?_⟩
     obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
     obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
     obtain ⟨n3, c3, m3⟩ := f3 o3 rfl
@@ -1393,15 +1517,17 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
     obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
     obtain ⟨ne1, ce1, me1⟩ := fe1 oe1 rfl
     obtain ⟨ne2, ce2, me2⟩ := fe2 oe2 rfl
+    obtain ⟨nt, ct, mt⟩ := ft ot rfl
     obtain ⟨n7, c7, m7⟩ := f7 o7 rfl
     obtain ⟨n8, c8, m8⟩ := restFacts out' h
     refine ⟨bare (.ClassAssertion (.Class dataClass) (.Named (valueIndividual index))) ::
-      (n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ nu ++ nh ++ nb ++ ndt ++ nds ++ ndb ++ nfl ++ ns ++ n6 ++ ne1 ++ ne2 ++ n7 ++ n8),
-      by rw [c8, c7, ce2, ce1, c6, cs, cfl, cdb, cds, cdt, cb, ch, cu, c5, c4, c3, c2, c1,
+      (n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ nu ++ nh ++ nb ++ ndt ++ nds ++ ndb ++ nfl ++ ns ++ n6 ++ ne1 ++ ne2 ++ nt ++ n7 ++
+        n8),
+      by rw [c8, c7, ct, ce2, ce1, c6, cs, cfl, cdb, cds, cdt, cb, ch, cu, c5, c4, c3, c2, c1,
           contents0 o0 rfl]; simp [bare],
       fun J => ?_⟩
     simp only [List.mem_cons, forall_eq_or_imp, List.forall_mem_append, m1, m2, m3, m4, m5, mu, mh, mb, mdt, mds, mdb,
-      mfl, ms, m6, me1, me2, m7, m8,
+      mfl, ms, m6, me1, me2, mt, m7, m8,
       zero_val, Nat.zero_le, true_implies]
     simp only [bare, satisfies, classDenote, individual]
     rw [nextIndex]
@@ -1421,12 +1547,13 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
       · intro all
         exact ⟨all true, all false⟩
     constructor
-    · rintro ⟨data, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, ku⟩, kh⟩, kb⟩, kdt⟩, kds⟩, kdb⟩, kfl⟩, ks⟩,
-        ⟨k6, k7, cutsHere⟩⟩, edgeD⟩, edgeF⟩, bitsHere⟩, rest⟩ i low hi
+    · rintro ⟨data, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, ku⟩, kh⟩, kb⟩, kdt⟩, kds⟩, kdb⟩, kfl⟩, ks⟩,
+        ⟨k6, k7, cutsHere⟩⟩, edgeD⟩, edgeF⟩, timesHere⟩, bitsHere⟩, rest⟩ i low hi
       by_cases same : i.val = index.val
       · have := UScalar.eq_of_val_eq same
         subst this
-        refine ⟨data, fun k used => ?_, fun j high => bitsHere j high, cutsHere hi, edgeIff.mp ⟨edgeD, edgeF⟩⟩
+        refine ⟨data, fun k used => ?_, fun j high => bitsHere j high, cutsHere hi, edgeIff.mp ⟨edgeD, edgeF⟩,
+          timesHere⟩
         cases k
         case Integer => exact k1 used hi
         case Decimal => exact k2 used hi
@@ -1452,14 +1579,15 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
       · exact rest i (by omega) hi
     · intro all
       have here := all index (le_refl _) inside
-      have edges := edgeIff.mpr here.2.2.2.2
-      exact ⟨here.1, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
+      have edges := edgeIff.mpr here.2.2.2.2.1
+      exact ⟨here.1, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩,
         fun i _ _ used _ => here.2.1 _ used⟩,
         ⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used, fun h => here.2.2.2.1⟩⟩, edges.1⟩, edges.2⟩,
+        here.2.2.2.2.2⟩,
         fun j high => here.2.2.1 j high⟩, fun i low hi => all i (by omega) hi⟩
   · have inside' : ¬ index < alloc.vec.Vec.len context.values := by
       simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
@@ -1485,6 +1613,7 @@ structure Frame (context : data_ontology.Context) (capacity : Nat) (bits : Usize
   values : ∀ (i : Usize) (h : i.val < context.values.val.length), ValueFact context bits J i h
   object : ¬ J.classes dataClass (J.namedIndividuals objectIndividual)
   edges : ∀ double, Rowl.DataEdges.EdgeFacts context capacity double J
+  times : Rowl.DataTimes.TimeFacts context capacity J
 
 /-- The encoding of a closure in a context: what its axioms become, and the
     encoding's own axioms, with enough bit classes to tell the literal values
@@ -1544,32 +1673,37 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf], by simp⟩
   | some of =>
   obtain ⟨nf, cf, mf⟩ := ff of rfl
+  obtain ⟨rt, runt, ft⟩ := Rowl.DataTimes.time_axioms_spec.{w,x} context good valuesFit capacity 0#usize of
+  cases rt with
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt], by simp⟩
+  | some ot =>
+  obtain ⟨nt, ct, mt⟩ := ft ot rfl
   obtain ⟨bits, bitsRun, bitsLe⟩ := bits_for_spec (alloc.vec.Vec.len context.values) 0#usize 1#usize (by simp)
-  obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good fine valuesFit 0#usize bits of
+  obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good fine valuesFit 0#usize bits ot
   cases r6 with
-  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, bitsRun, run6], by simp⟩
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, bitsRun, run6], by simp⟩
   | some o6 =>
   obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
   obtain ⟨r7, run7, c7⟩ := push_spec o6
     (.ClassAssertion (.ObjectComplementOf (.Class dataClass)) (.Named objectIndividual))
-  refine ⟨r7, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, bitsRun, run6, object_class_eq,
+  refine ⟨r7, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, bitsRun, run6, object_class_eq,
     object_individual_eq, run7], fun enc h => ?_⟩
   simp only [zero_val, List.drop_zero] at m1 roles3 m2 m3
   refine ⟨fine, valuesFit, new, bits, order, m1, by simpa using bitsLe, sorted, roles3, known, fun J => ?_⟩
-  rw [c7 enc h, c6, cf, cd, c5, c4, c3, c2, c1]
-  simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, md J, mf J, m6 J, zero_val,
-    Nat.zero_le, true_implies]
+  rw [c7 enc h, c6, ct, cf, cd, c5, c4, c3, c2, c1]
+  simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, md J, mf J, mt J, m6 J,
+    zero_val, Nat.zero_le, true_implies]
   simp only [List.mem_singleton, forall_eq, bare, satisfies, classDenote, individual]
   have edgesIff : (Rowl.DataEdges.EdgeFacts context capacity.val true J ∧
       Rowl.DataEdges.EdgeFacts context capacity.val false J) ↔ ∀ double, Rowl.DataEdges.EdgeFacts context capacity.val double J :=
     ⟨fun ⟨d, f⟩ double => by cases double; exact f; exact d, fun all => ⟨all true, all false⟩⟩
   constructor
-  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨items', roles⟩, data⟩, kinds⟩, regions⟩, edgeD⟩, edgeF⟩, values⟩, object⟩
+  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨⟨items', roles⟩, data⟩, kinds⟩, regions⟩, edgeD⟩, edgeF⟩, times⟩, values⟩, object⟩
     exact ⟨items', ⟨roles, fun p mem role run y y' rel => data p mem role run y y' rel, kinds, regions, values,
-      object, edgesIff.mp ⟨edgeD, edgeF⟩⟩⟩
+      object, edgesIff.mp ⟨edgeD, edgeF⟩, times⟩⟩
   · rintro ⟨items', frame⟩
-    exact ⟨⟨⟨⟨⟨⟨⟨⟨items', frame.roles⟩, frame.data⟩, frame.kinds⟩, frame.regions⟩, frame.edges true⟩,
-      frame.edges false⟩, frame.values⟩, frame.object⟩
+    exact ⟨⟨⟨⟨⟨⟨⟨⟨⟨items', frame.roles⟩, frame.data⟩, frame.kinds⟩, frame.regions⟩, frame.edges true⟩,
+      frame.edges false⟩, frame.times⟩, frame.values⟩, frame.object⟩
 
 /-- Literal values at distinct indices have distinct individuals in every
     interpretation of the encoding's own axioms. -/

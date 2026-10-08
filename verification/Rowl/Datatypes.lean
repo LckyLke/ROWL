@@ -5666,8 +5666,8 @@ def ModelFacetSpace (k : datatypes.Kind) (f : Iri) (v : ModelValue) : Prop :=
   | .NmToken => False
   | .Name => False
   | .NcName => False
-  | .DateTime => False
-  | .DateTimeStamp => False
+  | .DateTime => f ∈ rangeFacets ∧ ∃ m, m.Valid ∧ v = .moment m
+  | .DateTimeStamp => f ∈ rangeFacets ∧ ∃ m, m.Valid ∧ m.zone ≠ none ∧ v = .moment m
   | .Double => f ∈ rangeFacets ∧ ∃ b, b.Valid doubleFormat ∧ v = .double b
   | .Float => f ∈ rangeFacets ∧ ∃ b, b.Valid floatFormat ∧ v = .float b
   | .Real => f ∈ rangeFacets ∧ ∃ r, v = .real r
@@ -5680,15 +5680,23 @@ def BinaryFacet (f : Iri) (b x : Binary) : Prop :=
   (f = minInclusiveFacet ∧ b.Le x) ∨ (f = maxInclusiveFacet ∧ x.Le b) ∨
     (f = minExclusiveFacet ∧ b.Lt x) ∨ (f = maxExclusiveFacet ∧ x.Lt b)
 
+/-- Whether a time instant is on the side of a range facet of a bound in the
+    order of XML Schema. -/
+def MomentFacet (f : Iri) (b x : Moment) : Prop :=
+  (f = minInclusiveFacet ∧ b.Le x) ∨ (f = maxInclusiveFacet ∧ x.Le b) ∨
+    (f = minExclusiveFacet ∧ b.Lt x) ∨ (f = maxExclusiveFacet ∧ x.Lt b)
+
 /-- The facet values of the range facets in the model map: the reals on the
-    facet's side of a real bound, and the values of a floating-point format on
-    the facet's side of a bound of the format. -/
+    facet's side of a real bound, the values of a floating-point format on the
+    facet's side of a bound of the format, and the time instants on the
+    facet's side of a time instant. -/
 def ModelFacetValue (f : Iri) (v y : ModelValue) : Prop :=
   (∃ r s, v = .real r ∧ y = .real s ∧
     ((f = minInclusiveFacet ∧ r ≤ s) ∨ (f = maxInclusiveFacet ∧ s ≤ r) ∨
       (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r))) ∨
   (∃ b x, v = .double b ∧ y = .double x ∧ x.Valid doubleFormat ∧ BinaryFacet f b x) ∨
-  (∃ b x, v = .float b ∧ y = .float x ∧ x.Valid floatFormat ∧ BinaryFacet f b x)
+  (∃ b x, v = .float b ∧ y = .float x ∧ x.Valid floatFormat ∧ BinaryFacet f b x) ∨
+  (∃ b x, v = .moment b ∧ y = .moment x ∧ x.Valid ∧ MomentFacet f b x)
 
 private theorem integer_of_form {text : List U8} {q : ℚ} (form : NumberForm true text q) : IsInteger q := by
   obtain ⟨sign, w, _, _, _, _, rfl⟩ := form
@@ -6039,8 +6047,9 @@ theorem model_real_facet (f : Iri) (r : ℝ) (y : ModelValue) :
         (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r)) := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨r', s, h, rfl, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨r', s, h, rfl, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
     · cases h; exact ⟨s, rfl, facet⟩
+    · cases h
     · cases h
     · cases h
   · rintro ⟨s, rfl, facet⟩
@@ -6050,9 +6059,10 @@ theorem model_double_facet (f : Iri) (b : Binary) (y : ModelValue) :
     ModelFacetValue f (.double b) y ↔ ∃ x, x.Valid doubleFormat ∧ BinaryFacet f b x ∧ y = .double x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
     · cases h
   · rintro ⟨x, valid, facet, rfl⟩
     exact .inr (.inl ⟨b, x, rfl, rfl, valid, facet⟩)
@@ -6061,12 +6071,25 @@ theorem model_float_facet (f : Iri) (b : Binary) (y : ModelValue) :
     ModelFacetValue f (.float b) y ↔ ∃ x, x.Valid floatFormat ∧ BinaryFacet f b x ∧ y = .float x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩)
+    · cases h
+    · cases h
+    · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
+  · rintro ⟨x, valid, facet, rfl⟩
+    exact .inr (.inr (.inl ⟨b, x, rfl, rfl, valid, facet⟩))
+
+theorem model_moment_facet (f : Iri) (b : Moment) (y : ModelValue) :
+    ModelFacetValue f (.moment b) y ↔ ∃ x, x.Valid ∧ MomentFacet f b x ∧ y = .moment x := by
+  simp only [ModelFacetValue]
+  constructor
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩)
+    · cases h
     · cases h
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
   · rintro ⟨x, valid, facet, rfl⟩
-    exact .inr (.inr ⟨b, x, rfl, rfl, valid, facet⟩)
+    exact .inr (.inr (.inr ⟨b, x, rfl, rfl, valid, facet⟩))
 
 theorem binary_facet_min_inclusive (b x : Binary) : BinaryFacet minInclusiveFacet b x ↔ b.Le x := by
   obtain ⟨a, c, d, _, _, _⟩ := facets_apart
@@ -6083,6 +6106,22 @@ theorem binary_facet_min_exclusive (b x : Binary) : BinaryFacet minExclusiveFace
 theorem binary_facet_max_exclusive (b x : Binary) : BinaryFacet maxExclusiveFacet b x ↔ x.Lt b := by
   obtain ⟨_, _, c, _, e, g⟩ := facets_apart
   simp [BinaryFacet, c.symm, e.symm, g.symm]
+
+theorem moment_facet_min_inclusive (b x : Moment) : MomentFacet minInclusiveFacet b x ↔ b.Le x := by
+  obtain ⟨a, c, d, _, _, _⟩ := facets_apart
+  simp [MomentFacet, a, c, d]
+
+theorem moment_facet_max_inclusive (b x : Moment) : MomentFacet maxInclusiveFacet b x ↔ x.Le b := by
+  obtain ⟨a, _, _, d, e, _⟩ := facets_apart
+  simp [MomentFacet, a.symm, d, e]
+
+theorem moment_facet_min_exclusive (b x : Moment) : MomentFacet minExclusiveFacet b x ↔ b.Lt x := by
+  obtain ⟨_, c, _, d, _, g⟩ := facets_apart
+  simp [MomentFacet, c.symm, d.symm, g]
+
+theorem moment_facet_max_exclusive (b x : Moment) : MomentFacet maxExclusiveFacet b x ↔ x.Lt b := by
+  obtain ⟨_, _, c, _, e, g⟩ := facets_apart
+  simp [MomentFacet, c.symm, e.symm, g.symm]
 
 /-- The model map is the OWL 2 map on the datatypes here: the specification
     `Normative` is consistent. -/
@@ -6406,5 +6445,27 @@ noncomputable def modelNormative : Normative modelMap where
     simp only [modelMap]
     rw [model_float_facet]
     simp only [binary_facet_max_exclusive]
+  datetime_facets := fun f v => by
+    rw [show dateTimeType = typeOf .DateTime from rfl, model_facets]
+    rfl
+  stamp_facets := fun f v => by
+    rw [show dateTimeStampType = typeOf .DateTimeStamp from rfl, model_facets]
+    rfl
+  min_inclusive_moment := fun b y _ => by
+    simp only [modelMap]
+    rw [model_moment_facet]
+    simp only [moment_facet_min_inclusive]
+  max_inclusive_moment := fun b y _ => by
+    simp only [modelMap]
+    rw [model_moment_facet]
+    simp only [moment_facet_max_inclusive]
+  min_exclusive_moment := fun b y _ => by
+    simp only [modelMap]
+    rw [model_moment_facet]
+    simp only [moment_facet_min_exclusive]
+  max_exclusive_moment := fun b y _ => by
+    simp only [modelMap]
+    rw [model_moment_facet]
+    simp only [moment_facet_max_exclusive]
 
 end Rowl.Datatypes

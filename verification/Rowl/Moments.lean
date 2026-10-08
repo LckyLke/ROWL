@@ -226,6 +226,16 @@ theorem copy_span_spec (bytes : alloc.vec.Vec U8) (index finish : Usize) (out : 
 termination_by finish.val - index.val
 decreasing_by omega
 
+/-- A copy of all the bytes. -/
+theorem copy_all_spec (bytes : alloc.vec.Vec U8) :
+    ∃ v, moments.copy_span bytes 0#usize (alloc.vec.Vec.len bytes) (alloc.vec.Vec.new U8) = .ok v ∧
+      v.val = bytes.val := by
+  obtain ⟨v, run, value⟩ := copy_span_spec bytes 0#usize (alloc.vec.Vec.len bytes) (alloc.vec.Vec.new U8)
+    (by simp) (by have := bytes.property; simp [new_val])
+  refine ⟨v, run, ?_⟩
+  rw [value]
+  simp [new_val, seg]
+
 /-! ### Two digits -/
 
 /-- The number that two digits at the front of the bytes write. -/
@@ -453,7 +463,8 @@ theorem next_year_spec (negative : Bool) (year : alloc.vec.Vec U8) (cy : Rowl.Nu
     (sign : negative = true → year.val ≠ []) (small : year.val.length + 2 < Usize.max) :
     ∃ n y', moments.next_year negative year = .ok (n, y') ∧ Rowl.Numbers.Canonical y'.val ∧
       (n = true → y'.val ≠ []) ∧
-      (if n then -1 else 1) * (digitsValue y'.val : ℤ) = (if negative then -1 else 1) * (digitsValue year.val : ℤ) + 1 := by
+      (if n then -1 else 1) * (digitsValue y'.val : ℤ) = (if negative then -1 else 1) * (digitsValue year.val : ℤ) + 1 ∧
+      y'.val.length ≤ year.val.length + 2 := by
   rw [moments.next_year]
   obtain ⟨one, oneRun, oneValue⟩ := WP.spec_imp_exists
     (alloc.vec.Vec.push_spec (alloc.vec.Vec.new U8) 49#u8 (by simp [new_val]; scalar_tac))
@@ -468,7 +479,7 @@ theorem next_year_spec (negative : Bool) (year : alloc.vec.Vec U8) (cy : Rowl.Nu
       have := (Rowl.Numbers.canonical_zero year.val cy).not.mpr nonempty; omega
     obtain ⟨rest, run, cr, value, len⟩ := Rowl.Numbers.subtract_naturals_spec year one cy oneCanonical
       (by rw [oneDigits]; exact positive) (by omega)
-    refine ⟨decide (0 < rest.val.length), rest, by simp [run], cr, ?_, ?_⟩
+    refine ⟨decide (0 < rest.val.length), rest, by simp [run], cr, ?_, ?_, by omega⟩
     · intro h; simp at h; intro e; rw [e] at h; simp at h
     · simp only [oneDigits] at value
       by_cases empty : rest.val = []
@@ -482,9 +493,10 @@ theorem next_year_spec (negative : Bool) (year : alloc.vec.Vec U8) (cy : Rowl.Nu
   | false =>
     obtain ⟨sum, run, cs, value, len⟩ := Rowl.Numbers.add_naturals_spec year one cy.1 oneCanonical.1
       (by rw [oneIs]; simp; omega)
-    refine ⟨false, sum, by simp [run], cs, by simp, ?_⟩
-    simp only [oneDigits] at value
-    simp [value]
+    refine ⟨false, sum, by simp [run], cs, by simp, ?_, ?_⟩
+    · simp only [oneDigits] at value
+      simp [value]
+    · rw [oneIs] at len; simp at len; omega
 
 /-- The facts of a kernel moment that the day after it needs. -/
 def DateOk (x : datatypes.Moment) : Prop :=
@@ -520,7 +532,7 @@ theorem next_day_correct (x : datatypes.Moment) (ok : DateOk x) :
       simp at nextValue
       simp [momentOf, nextValue]
     · have notLt' : ¬ x.month < 12#u8 := by simp only [UScalar.lt_equiv]; simpa using early
-      obtain ⟨n, y', run, cy', sign', value⟩ := next_year_spec x.negative x.year cy sign small
+      obtain ⟨n, y', run, cy', sign', value, _⟩ := next_year_spec x.negative x.year cy sign small
       refine ⟨{ x with negative := n, year := y', month := 1#u8, day := 1#u8, hour := 0#u8 },
         by simp only [daysRun, bind_ok, notLt, notLt', ↓reduceIte, run]; rfl, cy', sign', ?_, by simp, rfl, rfl, rfl,
         rfl⟩

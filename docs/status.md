@@ -779,8 +779,9 @@ formats are future work.
   read axioms for any valid vocabulary under every datatype map that is the OWL
   2 map on the datatypes of `datatypes::literal_value`, and a positive
   subsumption or instance answer holds in every such model. Imports, the other
-  facets, keys with a data property while numbers are ordered or
-  floating-point numbers are in use, data ranges of
+  facets, keys with a data property while numbers are ordered,
+  floating-point numbers are in use or range facets cut the time lines, data
+  ranges of
   the other datatypes and performance remain pending; datatype definitions are
   unfolded first (see the M5 entry on them).
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
@@ -1127,10 +1128,9 @@ formats are future work.
   `momentForm_unique`) into canonical kernel moments, so equal values are
   equal kernel values. The ontology queries take them: `xsd:dateTimeStamp`
   in use lies inside `xsd:dateTime`, which is apart from every other datatype
-  (`moment_axioms_spec`), and a model of the encoding gives a time node the
-  first of January of a year at midnight, at offset zero where the class of
-  `xsd:dateTimeStamp` holds, infinitely many (`moment_space`). Facets on time
-  instants and their order get no answer.
+  (`moment_axioms_spec`), and a model of the encoding gives a time node
+  instants of its line, with a time zone where the class of
+  `xsd:dateTimeStamp` holds (see the range facets on time instants below).
 - M5 floating-point numbers: Normative also specifies `xsd:double` and
   `xsd:float` (OWL 2 §4.2, XML Schema 1.1 §3.3.4–3.3.5): lexical forms
   `(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)([Ee](\+|-)?[0-9]+)?`, `INF`, `+INF`, `-INF`
@@ -1186,6 +1186,42 @@ formats are future work.
   2^24 - 1 values is gone. `xsd:double[>= 0]` holds both zeros, one
   `xsd:float` lies strictly between `1` and `1.0000002`, `xsd:double[>= INF]`
   has one value and `xsd:double[<= NaN]` none.
+- M5 range facets on time instants: Normative also specifies the facet spaces
+  of `xsd:dateTime` and `xsd:dateTimeStamp`, the four range facets with a time
+  instant as bound, and their facet values in the order of XML Schema 1.1
+  §D.2.1 (`Moment.Lt`, `Moment.Le`): instants by their places on the time
+  line (`Moment.key`) when both or neither have a time zone, and otherwise
+  only when the comparison holds for every offset from -14:00 to +14:00 that
+  the one without a time zone could have; one place at two offsets is equal
+  only with both or neither zoned (`Moment.Same`). `Rowl.TimeOrder` proves the
+  calendar arithmetic of the places (`dayNumber_lt_iff`, `key_lt_iff`,
+  `key_injective`), that a moment moved on the clock keeps its place less the
+  minutes moved (`key_shiftBy`), and that a time stamp's place holds 1681
+  values, one per offset, and an instant without a time zone one
+  (`zonedAt_card`); in the kernel, `moments::instant` moves a time stamp to its
+  instant without a time zone (`instant_spec`), `moments::shifted` moves an
+  instant by minutes (`shifted_spec`) and `moments::instant_order` compares
+  places (`instant_order_spec`). The ontology queries take datatype
+  restrictions of both datatypes by the range facets: each facet's bound
+  becomes cuts of the two time lines, at its place on its own line and
+  fourteen hours past it on the other, each with a class of the instants of
+  its line past it, or at or past it when the cut is closed
+  (`time_facet_class_meaning`); each cut's class lies inside its line's class
+  and inside the class of every cut of the line that holds all of it, each
+  literal time instant is in exactly the classes of the cuts of its line that
+  it is in, and at the place of a closed and an open cut the instants of the
+  line that are no literal values are counted exactly: none at all, or at most
+  their number at any element along `U` when there are fewer of them than the
+  capacity (`time_axioms_spec`, `TimeFacts`, `point_axiom_spec`). The values
+  of the model's time instants are now its moments themselves, also those
+  with years too long for a kernel moment (`MomentAt`, `RangeFrame`). An OWL
+  model lifts to a model of the encoding (`lifted_times`), and a model of the
+  encoding gives each time node an instant of its line in exactly the cuts
+  whose classes hold there (`timeSlot`): infinitely many, or the instants at
+  the place of a closed and an open cut, with room for the node's peers by the
+  axiom on that place or by the capacity (`moment_cases`,
+  `moment_peers_bound`, `moment_coherent`). For keys with a data property
+  while there are time cuts, the queries give no answer.
 - M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
   unfolded before the data queries (`unfolding`): each defined datatype in a
   data range of an axiom or of a question becomes the data range of its
@@ -1246,9 +1282,10 @@ formats are future work.
   (see the numeric data ranges above), strings, tagged strings and values
   outside every datatype. Under every datatype map that is the OWL 2 map on the
   datatypes of `literal_value` an answer is therefore the Direct Semantics
-  answer. Datatype restrictions other than the range facets on the numeric
-  and floating-point datatypes, keys with a data property while numbers are
-  ordered or floating-point numbers are in use (see the keys below), data
+  answer. Datatype restrictions other than the range facets on the numeric,
+  floating-point and time datatypes, keys with a data property while numbers
+  are ordered, floating-point numbers are in use or range facets cut the time
+  lines (see the keys below), data
   ranges of the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
@@ -1422,8 +1459,8 @@ formats are future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  over thirty-two datatypes, with the range facets on the numeric and
-  floating-point ones, and data
+  over thirty-two datatypes, with the range facets on the numeric,
+  floating-point and time ones, and data
   assertions with their literals under the OWL 2 datatype map, datatype
   definitions, and keys with object and data properties;
   EL ontologies are also classified and checked for consistency by a proved
