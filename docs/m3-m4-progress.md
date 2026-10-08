@@ -6985,3 +6985,85 @@ This block adds 156 public theorems (128 in the new module `Rowl.Floats`, 19
 in `Rowl.DataSound`) and 42 definitions. Totals are 5875 audited theorems,
 1964 definitions, 687 Rust regressions, 24 Python binding tests and 6068
 ledger obligations.
+
+## Range facets on floating-point numbers
+
+`xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
+`xsd:maxExclusive` now restrict `xsd:double` and `xsd:float`. Of the facets,
+the length facets, `xsd:pattern`, `rdf:langRange` and the facets of time
+instants remain.
+
+Specification. `Rowl.DatatypeMap` orders the values as XML Schema 1.1
+§3.3.4–3.3.5 does: each value other than NaN has a key in the extended reals,
+a number its value, the zeros 0 and the infinities ±∞ (`Binary.key`), and
+`Binary.Le` and `Binary.Lt` compare keys, so `-0` equals `+0` and NaN is
+comparable to nothing, itself included. The facet spaces of the two datatypes
+are the range facets with a bound in their value space (`double_facets`,
+`float_facets`), and a facet value is the set of values on the bound's side.
+As for the numbers, a facet value is one set for every datatype, so
+`xsd:float[>= "1"^^xsd:double]` and `xsd:decimal[>= "1"^^xsd:double]` are
+empty, and so is every facet with a NaN bound. The model map satisfies the
+new laws (`model_double_facet`, `model_float_facet`).
+
+Order. `Rowl.FloatOrder` lays the values of a format out in places. A positive
+number in normal form `M·2^E` (`Normal`, unique: `normal_unique`) is at
+`(E - least)·2^(p-1) + M`, its IEEE bit pattern (`placeOf`), positive infinity
+at `topPlace`, and all values form one line (`position`): NaN, `-INF`, the
+negative numbers mirrored, `-0`, `+0`, the positive numbers and `+INF`. Places
+of positive numbers grow with the numbers (`placeOf_lt`), so a value is at or
+above a bound exactly when its place is at or above the bound's first place,
+`-0`'s for a zero (`lowPosition`, `le_iff_position`), and the other three
+facets alike (`lt_iff_position`, `le_bound_iff_position`,
+`lt_bound_iff_position`, `facet_holds_iff`). The places are a bijection onto
+`[0, 2·topPlace + 2]` (`valueAt_spec`, `position_injective`), so a run of
+places holds exactly as many values (`slot_card`). In the kernel,
+`floats::position`, `low_position` and `high_position` compute the places of
+canonical values (`position_spec`, `low_position_spec`, `high_position_spec`,
+with `place_spec` for the bit pattern of a significand and scale).
+
+Encoding. `facet_edges` turns each range facet with a bound of the format into
+edges: the first place of its values and, for an upper bound, the first place
+after NaN and the first after its values; a NaN bound has none. Each edge gets
+a class (`edgeClass`), and a facet becomes the class of its edge or the
+difference of two (`binary_facet_class_meaning`). For each format in use the
+kernel adds (`binary_axioms`) each edge's class inside the class of every
+lower edge and the lowest inside the format's class, each literal value of the
+format in exactly the classes of the edges at or below its place
+(`edge_memberships_spec`), and for each slot of places between neighbouring
+edges, below the lowest and from the highest on, an axiom on its values that
+are no literal values, counted exactly (`slot_free_card`): with none, the
+slot's class holds only at its literal values' individuals; with fewer than
+the capacity, at most that many nodes of the slot are along `U` at any element
+(`SlotFact`, `slot_axiom_spec`, `EdgeFacts`). The roles of the data properties
+are below `U` whenever floating-point numbers are in use (`BoundsRuns`).
+
+Proofs. An OWL model lifts as before: a node is in an edge's class exactly when
+it is a value of the format at or above the edge, and the slot axioms count its
+values (`lifted_slot`, `lifted_edges`). From a model of the encoding, each
+floating-point data node gets its slot from the edge classes that hold there
+(`slotLow`, `slotHigh`), which the edge axioms make a slot between
+neighbouring edges with its axiom (`node_slot`). The node's values come from
+the values of the slot that are no literal values (`slotSet`, `binaryAt`),
+which exist since an unnamed node is there (`slot_free_pos`), with room for the
+node's peers by the slot's axiom or by the capacity (`binary_peers_bound`).
+Nodes whose slots share a value share the slot (`binary_coherent`), so values
+stay one to one, and an edge's class holds at a node exactly when the place of
+its value is at or above the edge (`edge_at_place`), as the facets need. This
+replaces the positive integers below 2^24 and the room of 2^24 - 1 values
+(`FreeInt`, `FloatRoom`): the capacity no longer limits the floating-point
+numbers.
+
+The regressions check the places against the IEEE bit patterns of about 4000
+pseudo-random and extreme doubles and floats, and in the queries the order of
+the facets: `-0` and `INF` are at least `0.0` while `-INF` and NaN are not,
+`-0` is not below `0` but `-1E-320` is, a NaN bound and a bound of another
+datatype leave no values, one float lies strictly between `1` and
+`1.0000002`, the two zeros are the values from `0` to `-0`, `INF` is the one
+value from `INF` on and none lies past it, a literal value counts among the
+values of its place, and a large range has room for twenty values.
+
+This block adds 176 public theorems (66 in the new module `Rowl.FloatOrder`
+and 35 in the new module `Rowl.DataEdges`) and 42 definitions, and removes the
+8 theorems and 3 definitions of the old room. Totals are 6043 audited
+theorems, 2003 definitions, 689 Rust regressions, 24 Python binding tests and
+6236 ledger obligations.

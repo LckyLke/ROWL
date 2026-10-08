@@ -1,5 +1,5 @@
 import Rowl.Strings
-import Rowl.Floats
+import Rowl.FloatOrder
 import Mathlib.Data.Rat.Floor
 
 /-!
@@ -5218,10 +5218,17 @@ theorem xsd_listed (k : datatypes.Kind) (h : IsXsdNumeric k) : typeOf k ∈ xsdN
   cases k <;> simp_all [IsXsdNumeric, xsdNumericTypes, integerSubtypes, typeOf]
 
 theorem facet_applies_xsd (k : datatypes.Kind) (xsd : IsXsdNumeric k) (bound : datatypes.DataValue) :
-    datatypes.facet_applies k bound = (do
+    datatypes.numeric_facet_applies k bound = (do
       let b ← datatypes.numeric bound
       if b then datatypes.in_kind bound k else .ok false) := by
-  cases k <;> simp_all [IsXsdNumeric, datatypes.facet_applies]
+  cases k <;> simp_all [IsXsdNumeric, datatypes.numeric_facet_applies]
+
+/-- On a bound other than a floating-point value, the kernel decides the facet
+    spaces of the numbers. -/
+theorem facet_applies_numeric (k : datatypes.Kind) {bound : datatypes.DataValue}
+    (notBinary : (∀ x, bound ≠ .Double x) ∧ ∀ x, bound ≠ .Float x) :
+    datatypes.facet_applies k bound = datatypes.numeric_facet_applies k bound := by
+  cases bound <;> simp_all [datatypes.facet_applies]
 
 /-- Under every datatype map that is the OWL 2 map on the datatypes here, the
     kernel says exactly whether a range facet with a canonical bound is in the
@@ -5232,6 +5239,36 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
     ∃ b, datatypes.facet_applies k bound = .ok b ∧
       ∀ (F : datatypes.Facet) {Native : Type w} (D : DatatypeMap Native) (N : Normative D), IsNumeric k →
         (b = true ↔ D.facetSpace (typeOf k) (facetIri F) (valueOf N bound)) := by
+  by_cases binary : (∃ x, bound = .Double x) ∨ ∃ x, bound = .Float x
+  · have notReal : ∀ {Native : Type w} {D : DatatypeMap Native} (N : Normative D) (r : ℝ),
+        N.real r ≠ valueOf N bound := by
+      intro Native D N r same
+      rcases binary with ⟨x, rfl⟩ | ⟨x, rfl⟩
+      · exact N.real_double r _ c.2 same
+      · exact N.real_float r _ c.2 same
+    have space : ∀ (F : datatypes.Facet) {Native : Type w} (D : DatatypeMap Native) (N : Normative D),
+        IsNumeric k → ¬ D.facetSpace (typeOf k) (facetIri F) (valueOf N bound) := by
+      intro F Native D N numeric space
+      by_cases xsd : IsXsdNumeric k
+      · rw [N.xsd_facets _ (xsd_listed k xsd), ← normative_in_kind N c] at space
+        rcases binary with ⟨x, rfl⟩ | ⟨x, rfl⟩ <;> cases k <;> simp_all [InKind, IsXsdNumeric]
+      · cases k <;> simp_all [IsNumeric, IsXsdNumeric]
+        · obtain ⟨_, r, same⟩ := (N.real_facets _ _).mp space
+          exact notReal N r same.symm
+        · obtain ⟨_, r, same⟩ := (N.rational_facets _ _).mp space
+          exact notReal N r same.symm
+    rcases binary with ⟨x, rfl⟩ | ⟨x, rfl⟩
+    · refine ⟨decide (k = .Double), by cases k <;> simp [datatypes.facet_applies], fun F Native D N numeric => ?_⟩
+      have notDouble : k ≠ .Double := by rintro rfl; simp [IsNumeric] at numeric
+      simp only [notDouble, decide_false, Bool.false_eq_true, false_iff]
+      exact space F D N numeric
+    · refine ⟨decide (k = .Float), by cases k <;> simp [datatypes.facet_applies], fun F Native D N numeric => ?_⟩
+      have notFloat : k ≠ .Float := by rintro rfl; simp [IsNumeric] at numeric
+      simp only [notFloat, decide_false, Bool.false_eq_true, false_iff]
+      exact space F D N numeric
+  have notBinary : (∀ x, bound ≠ .Double x) ∧ ∀ x, bound ≠ .Float x :=
+    ⟨fun x h => binary (.inl ⟨x, h⟩), fun x h => binary (.inr ⟨x, h⟩)⟩
+  rw [facet_applies_numeric k notBinary]
   have range := facetIri_range
   have notReal : ∀ {Native : Type w} {D : DatatypeMap Native} (N : Normative D), ¬ IsNumber bound →
       ∀ r, valueOf N bound ≠ N.real r := by
@@ -5263,7 +5300,7 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
         cases k <;> simp_all [IsXsdNumeric]
   · cases k with
     | Real =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       by_cases nb : IsNumber bound
       · refine ⟨true, by simp [nb], fun F _ D N _ => ?_⟩
         simp only [typeOf, N.real_facets, true_iff]
@@ -5272,7 +5309,7 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
         simp only [typeOf, N.real_facets, Bool.false_eq_true, false_iff, not_and, not_exists]
         exact fun _ r h => notReal N nb r h
     | Rational =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       by_cases nb : IsNumber bound
       · refine ⟨true, by simp [nb], fun F _ D N _ => ?_⟩
         simp only [typeOf, N.rational_facets, true_iff]
@@ -5281,54 +5318,131 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
         simp only [typeOf, N.rational_facets, Bool.false_eq_true, false_iff, not_and, not_exists]
         exact fun _ r h => notReal N nb r h
     | String =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Plain =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Boolean =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | AnyUri =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | HexBinary =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Base64Binary =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | NormalizedString =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Token =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Language =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | NmToken =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Name =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | NcName =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | DateTime =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | DateTimeStamp =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Double =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Float =>
-      simp only [datatypes.facet_applies, numeric_correct]
+      simp only [datatypes.numeric_facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | _ => exact absurd trivial xsd
+
+/-! ### Range facets on floating-point numbers -/
+
+/-- The value of a floating-point value of `xsd:double` (`double`) or
+    `xsd:float`. -/
+def binaryValue (N : Normative D) : Bool → Binary → Native
+  | true, x => N.double x
+  | false, x => N.float x
+
+theorem binaryValue_lit (N : Normative D) (double : Bool) (b : datatypes.Binary) :
+    valueOf N (if double then .Double b else .Float b) = binaryValue N double (Rowl.Floats.binaryOf b) := by
+  cases double <;> rfl
+
+/-- Under every datatype map that is the OWL 2 map on the datatypes here, the
+    facet value of a range facet with a floating-point bound is the set of the
+    values of its format that meet it in the order of XML Schema. -/
+theorem normative_binary_facet (N : Normative D) (F : datatypes.Facet) (double : Bool) {b : Binary}
+    (vb : b.Valid (Rowl.Floats.fmt double)) (y : Native) :
+    D.facetValue (facetIri F) (binaryValue N double b) y ↔
+      ∃ x, x.Valid (Rowl.Floats.fmt double) ∧ Rowl.FloatOrder.FacetHolds F b x ∧ y = binaryValue N double x := by
+  cases double <;> cases F <;>
+    simp only [binaryValue, facetIri, Rowl.FloatOrder.FacetHolds, Rowl.Floats.fmt] <;>
+    first
+    | exact N.min_inclusive_float b y vb | exact N.max_inclusive_float b y vb
+    | exact N.min_exclusive_float b y vb | exact N.max_exclusive_float b y vb
+    | exact N.min_inclusive_double b y vb | exact N.max_inclusive_double b y vb
+    | exact N.min_exclusive_double b y vb | exact N.max_exclusive_double b y vb
+
+/-- Under every datatype map that is the OWL 2 map on the datatypes here, the
+    kernel says exactly whether a range facet with a canonical bound is in the
+    facet space of `xsd:double` or `xsd:float`: a value of the datatype. -/
+theorem facet_applies_binary (double : Bool) (bound : datatypes.DataValue) (c : Canonical bound) :
+    ∃ b, datatypes.facet_applies (if double then .Double else .Float) bound = .ok b ∧
+      ∀ (F : datatypes.Facet) {Native : Type w} (D : DatatypeMap Native) (N : Normative D),
+        (b = true ↔ D.facetSpace (typeOf (if double then .Double else .Float)) (facetIri F) (valueOf N bound)) := by
+  have range := facetIri_range
+  cases double
+  · simp only [Bool.false_eq_true, ↓reduceIte]
+    refine ⟨decide (∃ x, bound = .Float x), ?_, fun F Native D N => ?_⟩
+    · cases bound <;> simp [datatypes.facet_applies, datatypes.numeric_facet_applies, datatypes.numeric]
+    · rw [show typeOf .Float = floatType from rfl, N.float_facets]
+      simp only [range F, true_and, decide_eq_true_eq]
+      constructor
+      · rintro ⟨x, rfl⟩; exact ⟨_, c.2, rfl⟩
+      · rintro ⟨b, vb, same⟩
+        cases bound with
+        | Float x => exact ⟨x, rfl⟩
+        | Double x => exact absurd same (N.double_float _ _ c.2 vb)
+        | Number n w f => exact absurd ((real_rat N _).symm.trans same) (N.real_float _ _ vb)
+        | Fraction n a d => exact absurd ((real_rat N _).symm.trans same) (N.real_float _ _ vb)
+        | Text t => exact absurd same (N.text_float _ _ c vb)
+        | Tagged t m => exact absurd same (N.tagged_float _ _ _ c.1 c.2 vb)
+        | Truth t => exact absurd same (N.truth_float _ _ vb)
+        | Uri t => exact absurd same (N.coded_float _ _ c vb)
+        | Hex o => exact absurd same (N.coded_float _ _ trivial vb)
+        | Base64 o => exact absurd same (N.coded_float _ _ trivial vb)
+        | Moment x => exact absurd same (N.moment_float _ _ (c : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2 vb)
+  · simp only [↓reduceIte]
+    refine ⟨decide (∃ x, bound = .Double x), ?_, fun F Native D N => ?_⟩
+    · cases bound <;> simp [datatypes.facet_applies, datatypes.numeric_facet_applies, datatypes.numeric]
+    · rw [show typeOf .Double = doubleType from rfl, N.double_facets]
+      simp only [range F, true_and, decide_eq_true_eq]
+      constructor
+      · rintro ⟨x, rfl⟩; exact ⟨_, c.2, rfl⟩
+      · rintro ⟨b, vb, same⟩
+        cases bound with
+        | Double x => exact ⟨x, rfl⟩
+        | Float x => exact absurd same.symm (N.double_float _ _ vb c.2)
+        | Number n w f => exact absurd ((real_rat N _).symm.trans same) (N.real_double _ _ vb)
+        | Fraction n a d => exact absurd ((real_rat N _).symm.trans same) (N.real_double _ _ vb)
+        | Text t => exact absurd same (N.text_double _ _ c vb)
+        | Tagged t m => exact absurd same (N.tagged_double _ _ _ c.1 c.2 vb)
+        | Truth t => exact absurd same (N.truth_double _ _ vb)
+        | Uri t => exact absurd same (N.coded_double _ _ c vb)
+        | Hex o => exact absurd same (N.coded_double _ _ trivial vb)
+        | Base64 o => exact absurd same (N.coded_double _ _ trivial vb)
+        | Moment x => exact absurd same (N.moment_double _ _ (c : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2 vb)
 
 /-! ### The specification has a model
 
@@ -5554,17 +5668,27 @@ def ModelFacetSpace (k : datatypes.Kind) (f : Iri) (v : ModelValue) : Prop :=
   | .NcName => False
   | .DateTime => False
   | .DateTimeStamp => False
-  | .Double => False
-  | .Float => False
+  | .Double => f ∈ rangeFacets ∧ ∃ b, b.Valid doubleFormat ∧ v = .double b
+  | .Float => f ∈ rangeFacets ∧ ∃ b, b.Valid floatFormat ∧ v = .float b
   | .Real => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | .Rational => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | k => f ∈ rangeFacets ∧ ModelSpace k v
 
-/-- The facet values of the range facets in the model map. -/
+/-- Whether a floating-point value is on the side of a range facet of a bound
+    in the order of XML Schema. -/
+def BinaryFacet (f : Iri) (b x : Binary) : Prop :=
+  (f = minInclusiveFacet ∧ b.Le x) ∨ (f = maxInclusiveFacet ∧ x.Le b) ∨
+    (f = minExclusiveFacet ∧ b.Lt x) ∨ (f = maxExclusiveFacet ∧ x.Lt b)
+
+/-- The facet values of the range facets in the model map: the reals on the
+    facet's side of a real bound, and the values of a floating-point format on
+    the facet's side of a bound of the format. -/
 def ModelFacetValue (f : Iri) (v y : ModelValue) : Prop :=
-  ∃ r s, v = .real r ∧ y = .real s ∧
+  (∃ r s, v = .real r ∧ y = .real s ∧
     ((f = minInclusiveFacet ∧ r ≤ s) ∨ (f = maxInclusiveFacet ∧ s ≤ r) ∨
-      (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r))
+      (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r))) ∨
+  (∃ b x, v = .double b ∧ y = .double x ∧ x.Valid doubleFormat ∧ BinaryFacet f b x) ∨
+  (∃ b x, v = .float b ∧ y = .float x ∧ x.Valid floatFormat ∧ BinaryFacet f b x)
 
 private theorem integer_of_form {text : List U8} {q : ℚ} (form : NumberForm true text q) : IsInteger q := by
   obtain ⟨sign, w, _, _, _, _, rfl⟩ := form
@@ -5909,6 +6033,57 @@ theorem facets_apart : minInclusiveFacet ≠ maxInclusiveFacet ∧ minInclusiveF
 
 theorem cast_int (z : ℤ) : (((z : ℚ)) : ℝ) = (z : ℝ) := by simp
 
+theorem model_real_facet (f : Iri) (r : ℝ) (y : ModelValue) :
+    ModelFacetValue f (.real r) y ↔ ∃ s, y = .real s ∧
+      ((f = minInclusiveFacet ∧ r ≤ s) ∨ (f = maxInclusiveFacet ∧ s ≤ r) ∨
+        (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r)) := by
+  simp only [ModelFacetValue]
+  constructor
+  · rintro (⟨r', s, h, rfl, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
+    · cases h; exact ⟨s, rfl, facet⟩
+    · cases h
+    · cases h
+  · rintro ⟨s, rfl, facet⟩
+    exact .inl ⟨r, s, rfl, rfl, facet⟩
+
+theorem model_double_facet (f : Iri) (b : Binary) (y : ModelValue) :
+    ModelFacetValue f (.double b) y ↔ ∃ x, x.Valid doubleFormat ∧ BinaryFacet f b x ∧ y = .double x := by
+  simp only [ModelFacetValue]
+  constructor
+  · rintro (⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩)
+    · cases h
+    · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
+  · rintro ⟨x, valid, facet, rfl⟩
+    exact .inr (.inl ⟨b, x, rfl, rfl, valid, facet⟩)
+
+theorem model_float_facet (f : Iri) (b : Binary) (y : ModelValue) :
+    ModelFacetValue f (.float b) y ↔ ∃ x, x.Valid floatFormat ∧ BinaryFacet f b x ∧ y = .float x := by
+  simp only [ModelFacetValue]
+  constructor
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩)
+    · cases h
+    · cases h
+    · cases h; exact ⟨x, valid, facet, rfl⟩
+  · rintro ⟨x, valid, facet, rfl⟩
+    exact .inr (.inr ⟨b, x, rfl, rfl, valid, facet⟩)
+
+theorem binary_facet_min_inclusive (b x : Binary) : BinaryFacet minInclusiveFacet b x ↔ b.Le x := by
+  obtain ⟨a, c, d, _, _, _⟩ := facets_apart
+  simp [BinaryFacet, a, c, d]
+
+theorem binary_facet_max_inclusive (b x : Binary) : BinaryFacet maxInclusiveFacet b x ↔ x.Le b := by
+  obtain ⟨a, _, _, d, e, _⟩ := facets_apart
+  simp [BinaryFacet, a.symm, d, e]
+
+theorem binary_facet_min_exclusive (b x : Binary) : BinaryFacet minExclusiveFacet b x ↔ b.Lt x := by
+  obtain ⟨_, c, _, d, _, g⟩ := facets_apart
+  simp [BinaryFacet, c.symm, d.symm, g]
+
+theorem binary_facet_max_exclusive (b x : Binary) : BinaryFacet maxExclusiveFacet b x ↔ x.Lt b := by
+  obtain ⟨_, _, c, _, e, g⟩ := facets_apart
+  simp [BinaryFacet, c.symm, e.symm, g.symm]
+
 /-- The model map is the OWL 2 map on the datatypes here: the specification
     `Normative` is consistent. -/
 noncomputable def modelNormative : Normative modelMap where
@@ -6060,53 +6235,53 @@ noncomputable def modelNormative : Normative modelMap where
     cases k <;> simp_all [IsXsdNumeric, ModelFacetSpace]
   min_inclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
-    simp only [ModelFacetValue, modelMap]
+    simp only [modelMap]
+    rw [model_real_facet]
     constructor
-    · rintro ⟨r', s, h1, rfl, cases⟩
-      cases h1
+    · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨_, le⟩ | ⟨h, _⟩ | ⟨h, _⟩ | ⟨h, _⟩
       · exact ⟨s, le, rfl⟩
       all_goals simp_all
     · rintro ⟨s, le, rfl⟩
-      exact ⟨r, s, rfl, rfl, .inl ⟨trivial, le⟩⟩
+      exact ⟨s, rfl, .inl ⟨rfl, le⟩⟩
   max_inclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
-    simp only [ModelFacetValue, modelMap]
+    simp only [modelMap]
+    rw [model_real_facet]
     constructor
-    · rintro ⟨r', s, h1, rfl, cases⟩
-      cases h1
+    · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨h, _⟩ | ⟨_, le⟩ | ⟨h, _⟩ | ⟨h, _⟩
       · simp_all
       · exact ⟨s, le, rfl⟩
       all_goals simp_all
     · rintro ⟨s, le, rfl⟩
-      exact ⟨r, s, rfl, rfl, .inr (.inl ⟨trivial, le⟩)⟩
+      exact ⟨s, rfl, .inr (.inl ⟨rfl, le⟩)⟩
   min_exclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
-    simp only [ModelFacetValue, modelMap]
+    simp only [modelMap]
+    rw [model_real_facet]
     constructor
-    · rintro ⟨r', s, h1, rfl, cases⟩
-      cases h1
+    · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨h, _⟩ | ⟨h, _⟩ | ⟨_, lt⟩ | ⟨h, _⟩
       · simp_all
       · simp_all
       · exact ⟨s, lt, rfl⟩
       · simp_all
     · rintro ⟨s, lt, rfl⟩
-      exact ⟨r, s, rfl, rfl, .inr (.inr (.inl ⟨trivial, lt⟩))⟩
+      exact ⟨s, rfl, .inr (.inr (.inl ⟨rfl, lt⟩))⟩
   max_exclusive_value := fun r y => by
     obtain ⟨a, b, c, d, e, f⟩ := facets_apart
-    simp only [ModelFacetValue, modelMap]
+    simp only [modelMap]
+    rw [model_real_facet]
     constructor
-    · rintro ⟨r', s, h1, rfl, cases⟩
-      cases h1
+    · rintro ⟨s, rfl, cases⟩
       rcases cases with ⟨h, _⟩ | ⟨h, _⟩ | ⟨h, _⟩ | ⟨_, lt⟩
       · simp_all
       · simp_all
       · simp_all
       · exact ⟨s, lt, rfl⟩
     · rintro ⟨s, lt, rfl⟩
-      exact ⟨r, s, rfl, rfl, .inr (.inr (.inr ⟨trivial, lt⟩))⟩
+      exact ⟨s, rfl, .inr (.inr (.inr ⟨rfl, lt⟩))⟩
   coded := .coded
   coded_injective := fun _ _ _ _ h => by cases h; rfl
   real_coded := fun _ _ _ h => by cases h
@@ -6193,5 +6368,43 @@ noncomputable def modelNormative : Normative modelMap where
     have h : ∃ b, BinaryForm floatFormat t b := ⟨b, form⟩
     simp only [modelValue, h, ↓reduceDIte]
     rw [Rowl.Floats.binaryForm_unique (double := false) (Classical.choose_spec h) form]
+  double_facets := fun f v => by
+    rw [show doubleType = typeOf .Double from rfl, model_facets]
+    rfl
+  float_facets := fun f v => by
+    rw [show floatType = typeOf .Float from rfl, model_facets]
+    rfl
+  min_inclusive_double := fun b y _ => by
+    simp only [modelMap]
+    rw [model_double_facet]
+    simp only [binary_facet_min_inclusive]
+  max_inclusive_double := fun b y _ => by
+    simp only [modelMap]
+    rw [model_double_facet]
+    simp only [binary_facet_max_inclusive]
+  min_exclusive_double := fun b y _ => by
+    simp only [modelMap]
+    rw [model_double_facet]
+    simp only [binary_facet_min_exclusive]
+  max_exclusive_double := fun b y _ => by
+    simp only [modelMap]
+    rw [model_double_facet]
+    simp only [binary_facet_max_exclusive]
+  min_inclusive_float := fun b y _ => by
+    simp only [modelMap]
+    rw [model_float_facet]
+    simp only [binary_facet_min_inclusive]
+  max_inclusive_float := fun b y _ => by
+    simp only [modelMap]
+    rw [model_float_facet]
+    simp only [binary_facet_max_inclusive]
+  min_exclusive_float := fun b y _ => by
+    simp only [modelMap]
+    rw [model_float_facet]
+    simp only [binary_facet_min_exclusive]
+  max_exclusive_float := fun b y _ => by
+    simp only [modelMap]
+    rw [model_float_facet]
+    simp only [binary_facet_max_exclusive]
 
 end Rowl.Datatypes

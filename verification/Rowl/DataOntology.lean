@@ -781,7 +781,7 @@ theorem keyed_plain {context : data_ontology.Context} (good : Good context) {cap
     counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, plainNodes, _⟩ := facts enc rfl
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, plainNodes, _⟩ := facts enc rfl
   exact plainNodes a mem
 
 theorem named_known_spec (nodes : alloc.vec.Vec Individual) (a : NamedIndividual) :
@@ -1076,7 +1076,7 @@ theorem known_plain {context : data_ontology.Context} (good : Good context) {cap
   obtain ⟨res, run, facts⟩ := encode_meaning.{0,0,0,0} context good capacity capSmall items
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, _, _, new, _, _, means, _⟩ := facts enc rfl
+  obtain ⟨_, _, new, _, _, means, _⟩ := facts enc rfl
   rcases nodesAdd a known.2 with absurdity | inside
   · simp [new_val] at absurdity
   · obtain ⟨item, mem, inAxiom⟩ := List.mem_flatMap.mp inside

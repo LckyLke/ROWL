@@ -22,6 +22,8 @@ open Rowl.DatatypeMap (Normative)
 open Rowl.Datatypes (Canonical valueOf typeOf kindOf InKind)
 open Rowl.AlcOntology (RoleOf)
 open Rowl.DataEncoding
+open Rowl.Floats (CanonicalBinary binaryOf fmt)
+open Rowl.FloatOrder (position FacetHolds)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 2000000
@@ -38,11 +40,19 @@ def FacetReal : datatypes.Facet → ℚ → ℝ → Prop
   | .MinExclusive, c, r => (c : ℝ) < r
   | .MaxExclusive, c, r => r < c
 
+/-- `x` is the value of the canonical kernel value `b` of a floating-point
+    format. -/
+def FloatAt {Value : Type v} (lit : datatypes.DataValue → Value) (double : Bool) (x : Value)
+    (b : datatypes.Binary) : Prop :=
+  CanonicalBinary b ∧ (binaryOf b).Valid (fmt double) ∧ x = lit (floatLit double b)
+
 /-- What the encoding of a data range needs of a data node `d` of `J` that
     stands for a value `x` of `I`: the same datatypes in use, a literal
-    individual exactly at the node of its literal's value, and, when numbers
-    are ordered, each cut's class exactly at the nodes of numbers in the cut,
-    with `num` the reals among the values of `I`. -/
+    individual exactly at the node of its literal's value, when numbers are
+    ordered, each cut's class exactly at the nodes of numbers in the cut, with
+    `num` the reals among the values of `I`, and, at a node of a value of a
+    floating-point format, each edge's class of the format exactly when the
+    value's place is at or above the edge. -/
 structure NodeValue (context : data_ontology.Context) (I : Interpretation Object Value)
     (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value) (num : ℝ → Value) (d : Object')
     (x : Value) : Prop where
@@ -51,6 +61,9 @@ structure NodeValue (context : data_ontology.Context) (I : Interpretation Object
     J.namedIndividuals (valueIndividual i) = d ↔ x = lit context.values.val[i.val]
   cuts : context.kinds.ordered = true → ∀ (i : Usize) (h : i.val < context.cuts.val.length),
     (J.classes (cutClass i) d ↔ ∃ r, x = num r ∧ Rowl.Regions.InCut context.cuts.val[i.val] r)
+  edges : ∀ (double : Bool) (b : datatypes.Binary), FloatAt lit double x b →
+    ∀ (i : Usize) (h : i.val < (edgesOf context double).val.length),
+      (J.classes (edgeClass double i) d ↔ (edgesOf context double).val[i.val].val ≤ position (fmt double) (binaryOf b))
 
 /-- What every data range needs of the two interpretations: `rdfs:Literal` and
     `owl:Thing` hold everywhere, each literal with a value is that value, the
@@ -69,6 +82,14 @@ structure RangeFrame (I : Interpretation Object Value) (J : Interpretation Objec
   facets : ∀ (f : FacetRestriction) (F : datatypes.Facet) (w : datatypes.DataValue),
     Rowl.Datatypes.facetOf f.facet = some F → datatypes.literal_value f.value = .ok (some w) →
     Rowl.Datatypes.IsNumber w → ∀ x, I.facets f x ↔ ∃ r, x = num r ∧ FacetReal F (Rowl.Datatypes.numValue w) r
+  binaries : ∀ (double : Bool) (x : Value), I.datatypes (typeOf (floatKind double)) x ↔ ∃ b, FloatAt lit double x b
+  binaryFacets : ∀ (f : FacetRestriction) (F : datatypes.Facet) (double : Bool) (b : datatypes.Binary),
+    Rowl.Datatypes.facetOf f.facet = some F → datatypes.literal_value f.value = .ok (some (floatLit double b)) →
+    ∀ x, I.facets f x ↔ ∃ y, FloatAt lit double x y ∧ FacetHolds F (binaryOf b) (binaryOf y)
+  binaryReal : ∀ (double : Bool) (b : datatypes.Binary) (x : Value) (r : ℝ), FloatAt lit double x b → x ≠ num r
+  binaryApart : ∀ (b b' : datatypes.Binary) (x : Value), FloatAt lit true x b → ¬ FloatAt lit false x b'
+  binaryInjective : ∀ (double : Bool) (b b' : datatypes.Binary) (x : Value), FloatAt lit double x b →
+    FloatAt lit double x b' → b = b'
 
 /-- What a data range's encoding means: at every data node standing for a
     value, it holds exactly when the range holds of the value. -/
@@ -366,14 +387,165 @@ theorem facet_open_eq (F : datatypes.Facet) : data_ontology.facet_open F = .ok (
 theorem facet_outside_eq (F : datatypes.Facet) : data_ontology.facet_outside F = .ok (FacetOutside F) := by
   cases F <;> rfl
 
-/-- The class of a facet restriction holds at a data node standing for a
-    number exactly when the facet holds of it, when numbers are ordered. -/
-theorem facet_class_meaning (context : data_ontology.Context) (f : FacetRestriction) :
-    ∃ res, data_ontology.facet_class context f = .ok res ∧ ∀ c, res = some c →
+theorem nothing_eq : data_ontology.nothing = .ok (.ObjectComplementOf (.Class thing)) := by
+  simp [data_ontology.nothing, thing_eq, data_ontology.not]
+
+theorem edge_index_correct (edges : alloc.vec.Vec U128) (edge : U128) (index : Usize) :
+    ∃ res, data_ontology.edge_index edges edge index = .ok res ∧
+      ∀ i, res = some i → ∃ h : i.val < edges.val.length, edges.val[i.val] = edge := by
+  rw [data_ontology.edge_index]
+  by_cases inside : index.val < edges.val.length
+  · have lookup : edges.index_usize index = .ok edges.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    by_cases same : edges.val[index.val] = edge
+    · exact ⟨some index, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, same],
+        fun i h => by cases h; exact ⟨inside, same⟩⟩
+    · obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨res, run, facts⟩ := edge_index_correct edges edge next
+      exact ⟨res, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, same, advance, run],
+        facts⟩
+  · exact ⟨none, by simp [UScalar.lt_equiv, inside], by simp⟩
+termination_by edges.val.length - index.val
+decreasing_by omega
+
+theorem edges_run (context : data_ontology.Context) (double : Bool) :
+    (if double = true then ok context.double_edges else ok context.float_edges : Result (alloc.vec.Vec U128)) =
+      ok (edgesOf context double) := by
+  cases double <;> rfl
+
+/-- The class of an edge of the context at a place, when there is one. -/
+theorem at_edge_correct (context : data_ontology.Context) (double : Bool) (edge : U128) :
+    ∃ res, data_ontology.at_edge context double edge = .ok res ∧ ∀ c, res = some c →
+      ∃ (i : Usize) (h : i.val < (edgesOf context double).val.length),
+        (edgesOf context double).val[i.val] = edge ∧ c = .Class (edgeClass double i) := by
+  obtain ⟨res, run, facts⟩ := edge_index_correct (edgesOf context double) edge 0#usize
+  cases res with
+  | none => exact ⟨none, by simp [data_ontology.at_edge, edges_run, run], by simp⟩
+  | some i =>
+    obtain ⟨h, at_i⟩ := facts i rfl
+    exact ⟨some (.Class (edgeClass double i)), by simp [data_ontology.at_edge, edges_run, run, edge_class_eq],
+      fun c hc => ⟨i, h, at_i, by cases hc; rfl⟩⟩
+
+/-- The class of the values from one edge on and before another. -/
+theorem between_edges_correct (context : data_ontology.Context) (double : Bool) (low high : U128) :
+    ∃ res, data_ontology.between_edges context double low high = .ok res ∧ ∀ c, res = some c →
+      ∃ (i j : Usize) (hi : i.val < (edgesOf context double).val.length)
+        (hj : j.val < (edgesOf context double).val.length),
+        (edgesOf context double).val[i.val] = low ∧ (edgesOf context double).val[j.val] = high ∧
+        ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value') d,
+          classDenote J c d ↔ J.classes (edgeClass double i) d ∧ ¬ J.classes (edgeClass double j) d := by
+  obtain ⟨r1, run1, f1⟩ := at_edge_correct context double low
+  obtain ⟨r2, run2, f2⟩ := at_edge_correct context double high
+  cases r1 with
+  | none => exact ⟨none, by simp [data_ontology.between_edges, run1, run2], by simp⟩
+  | some c1 =>
+    cases r2 with
+    | none => exact ⟨none, by simp [data_ontology.between_edges, run1, run2], by simp⟩
+    | some c2 =>
+      obtain ⟨i, hi, at_i, rfl⟩ := f1 c1 rfl
+      obtain ⟨j, hj, at_j, rfl⟩ := f2 c2 rfl
+      refine ⟨some (.ObjectIntersectionOf ⟨.Class (edgeClass double i),
+        .ObjectComplementOf (.Class (edgeClass double j)), alloc.vec.Vec.new ClassExpression⟩),
+        by simp [data_ontology.between_edges, run1, run2, data_ontology.not, data_ontology.and], fun c hc => ?_⟩
+      cases hc
+      refine ⟨i, j, hi, hj, at_i, at_j, fun J d => ?_⟩
+      rw [inter_iff]
+      simp [AtLeastTwo.elements, classDenote, new_val]
+
+/-- The class of a range facet with a floating-point bound of the format holds
+    at a data node standing for a value of the format exactly when the facet
+    holds of the value. -/
+theorem binary_facet_class_meaning (context : data_ontology.Context) (double : Bool) (F : datatypes.Facet)
+    (bound : datatypes.Binary) (cb : CanonicalBinary bound) (vb : (binaryOf bound).Valid (fmt double)) :
+    ∃ res, data_ontology.binary_facet_class context double F bound = .ok res ∧ ∀ c, res = some c →
       ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
         (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
         (num : ℝ → Value), RangeFrame I J lit num → ∀ d x, NodeValue context I J lit num d x →
-          context.kinds.ordered = true → (∃ r, x = num r) → (I.facets f x ↔ classDenote J c d) := by
+          ∀ y, FloatAt lit double x y → (FacetHolds F (binaryOf bound) (binaryOf y) ↔ classDenote J c d) := by
+  have pf := Rowl.FloatOrder.proper_fmt double
+  rw [data_ontology.binary_facet_class, Rowl.FloatOrder.is_nan_spec]
+  by_cases nan : binaryOf bound = .nan
+  · refine ⟨some (.ObjectComplementOf (.Class thing)), by simp [nan, nothing_eq], fun c hc => ?_⟩
+    cases hc
+    intro Object Value Object' Value' I J lit num frame d x node y hy
+    have := (Rowl.FloatOrder.facet_holds_iff pf F vb hy.2.1).not
+    simp only [classDenote, frame.thing d, not_true_eq_false, iff_false]
+    intro holds
+    exact (Rowl.FloatOrder.facet_holds_iff pf F vb hy.2.1).mp holds |>.1 nan
+  · obtain ⟨low, lowRun, lowVal⟩ := Rowl.FloatOrder.low_position_spec bound double cb vb
+    obtain ⟨high, highRun, highVal⟩ := Rowl.FloatOrder.high_position_spec bound double cb vb
+    have small := Rowl.FloatOrder.top_small double
+    have highLe : high.val ≤ 2 * Rowl.FloatOrder.topPlace (fmt double) + 2 := by
+      rw [highVal]
+      obtain ⟨_, h, _, _, _, _⟩ := Rowl.FloatOrder.places_of pf vb nan
+      have : (Rowl.FloatOrder.highPosition (fmt double) (binaryOf bound) : ℤ) ≤
+          2 * Rowl.FloatOrder.topPlace (fmt double) + 2 := by
+        rw [h]; unfold Rowl.FloatOrder.highOf; split_ifs <;> omega
+      omega
+    obtain ⟨h1, h1Run, h1Val⟩ := WP.spec_imp_exists
+      (UScalar.add_spec (x := high) (y := 1#u128) (by simp [UScalar.max, U128.max_eq]; omega))
+    have h1Is : h1.val = Rowl.FloatOrder.highPosition (fmt double) (binaryOf bound) + 1 := by
+      rw [h1Val, highVal]; simp
+    -- the class of the edge at a place, at the node of a value of the format
+    have edgeMeans : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+        {I : Interpretation Object Value} {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value}
+        {num : ℝ → Value}, RangeFrame I J lit num → ∀ {d x}, NodeValue context I J lit num d x →
+        ∀ {y}, FloatAt lit double x y → ∀ (i : Usize) (hi : i.val < (edgesOf context double).val.length),
+          J.classes (edgeClass double i) d ↔ (edgesOf context double).val[i.val].val ≤ position (fmt double) (binaryOf y) := by
+      intro Object Value Object' Value' I J lit num frame d x node y hy i hi
+      exact node.edges double y hy i hi
+    have holds : ∀ y, (binaryOf y).Valid (fmt double) → (FacetHolds F (binaryOf bound) (binaryOf y) ↔
+        Rowl.FloatOrder.FacetPlaces (fmt double) F (binaryOf bound) (position (fmt double) (binaryOf y))) := by
+      intro y vy
+      rw [Rowl.FloatOrder.facet_holds_iff pf F vb vy]
+      simp [nan]
+    cases F with
+    | MinInclusive =>
+      obtain ⟨res, run, facts⟩ := at_edge_correct context double low
+      refine ⟨res, by simp [nan, lowRun, highRun, run], fun c hc => ?_⟩
+      obtain ⟨i, hi, at_i, rfl⟩ := facts c hc
+      intro Object Value Object' Value' I J lit num frame d x node y hy
+      rw [holds y hy.2.1, classDenote, edgeMeans frame node hy i hi, at_i, lowVal]
+      rfl
+    | MinExclusive =>
+      obtain ⟨res, run, facts⟩ := at_edge_correct context double h1
+      refine ⟨res, by simp [nan, lowRun, highRun, h1Run, run], fun c hc => ?_⟩
+      obtain ⟨i, hi, at_i, rfl⟩ := facts c hc
+      intro Object Value Object' Value' I J lit num frame d x node y hy
+      rw [holds y hy.2.1, classDenote, edgeMeans frame node hy i hi, at_i, h1Is]
+      rfl
+    | MaxInclusive =>
+      obtain ⟨res, run, facts⟩ := between_edges_correct context double 1#u128 h1
+      refine ⟨res, by simp [nan, lowRun, highRun, h1Run, run], fun c hc => ?_⟩
+      obtain ⟨i, j, hi, hj, at_i, at_j, means⟩ := facts c hc
+      intro Object Value Object' Value' I J lit num frame d x node y hy
+      rw [holds y hy.2.1, means J d, edgeMeans frame node hy i hi, edgeMeans frame node hy j hj, at_i, at_j, h1Is]
+      rfl
+    | MaxExclusive =>
+      obtain ⟨res, run, facts⟩ := between_edges_correct context double 1#u128 low
+      refine ⟨res, by simp [nan, lowRun, highRun, run], fun c hc => ?_⟩
+      obtain ⟨i, j, hi, hj, at_i, at_j, means⟩ := facts c hc
+      intro Object Value Object' Value' I J lit num frame d x node y hy
+      rw [holds y hy.2.1, means J d, edgeMeans frame node hy i hi, edgeMeans frame node hy j hj, at_i, at_j, lowVal]
+      rfl
+
+theorem float_kind_double : floatKind true = .Double := rfl
+theorem float_kind_float : floatKind false = .Float := rfl
+
+/-- The class of a facet restriction holds at a data node standing for a
+    value of the restricted kind exactly when the facet holds of it: for a
+    numeric kind while numbers are ordered, and for `xsd:double` and
+    `xsd:float`. -/
+theorem facet_class_meaning (context : data_ontology.Context) (k : datatypes.Kind) (f : FacetRestriction) :
+    ∃ res, data_ontology.facet_class context k f = .ok res ∧ ∀ c, res = some c →
+      ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+        (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
+        (num : ℝ → Value), RangeFrame I J lit num → ∀ d x, NodeValue context I J lit num d x →
+          I.datatypes (typeOf k) x →
+          (Rowl.Datatypes.IsNumeric k ∧ context.kinds.ordered = true) ∨ k = .Double ∨ k = .Float →
+            (I.facets f x ↔ classDenote J c d) := by
   rw [data_ontology.facet_class, Rowl.Datatypes.facet_of_correct]
   obtain ⟨result, run, someValue, _⟩ := Rowl.Datatypes.literal_value_correct.{0} f.value
   rw [run]
@@ -383,37 +555,122 @@ theorem facet_class_meaning (context : data_ontology.Context) (f : FacetRestrict
     cases result with
     | none => exact ⟨none, by simp, by simp⟩
     | some w =>
+      have canonical := (someValue w rfl).1
+      -- the empty class, for a bound whose values are not the kind's
+      have empty : ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+          {I : Interpretation Object Value} {J : Interpretation Object' Value'} {d : Object'} {x : Value},
+          (∀ d, J.classes thing d) → ¬ I.facets f x →
+            (I.facets f x ↔ classDenote J (.ObjectComplementOf (.Class thing)) d) := by
+        intro Object Value Object' Value' I J d x thing' no
+        simp [classDenote, thing' d, no]
       by_cases number : Rowl.Datatypes.IsNumber w
-      · obtain ⟨res, bRun, bFacts⟩ := bound_class_correct context (some w) (FacetOpen F) (FacetOutside F)
-        refine ⟨res, by simp [Rowl.Datatypes.numeric_correct, number, facet_open_eq, facet_outside_eq, bRun],
-          fun c hc => ?_⟩
-        intro Object Value Object' Value' I J lit num frame d x node ordered isNumber
-        rcases bFacts c hc with ⟨none, _⟩ | ⟨v, i, h, same, at_i, rfl⟩
-        · cases none
-        · cases same
+      · have notBinary : (∀ b, w ≠ .Double b) ∧ ∀ b, w ≠ .Float b := by
+          constructor <;> intro b h <;> subst h <;> simp [Rowl.Datatypes.IsNumber] at number
+        by_cases numericK : Rowl.Datatypes.IsNumeric k
+        · obtain ⟨res, bRun, bFacts⟩ := bound_class_correct context (some w) (FacetOpen F) (FacetOutside F)
+          refine ⟨res, ?_, fun c hc => ?_⟩
+          · cases w <;> simp_all [Rowl.Datatypes.IsNumber, Rowl.Datatypes.numeric_correct, numeric_kind_eq,
+              facet_open_eq, facet_outside_eq]
+          intro Object Value Object' Value' I J lit num frame d x node inType kinds
+          have ordered : context.kinds.ordered = true := by
+            rcases kinds with ⟨_, o⟩ | rfl | rfl
+            · exact o
+            · simp [Rowl.Datatypes.IsNumeric] at numericK
+            · simp [Rowl.Datatypes.IsNumeric] at numericK
+          have isNumber : ∃ r, x = num r := by
+            obtain ⟨r, rfl, _⟩ := (frame.numeric k numericK x).mp inType
+            exact ⟨r, rfl⟩
+          rcases bFacts c hc with ⟨none, _⟩ | ⟨v, i, h, same, at_i, rfl⟩
+          · cases none
+          · cases same
+            rw [frame.facets f F w facet run number x]
+            obtain ⟨r0, rfl⟩ := isNumber
+            have one : ∀ P : ℝ → Prop, (∃ r, num r0 = num r ∧ P r) ↔ P r0 := fun P =>
+              ⟨fun ⟨r, same, holds⟩ => (frame.injective same) ▸ holds, fun holds => ⟨r0, rfl, holds⟩⟩
+            cases F <;> simp only [FacetOpen, FacetOutside, ↓reduceIte, Bool.false_eq_true, classDenote] <;>
+              rw [bound_meaning node ordered h _ at_i] <;>
+              simp only [one, FacetOpen, in_closed, in_open, FacetReal, not_lt, not_le]
+        · refine ⟨some (.ObjectComplementOf (.Class thing)), ?_, fun c hc => ?_⟩
+          · cases w <;> simp_all [Rowl.Datatypes.IsNumber, Rowl.Datatypes.numeric_correct, numeric_kind_eq, nothing_eq]
+          cases hc
+          intro Object Value Object' Value' I J lit num frame d x node inType kinds
+          apply empty frame.thing
           rw [frame.facets f F w facet run number x]
-          obtain ⟨r0, rfl⟩ := isNumber
-          have one : ∀ P : ℝ → Prop, (∃ r, num r0 = num r ∧ P r) ↔ P r0 := fun P =>
-            ⟨fun ⟨r, same, holds⟩ => (frame.injective same) ▸ holds, fun holds => ⟨r0, rfl, holds⟩⟩
-          cases F <;> simp only [FacetOpen, FacetOutside, ↓reduceIte, Bool.false_eq_true, classDenote] <;>
-            rw [bound_meaning node ordered h _ at_i] <;>
-            simp only [one, FacetOpen, in_closed, in_open, FacetReal, not_lt, not_le]
-      · exact ⟨none, by simp [Rowl.Datatypes.numeric_correct, number], by simp⟩
+          rintro ⟨r, rfl, _⟩
+          rcases kinds with ⟨numeric, _⟩ | rfl | rfl
+          · exact numericK numeric
+          · obtain ⟨y, hy⟩ := (frame.binaries true _).mp inType
+            exact frame.binaryReal true y _ r hy rfl
+          · obtain ⟨y, hy⟩ := (frame.binaries false _).mp inType
+            exact frame.binaryReal false y _ r hy rfl
+      · cases w with
+        | Double b =>
+          by_cases kd : k = .Double
+          · subst kd
+            obtain ⟨res, bRun, bMeans⟩ := binary_facet_class_meaning context true F b canonical.1 canonical.2
+            refine ⟨res, by simp [bRun], fun c hc => ?_⟩
+            intro Object Value Object' Value' I J lit num frame d x node inType _
+            obtain ⟨y, hy⟩ := (frame.binaries true x).mp inType
+            rw [frame.binaryFacets f F true b facet run x]
+            constructor
+            · rintro ⟨y', hy', holds⟩
+              exact (bMeans c hc I J lit num frame d x node y' hy').mp holds
+            · intro holds
+              exact ⟨y, hy, (bMeans c hc I J lit num frame d x node y hy).mpr holds⟩
+          · refine ⟨some (.ObjectComplementOf (.Class thing)), by cases k <;> simp_all [nothing_eq], fun c hc => ?_⟩
+            cases hc
+            intro Object Value Object' Value' I J lit num frame d x node inType kinds
+            apply empty frame.thing
+            rw [frame.binaryFacets f F true b facet run x]
+            rintro ⟨y, hy, _⟩
+            rcases kinds with ⟨numeric, _⟩ | rfl | rfl
+            · obtain ⟨r, rfl, _⟩ := (frame.numeric k numeric x).mp inType
+              exact frame.binaryReal true y _ r hy rfl
+            · exact kd rfl
+            · obtain ⟨y', hy'⟩ := (frame.binaries false x).mp inType
+              exact frame.binaryApart y y' x hy hy'
+        | Float b =>
+          by_cases kf : k = .Float
+          · subst kf
+            obtain ⟨res, bRun, bMeans⟩ := binary_facet_class_meaning context false F b canonical.1 canonical.2
+            refine ⟨res, by simp [bRun], fun c hc => ?_⟩
+            intro Object Value Object' Value' I J lit num frame d x node inType _
+            obtain ⟨y, hy⟩ := (frame.binaries false x).mp inType
+            rw [frame.binaryFacets f F false b facet run x]
+            constructor
+            · rintro ⟨y', hy', holds⟩
+              exact (bMeans c hc I J lit num frame d x node y' hy').mp holds
+            · intro holds
+              exact ⟨y, hy, (bMeans c hc I J lit num frame d x node y hy).mpr holds⟩
+          · refine ⟨some (.ObjectComplementOf (.Class thing)), by cases k <;> simp_all [nothing_eq], fun c hc => ?_⟩
+            cases hc
+            intro Object Value Object' Value' I J lit num frame d x node inType kinds
+            apply empty frame.thing
+            rw [frame.binaryFacets f F false b facet run x]
+            rintro ⟨y, hy, _⟩
+            rcases kinds with ⟨numeric, _⟩ | rfl | rfl
+            · obtain ⟨r, rfl, _⟩ := (frame.numeric k numeric x).mp inType
+              exact frame.binaryReal false y _ r hy rfl
+            · obtain ⟨y', hy'⟩ := (frame.binaries true x).mp inType
+              exact frame.binaryApart y' y x hy' hy
+            · exact kf rfl
+        | _ => exact ⟨none, by simp_all [Rowl.Datatypes.IsNumber, Rowl.Datatypes.numeric_correct], by simp⟩
 
 /-- The classes of the facet restrictions of a list, member by member. -/
-theorem facet_classes_meaning (context : data_ontology.Context) (restrictions : alloc.vec.Vec FacetRestriction)
+theorem facet_classes_meaning (context : data_ontology.Context) (k : datatypes.Kind)
+    (restrictions : alloc.vec.Vec FacetRestriction)
     (index : Usize) (out : alloc.vec.Vec ClassExpression)
     (room : out.val.length + (restrictions.val.length - index.val) ≤ Usize.max) :
-    ∃ res, data_ontology.facet_classes context restrictions index out = .ok res ∧
+    ∃ res, data_ontology.facet_classes context k restrictions index out = .ok res ∧
       ∀ v, res = some v → v.val.take out.val.length = out.val ∧
-        List.Forall₂ (fun c f => ∃ res, data_ontology.facet_class context f = .ok (some res) ∧ res = c)
+        List.Forall₂ (fun c f => ∃ res, data_ontology.facet_class context k f = .ok (some res) ∧ res = c)
           (v.val.drop out.val.length) (restrictions.val.drop index.val) := by
   rw [data_ontology.facet_classes]
   by_cases inside : index.val < restrictions.val.length
   · have lookup : restrictions.index_usize index = .ok restrictions.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
     have split := List.drop_eq_getElem_cons inside
-    obtain ⟨res, run, _⟩ := facet_class_meaning.{0,0,0,0} context restrictions.val[index.val]
+    obtain ⟨res, run, _⟩ := facet_class_meaning.{0,0,0,0} context k restrictions.val[index.val]
     cases res with
     | none => exact ⟨none, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run], by simp⟩
     | some c =>
@@ -424,7 +681,7 @@ theorem facet_classes_meaning (context : data_ontology.Context) (restrictions : 
       obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
         (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
       have nextIndex : next.val = index.val + 1 := by simpa using nextValue
-      obtain ⟨rest, restRun, restFacts⟩ := facet_classes_meaning context restrictions next pushed
+      obtain ⟨rest, restRun, restFacts⟩ := facet_classes_meaning context k restrictions next pushed
         (by rw [contents, nextIndex]; simp; omega)
       refine ⟨rest, ?_, fun v hv => ?_⟩
       · have lt : alloc.vec.Vec.len out < core.num.Usize.MAX := by
@@ -586,23 +843,26 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | none => exact ⟨none, by simp, by simp⟩
     | some k =>
       simp only [bind_ok]
-      rw [data_ontology.restriction_range, numeric_kind_eq]
-      by_cases ready : Rowl.Datatypes.IsNumeric k ∧ context.kinds.ordered = true
-      · obtain ⟨b, bRun, bMeans⟩ := kind_range_meaning.{u,v,w,x} context k
-        obtain ⟨f, fRun, fMeans⟩ := facet_class_meaning.{u,v,w,x} context restrictions.first
-        obtain ⟨fs, fsRun, fsFacts⟩ := facet_classes_meaning context restrictions.rest 0#usize
+      rw [data_ontology.restriction_range, numeric_kind_eq, binary_kind_eq]
+      by_cases ready : (Rowl.Datatypes.IsNumeric k ∧ context.kinds.ordered = true) ∨ k = .Double ∨ k = .Float
+      · have readyB : ((decide (Rowl.Datatypes.IsNumeric k) && context.kinds.ordered) ||
+            decide (k = .Double ∨ k = .Float)) = true := by
+          rcases ready with ⟨n, o⟩ | rfl | rfl <;> simp_all
+        obtain ⟨b, bRun, bMeans⟩ := kind_range_meaning.{u,v,w,x} context k
+        obtain ⟨f, fRun, fMeans⟩ := facet_class_meaning.{u,v,w,x} context k restrictions.first
+        obtain ⟨fs, fsRun, fsFacts⟩ := facet_classes_meaning context k restrictions.rest 0#usize
           (alloc.vec.Vec.new ClassExpression) (by simp [new_val])
         cases b with
-        | none => exact ⟨none, by simp [ready, bRun, fRun, fsRun], by simp⟩
+        | none => exact ⟨none, by simp only [bind_ok]; rw [if_pos readyB]; simp [bRun, fRun, fsRun], by simp⟩
         | some base =>
           cases f with
-          | none => exact ⟨none, by simp [ready, bRun, fRun, fsRun], by simp⟩
+          | none => exact ⟨none, by simp only [bind_ok]; rw [if_pos readyB]; simp [bRun, fRun, fsRun], by simp⟩
           | some first =>
             cases fs with
-            | none => exact ⟨none, by simp [ready, bRun, fRun, fsRun], by simp⟩
+            | none => exact ⟨none, by simp only [bind_ok]; rw [if_pos readyB]; simp [bRun, fRun, fsRun], by simp⟩
             | some rest =>
-              refine ⟨some (.ObjectIntersectionOf ⟨base, first, rest⟩), by simp [ready, bRun, fRun, fsRun],
-                fun c hc => ?_⟩
+              refine ⟨some (.ObjectIntersectionOf ⟨base, first, rest⟩),
+                by simp only [bind_ok]; rw [if_pos readyB]; simp [bRun, fRun, fsRun], fun c hc => ?_⟩
               cases hc
               intro Object Value Object' Value' I J lit num frame d x node
               obtain ⟨_, pairs⟩ := fsFacts rest rfl
@@ -613,28 +873,27 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
               rw [← bMeans base rfl I J lit num frame d x node]
               constructor
               · rintro ⟨inType, firstFacet, restFacets⟩
-                have isNumber := (frame.numeric k ready.1 x).mp inType
-                obtain ⟨r, rfl, _⟩ := isNumber
-                refine ⟨inType, (fMeans first rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mp firstFacet,
+                refine ⟨inType, (fMeans first rfl I J lit num frame d _ node inType ready).mp firstFacet,
                   fun c member => ?_⟩
                 obtain ⟨e, inside, ⟨res, run', same⟩⟩ := forall2_mem_left pairs c member
-                obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context e
+                obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context k e
                 rw [run''] at run'
                 cases Result.ok_injective run'
                 subst same
-                exact (means res rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mp (restFacets e inside)
+                exact (means res rfl I J lit num frame d _ node inType ready).mp (restFacets e inside)
               · rintro ⟨inType, firstHolds, restHold⟩
-                have isNumber := (frame.numeric k ready.1 x).mp inType
-                obtain ⟨r, rfl, _⟩ := isNumber
-                refine ⟨inType, (fMeans first rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mpr firstHolds,
+                refine ⟨inType, (fMeans first rfl I J lit num frame d _ node inType ready).mpr firstHolds,
                   fun e later => ?_⟩
                 obtain ⟨c, inside, ⟨res, run', same⟩⟩ := forall2_mem_right pairs e later
-                obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context e
+                obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context k e
                 rw [run''] at run'
                 cases Result.ok_injective run'
                 subst same
-                exact (means res rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mpr (restHold res inside)
-      · exact ⟨none, by simp [ready], by simp⟩
+                exact (means res rfl I J lit num frame d _ node inType ready).mpr (restHold res inside)
+      · have readyB : ¬ ((decide (Rowl.Datatypes.IsNumeric k) && context.kinds.ordered) ||
+            decide (k = .Double ∨ k = .Float)) = true := by
+          intro h; apply ready; simpa using h
+        exact ⟨none, by simp only [bind_ok]; rw [if_neg readyB], by simp⟩
 termination_by sizeOf range
 decreasing_by all_goals (subst_vars; first | omega | (simp_wf; omega))
 

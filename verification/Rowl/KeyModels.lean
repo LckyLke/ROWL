@@ -49,6 +49,8 @@ theorem bit_not_key (j : Usize) : (bitClass j).iri.spelling.val ≠ keyName := b
   simp [bitClass_name, bitName, keyName]
 theorem cut_not_key (i : Usize) : (cutClass i).iri.spelling.val ≠ keyName := by
   simp [cutClass_name, cutName, keyName]
+theorem edge_not_key (double : Bool) (i : Usize) : (edgeClass double i).iri.spelling.val ≠ keyName := by
+  simp [edgeClass_name, edgeName, keyName]
 theorem super_not_mark : dataSuper.iri.spelling.val ≠ markName := by simp [dataSuper_name, superName, markName]
 theorem super_not_share (r : ObjectPropertyExpression) : dataSuper.iri.spelling.val ≠ shareName r := by
   cases r <;> simp [dataSuper_name, superName, shareName]
@@ -162,6 +164,11 @@ theorem liftedN_cut_class (i : Usize) (y : Object ⊕ Value) :
     (liftedN context I lit num x0).classes (cutClass i) y = (lifted context I lit num x0).classes (cutClass i) y :=
   liftedN_class (cut_not_key i) y
 
+theorem liftedN_edge_class (double : Bool) (i : Usize) (y : Object ⊕ Value) :
+    (liftedN context I lit num x0).classes (edgeClass double i) y =
+      (lifted context I lit num x0).classes (edgeClass double i) y :=
+  liftedN_class (edge_not_key double i) y
+
 theorem liftedN_super (y y' : Object ⊕ Value) :
     (liftedN context I lit num x0).objectProperties dataSuper y y' =
       (lifted context I lit num x0).objectProperties dataSuper y y' :=
@@ -205,6 +212,7 @@ theorem liftedN_node (N : Normative D) (x0 : Object) (v : Value) :
   kinds := fun k used => by rw [liftedN_kind_class]; exact (lifted_node N x0 v).kinds k used
   values := (lifted_node N x0 v).values
   cuts := fun ordered i h => by rw [liftedN_cut_class]; exact (lifted_node N x0 v).cuts ordered i h
+  edges := fun double b hb i h => by rw [liftedN_edge_class]; exact (lifted_node N x0 v).edges double b hb i h
 
 theorem liftedN_range_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) :
@@ -217,6 +225,11 @@ theorem liftedN_range_frame (N : Normative D) (x0 : Object) (vocab : IsVocabular
   numbers := (lifted_range_frame (context := context) N x0 vocab interp).numbers
   numeric := (lifted_range_frame (context := context) N x0 vocab interp).numeric
   facets := (lifted_range_frame (context := context) N x0 vocab interp).facets
+  binaries := (lifted_range_frame (context := context) N x0 vocab interp).binaries
+  binaryFacets := (lifted_range_frame (context := context) N x0 vocab interp).binaryFacets
+  binaryReal := (lifted_range_frame (context := context) N x0 vocab interp).binaryReal
+  binaryApart := (lifted_range_frame (context := context) N x0 vocab interp).binaryApart
+  binaryInjective := (lifted_range_frame (context := context) N x0 vocab interp).binaryInjective
 
 theorem liftedN_filler (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) {range : Option DataRange} {filler : Option ClassExpression}
@@ -289,8 +302,9 @@ theorem liftedN_frame {lit : datatypes.DataValue → Value} {num : ℝ → Value
     {bits : Usize} {order : List Usize} (good : Good context)
     (frame : Frame context capacity bits order (lifted context I lit num x0)) :
     Frame context capacity bits order (liftedN context I lit num x0) := by
-  obtain ⟨roles, data, kinds, regions, values, object⟩ := frame
-  refine ⟨fun r mem y y' related => ?_, fun p mem role run y y' related => ?_, ?_, ?_, fun i h => ?_, ?_⟩
+  obtain ⟨roles, data, kinds, regions, values, object, edges⟩ := frame
+  refine ⟨fun r mem y y' related => ?_, fun p mem role run y y' related => ?_, ?_, ?_, fun i h => ?_, ?_,
+    fun double => ?_⟩
   · rw [liftedN_plain_role (good.2.1 r mem).1] at related
     rw [liftedN_data_class, liftedN_data_class]
     exact roles r mem y y' related
@@ -301,9 +315,13 @@ theorem liftedN_frame {lit : datatypes.DataValue → Value} {num : ℝ → Value
     constructor <;> simp only [Included, Apart, StringFacts, SequenceFacts, MomentFacts, FloatFacts, FloatApart,
       DistinctFacts, Truths, liftedN_kind_class, liftedN_named] <;>
       assumption
-  · intro ordered
-    obtain ⟨first, chain, super⟩ := regions ordered
-    refine ⟨fun f hf y h => ?_, fun p hp pos ppos => ?_, fun used k hk idx role run y y' related => ?_⟩
+  · refine ⟨fun ordered => ?_, fun runs k hk idx role run y y' related => ?_⟩
+    swap
+    · rw [liftedN_data_relation run] at related
+      rw [liftedN_super]
+      exact regions.2 runs k hk idx role run y y' related
+    obtain ⟨first, chain⟩ := regions.1 ordered
+    refine ⟨fun f hf y h => ?_, fun p hp pos ppos => ?_⟩
     · rw [liftedN_cut_class] at h
       rw [liftedN_kind_class]
       exact first f hf y h
@@ -314,14 +332,16 @@ theorem liftedN_frame {lit : datatypes.DataValue → Value} {num : ℝ → Value
       · simp only [BetweenFact, GapFact, InRun, RunNamed, liftedN_cut_class, liftedN_kind_class,
           liftedN_class thing_not_key, liftedN_super, liftedN_named] at between ⊢
         exact between
-    · rw [liftedN_data_relation run] at related
-      rw [liftedN_super]
-      exact super used k hk idx role run y y' related
   · have := values i h
-    simp only [ValueFact, CutFact, liftedN_data_class, liftedN_kind_class, liftedN_bit_class, liftedN_cut_class,
-      liftedN_named] at this ⊢
+    simp only [ValueFact, CutFact, EdgeFact, liftedN_data_class, liftedN_kind_class, liftedN_bit_class,
+      liftedN_cut_class, liftedN_edge_class, liftedN_named] at this ⊢
     exact this
   · rw [liftedN_data_class, liftedN_named]; exact object
+  · have := edges double
+    simp only [Rowl.DataEdges.EdgeFacts, Rowl.DataEdges.PairFact, Rowl.DataEdges.LowestFact,
+      Rowl.DataEdges.HighestFact, Rowl.DataEdges.SlotFact, Rowl.DataEdges.InSlotClass, Rowl.DataEdges.SlotNamed,
+      liftedN_kind_class, liftedN_edge_class, liftedN_class thing_not_key, liftedN_super, liftedN_named] at this ⊢
+    exact this
 
 theorem liftedN_interpretation (N : Normative D) (x0 : Object) (interp : IsInterpretation D embed V I) :
     IsInterpretation D embed V (liftedN context I (litOf N embed) (numOf N embed) x0) := by
@@ -557,14 +577,16 @@ theorem keyedSound_placed (setting : Setting context capacity bits order J) (cou
       (fun z y d => Place.{u,v,w,x} context J N order atoms (slotShift context J atoms names) z.1 y d) := by
   have base := sound_placed.{u,v,w,x} (N := N) (atoms := atoms) setting count (slotShift_ok context J atoms names) o
   exact ⟨base.functional, base.injective, fun z v d pl =>
-    ⟨(base.nodes z v d pl).kinds, (base.nodes z v d pl).values, (base.nodes z v d pl).cuts⟩,
+    ⟨(base.nodes z v d pl).kinds, (base.nodes z v d pl).values, (base.nodes z v d pl).cuts,
+      (base.nodes z v d pl).edges⟩,
     base.data, base.literals, base.top⟩
 
 theorem keyedSound_range_frame (setting : Setting context capacity bits order J) (o : Element J) :
     RangeFrame (keyedSound.{u,v,w,x} context J N order atoms names o) J (litValue N) (realValue N) := by
   have base := sound_range_frame.{u,v,w,x} (N := N) (atoms := atoms) (shift := slotShift context J atoms names)
     setting o
-  exact ⟨base.literal, base.thing, base.literals, base.injective, base.numbers, base.numeric, base.facets⟩
+  exact ⟨base.literal, base.thing, base.literals, base.injective, base.numbers, base.numeric, base.facets,
+    base.binaries, base.binaryFacets, base.binaryReal, base.binaryApart, base.binaryInjective⟩
 
 theorem keyedSound_interpretation (V : Vocabulary) (jThing : ∀ d, J.classes thing d)
     (jNothing : ∀ d, ¬ J.classes nothing d) (jTop : ∀ y y', J.objectProperties topObject y y')
@@ -692,11 +714,11 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
     capSmall items nodes counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨fine, fit, room, _, newU, _, bits, order, _, meansU, enough, sorted, _, _, _, keysMeans, iff⟩ :=
+  obtain ⟨fine, fit, _, newU, _, bits, order, _, meansU, enough, sorted, _, _, _, keysMeans, iff⟩ :=
     facts enc rfl
   obtain ⟨⟨_, frame⟩, newUHolds, apart, held, marks, dataMarks, keysHold⟩ := (iff (withAnonymous J g)).mp jSat
   have setting : Setting context capacity.val bits order (withAnonymous J g) :=
-    ⟨good, frame, enough, sorted, fine, fit, jInterp.1, jInterp.2.2.1, jInterp.2.2.2.1, room⟩
+    ⟨good, frame, enough, sorted, fine, fit, jInterp.1, jInterp.2.2.1, jInterp.2.2.2.1⟩
   let o : Element (withAnonymous J g) := ⟨(withAnonymous J g).namedIndividuals objectIndividual, frame.object⟩
   let names := namesOf nodes.val
   let atoms := itemAtoms items.val ++ items.val.flatMap (fun i => keyAtoms i.axiom) ++ questions.flatMap classAtoms
@@ -833,7 +855,7 @@ theorem keyed_lifted_model {Object : Type u} {Value : Type (max w v)} {Native : 
     capSmall items nodes counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, _, _, new0, newU, newK, bits, order, means0, meansU, _, sorted, _, truths, plainNodes, keysMeans, iff⟩ :=
+  obtain ⟨_, _, new0, newU, newK, bits, order, means0, meansU, _, sorted, _, truths, plainNodes, keysMeans, iff⟩ :=
     facts enc rfl
   have placed := liftedN_placed (context := context) N x0 vocab interp0
   have rangeFrame := liftedN_range_frame (context := context) N x0 vocab interp0

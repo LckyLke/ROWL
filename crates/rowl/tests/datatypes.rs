@@ -335,14 +335,104 @@ fn floating_point_numbers_are_reasoned_about_by_value() {
         consistent("SubClassOf(:Series DataMinCardinality(3 :reading xsd:double))\nClassAssertion(:Series :s)"),
         Some(true)
     );
-    // Facets on floating-point numbers and literals outside the lexical space
-    // get no answer.
-    assert_eq!(
-        consistent("DataPropertyRange(:dose DatatypeRestriction(xsd:double xsd:minInclusive \"0.0\"^^xsd:double))"),
-        None
-    );
+    // Literals outside the lexical space get no answer.
     assert_eq!(
         consistent("DataPropertyAssertion(:dose :a \"1,5\"^^xsd:double)"),
         None
+    );
+}
+
+/// A document where `:a` has a value of `:dose` in the data range.
+fn dose_in(range: &str, value: &str) -> Option<bool> {
+    consistent(&format!(
+        "DataPropertyRange(:dose {range})\nDataPropertyAssertion(:dose :a {value})"
+    ))
+}
+
+/// A document where `:a` has `count` values of `:dose` in the data range.
+fn doses_in(count: usize, range: &str) -> Option<bool> {
+    consistent(&format!(
+        "SubClassOf(:A DataMinCardinality({count} :dose {range}))\nClassAssertion(:A :a)"
+    ))
+}
+
+#[test]
+fn floating_point_ranges_follow_the_order_of_xml_schema() {
+    // XML Schema 1.1 Part 2, section 3.3.5: the order of the values, with the
+    // two zeros equal, the infinities at the ends and NaN incomparable.
+    let at_least_zero = "DatatypeRestriction(xsd:double xsd:minInclusive \"0.0\"^^xsd:double)";
+    assert_eq!(dose_in(at_least_zero, "\"0.5\"^^xsd:double"), Some(true));
+    assert_eq!(dose_in(at_least_zero, "\"-1.5\"^^xsd:double"), Some(false));
+    assert_eq!(dose_in(at_least_zero, "\"-0\"^^xsd:double"), Some(true));
+    assert_eq!(dose_in(at_least_zero, "\"INF\"^^xsd:double"), Some(true));
+    assert_eq!(dose_in(at_least_zero, "\"-INF\"^^xsd:double"), Some(false));
+    assert_eq!(dose_in(at_least_zero, "\"NaN\"^^xsd:double"), Some(false));
+    assert_eq!(dose_in(at_least_zero, "\"0.5\"^^xsd:float"), Some(false));
+    let below_zero = "DatatypeRestriction(xsd:double xsd:maxExclusive \"0\"^^xsd:double)";
+    assert_eq!(dose_in(below_zero, "\"-0\"^^xsd:double"), Some(false));
+    assert_eq!(dose_in(below_zero, "\"-1E-320\"^^xsd:double"), Some(true));
+    assert_eq!(dose_in(below_zero, "\"-INF\"^^xsd:double"), Some(true));
+    assert_eq!(dose_in(below_zero, "\"NaN\"^^xsd:double"), Some(false));
+    let up_to_nan = "DatatypeRestriction(xsd:double xsd:maxInclusive \"NaN\"^^xsd:double)";
+    assert_eq!(dose_in(up_to_nan, "\"NaN\"^^xsd:double"), Some(false));
+    assert_eq!(doses_in(1, up_to_nan), Some(false));
+    // A bound of another datatype leaves no values (Direct Semantics, Table 4).
+    assert_eq!(
+        doses_in(
+            1,
+            "DatatypeRestriction(xsd:float xsd:minInclusive \"1\"^^xsd:double)"
+        ),
+        Some(false)
+    );
+    assert_eq!(
+        doses_in(
+            1,
+            "DatatypeRestriction(xsd:double xsd:minInclusive \"1\"^^xsd:decimal)"
+        ),
+        Some(false)
+    );
+    assert_eq!(
+        doses_in(
+            1,
+            "DatatypeRestriction(xsd:decimal xsd:minInclusive \"1\"^^xsd:double)"
+        ),
+        Some(false)
+    );
+    // The values are counted exactly: one float lies between 1 and the
+    // float of 1.0000002, two values are equal to zero and one is infinite.
+    let between = "DatatypeRestriction(xsd:float xsd:minExclusive \"1\"^^xsd:float xsd:maxExclusive \"1.0000002\"^^xsd:float)";
+    assert_eq!(doses_in(1, between), Some(true));
+    assert_eq!(doses_in(2, between), Some(false));
+    let zeros = "DatatypeRestriction(xsd:double xsd:minInclusive \"0\"^^xsd:double xsd:maxInclusive \"-0\"^^xsd:double)";
+    assert_eq!(doses_in(2, zeros), Some(true));
+    assert_eq!(doses_in(3, zeros), Some(false));
+    let infinite = "DatatypeRestriction(xsd:double xsd:minInclusive \"INF\"^^xsd:double)";
+    assert_eq!(doses_in(1, infinite), Some(true));
+    assert_eq!(doses_in(2, infinite), Some(false));
+    assert_eq!(
+        doses_in(
+            0,
+            "DatatypeRestriction(xsd:double xsd:minExclusive \"INF\"^^xsd:double)"
+        ),
+        Some(true)
+    );
+    assert_eq!(
+        doses_in(
+            1,
+            "DatatypeRestriction(xsd:double xsd:minExclusive \"INF\"^^xsd:double)"
+        ),
+        Some(false)
+    );
+    // Literal values count among the values of their place.
+    assert_eq!(
+        consistent(&format!(
+            "SubClassOf(:A DataMinCardinality(2 :dose {zeros}))\nClassAssertion(:A :a)\nDataPropertyAssertion(:dose :b \"-0\"^^xsd:double)"
+        )),
+        Some(true)
+    );
+    // Large ranges have room for many values.
+    assert_eq!(
+        doses_in(20, "DatatypeRestriction(xsd:float xsd:minInclusive \"1\"^^xsd:float xsd:maxInclusive \"2\"^^xsd:float)"),
+        Some(true)
     );
 }

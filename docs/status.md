@@ -1149,13 +1149,43 @@ formats are future work.
   (`CanonicalBinary`), for forms shorter than 1024 bytes. The ontology queries take
   them: each datatype in use is apart from every other datatype
   (`float_axioms_spec`), and a model of the encoding gives a floating-point
-  node a positive integer below 2^24 that is no literal value, which both
-  datatypes have (`binary_space`). These are enough while the capacity and the
-  number of literal values together stay below 2^24 - 1 (`FloatRoom`,
-  `binary_room`); beyond, and
-  for keys with a data property while floating-point numbers are in use, the
-  queries give no answer. Facets on floating-point numbers and their order get
-  no answer.
+  node a value of its format that is no literal value, from the slot of
+  places its edge classes put it in (see the range facets below). For keys with
+  a data property while floating-point numbers are in use, the queries give no
+  answer.
+- M5 range facets on floating-point numbers: Normative also specifies the facet
+  spaces of `xsd:double` and `xsd:float`, the four range facets with a bound of
+  the datatype, and their facet values in the order of XML Schema 1.1
+  §3.3.4–3.3.5 (`Binary.Le`, `Binary.Lt`): numbers by value, `-0` equal to
+  `+0`, `-INF` below and `+INF` above every number, and NaN comparable to
+  nothing, itself included. A facet value is one set for every datatype, so a
+  bound of another datatype or NaN leaves no values (`model_double_facet`,
+  `normative_binary_facet`). `Rowl.FloatOrder` lays the values of a format out
+  in places (`position`: NaN, `-INF`, the negative numbers, `-0`, `+0`, the
+  positive numbers, `+INF`, the magnitudes counted out from the zeros by their
+  IEEE bit patterns, `placeOf`), proves that the order of the values is the
+  order of their places, the zeros side by side (`le_iff_position`,
+  `lt_iff_position`, `facet_holds_iff`), and that a run of places holds
+  exactly as many values (`slot_card`); `floats::position` computes the place
+  of a canonical value (`position_spec`), which a regression checks against
+  the bit patterns of 4000 doubles and floats. The ontology queries take
+  datatype restrictions of both datatypes by the range facets: the places
+  where a facet's values begin or end become edges of the format, each with a
+  class of the values at or above it; each edge's class lies inside the class
+  of every edge at or below it and the lowest inside the format's class, each
+  literal value of the format is in exactly the classes of the edges at or
+  below its place, and in each slot between neighbouring edges, below the
+  lowest and from the highest on, the values that are no literal values are
+  counted exactly: none at all, or at most their number at any element along
+  `U` when there are fewer of them than the capacity (`binary_axioms_spec`,
+  `EdgeFacts`, `edge_memberships_spec`). An OWL model lifts to a model of the
+  encoding (`lifted_edges`), and a model of the encoding gives each
+  floating-point data node a value of the slot that the edge classes holding
+  there put it in (`node_slot`, `binary_peers_bound`, `binary_coherent`), so
+  the capacity no longer limits the floating-point numbers: the old room of
+  2^24 - 1 values is gone. `xsd:double[>= 0]` holds both zeros, one
+  `xsd:float` lies strictly between `1` and `1.0000002`, `xsd:double[>= INF]`
+  has one value and `xsd:double[<= NaN]` none.
 - M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
   unfolded before the data queries (`unfolding`): each defined datatype in a
   data range of an axiom or of a question becomes the data range of its
@@ -1217,7 +1247,7 @@ formats are future work.
   outside every datatype. Under every datatype map that is the OWL 2 map on the
   datatypes of `literal_value` an answer is therefore the Direct Semantics
   answer. Datatype restrictions other than the range facets on the numeric
-  datatypes, keys with a data property while numbers are
+  and floating-point datatypes, keys with a data property while numbers are
   ordered or floating-point numbers are in use (see the keys below), data
   ranges of the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
@@ -1392,7 +1422,8 @@ formats are future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  over thirty-two datatypes, with the range facets on the numeric ones, and data
+  over thirty-two datatypes, with the range facets on the numeric and
+  floating-point ones, and data
   assertions with their literals under the OWL 2 datatype map, datatype
   definitions, and keys with object and data properties;
   EL ontologies are also classified and checked for consistency by a proved

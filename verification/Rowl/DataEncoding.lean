@@ -286,6 +286,9 @@ def cutName (index : Nat) : List U8 := 0#u8 :: 71#u8 :: eightBytes index 8
 /-- The name of the role above every data property's role. -/
 def superName : List U8 := [0#u8, 85#u8]
 
+def edgeName (double : Bool) (index : Nat) : List U8 :=
+  0#u8 :: 70#u8 :: (if double then 1#u8 else 0#u8) :: eightBytes index 8
+
 theorem class_named_correct (spelling : alloc.vec.Vec U8) :
     data_ontology.class_named spelling = .ok (.Class ⟨⟨spelling⟩⟩) := rfl
 
@@ -353,6 +356,55 @@ theorem cut_class_eq (index : Usize) : data_ontology.cut_class index = .ok (.Cla
 
 theorem cutClass_name (index : Usize) : (cutClass index).iri.spelling.val = cutName index.val :=
   (Classical.choose_spec (cut_class_correct index)).2
+
+theorem edge_class_correct (double : Bool) (index : Usize) :
+    ∃ c : Class, data_ontology.edge_class double index = .ok (.Class c) ∧
+      c.iri.spelling.val = edgeName double index.val := by
+  cases double
+  · obtain ⟨rest, restRun, restValue⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec (alloc.vec.Vec.new U8) 0#u8 (by simp [new_val]; scalar_tac))
+    obtain ⟨b, bytesRun, bytesValue⟩ := bytes_correct index 0#usize rest (by simp)
+      (by rw [restValue]; simp [new_val]; scalar_tac)
+    obtain ⟨v, run, value⟩ := tagged_name_correct 70#u8 b
+      (by rw [bytesValue, restValue]; simp [new_val, eightBytes_length]; scalar_tac)
+    refine ⟨⟨⟨v⟩⟩, by simp [data_ontology.edge_class, restRun, bytesRun, run, class_named_correct], ?_⟩
+    simp [value, bytesValue, restValue, new_val, edgeName]
+  · obtain ⟨rest, restRun, restValue⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec (alloc.vec.Vec.new U8) 1#u8 (by simp [new_val]; scalar_tac))
+    obtain ⟨b, bytesRun, bytesValue⟩ := bytes_correct index 0#usize rest (by simp)
+      (by rw [restValue]; simp [new_val]; scalar_tac)
+    obtain ⟨v, run, value⟩ := tagged_name_correct 70#u8 b
+      (by rw [bytesValue, restValue]; simp [new_val, eightBytes_length]; scalar_tac)
+    refine ⟨⟨⟨v⟩⟩, by simp [data_ontology.edge_class, restRun, bytesRun, run, class_named_correct], ?_⟩
+    simp [value, bytesValue, restValue, new_val, edgeName]
+
+/-- The class of the values of a floating-point format at or above the edge at
+    an index. -/
+noncomputable def edgeClass (double : Bool) (index : Usize) : Class :=
+  Classical.choose (edge_class_correct double index)
+
+theorem edge_class_eq (double : Bool) (index : Usize) :
+    data_ontology.edge_class double index = .ok (.Class (edgeClass double index)) :=
+  (Classical.choose_spec (edge_class_correct double index)).1
+
+theorem edgeClass_name (double : Bool) (index : Usize) :
+    (edgeClass double index).iri.spelling.val = edgeName double index.val :=
+  (Classical.choose_spec (edge_class_correct double index)).2
+
+/-- The edges of a floating-point format in a context: of `xsd:double`
+    (`double`) or of `xsd:float`. -/
+def edgesOf (context : data_ontology.Context) (double : Bool) : alloc.vec.Vec U128 :=
+  if double then context.double_edges else context.float_edges
+
+/-- The kind of a floating-point format: `xsd:double` (`double`) or `xsd:float`. -/
+def floatKind : Bool → datatypes.Kind
+  | true => .Double
+  | false => .Float
+
+/-- A kernel value of a floating-point format. -/
+def floatLit : Bool → datatypes.Binary → datatypes.DataValue
+  | true, b => .Double b
+  | false, b => .Float b
 
 theorem data_super_correct :
     ∃ r : ObjectProperty, data_ontology.data_super = .ok (.Property r) ∧ r.iri.spelling.val = superName := by
@@ -817,6 +869,118 @@ theorem facets_context_good (context : data_ontology.Context) (restrictions : al
 termination_by restrictions.val.length - index.val
 decreasing_by omega
 
+theorem has_edge_correct (edges : alloc.vec.Vec U128) (edge : U128) (index : Usize) :
+    data_ontology.has_edge edges edge index = .ok (decide (edge ∈ edges.val.drop index.val)) := by
+  rw [data_ontology.has_edge]
+  by_cases inside : index.val < edges.val.length
+  · have lookup : edges.index_usize index = .ok edges.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    have rest := has_edge_correct edges edge next
+    rw [nextIndex] at rest
+    have member : edge ∈ edges.val.drop index.val ↔
+        edges.val[index.val] = edge ∨ edge ∈ edges.val.drop (index.val + 1) := by
+      rw [split, List.mem_cons]; exact or_congr_left eq_comm
+    simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, advance, rest, member]
+  · simp [UScalar.lt_equiv, inside, List.drop_eq_nil_iff.mpr (show edges.val.length ≤ index.val by omega)]
+termination_by edges.val.length - index.val
+decreasing_by omega
+
+theorem add_edge_ok (edges : alloc.vec.Vec U128) (edge : U128) : ∃ r, data_ontology.add_edge edges edge = .ok r := by
+  rw [data_ontology.add_edge, has_edge_correct]
+  by_cases present : edge ∈ edges.val
+  · exact ⟨edges, by simp [present]⟩
+  · by_cases room : edges.val.length < Usize.max
+    · have room' : alloc.vec.Vec.len edges < core.num.Usize.MAX := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+      obtain ⟨pushed, push, _⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec edges edge room)
+      exact ⟨pushed, by simp [present, room', push]⟩
+    · have full : ¬ alloc.vec.Vec.len edges < core.num.Usize.MAX := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+      exact ⟨edges, by simp [present, full]⟩
+
+theorem facet_edges_ok (edges : alloc.vec.Vec U128) (F : datatypes.Facet) (bound : datatypes.Binary)
+    (double : Bool) (c : Rowl.Floats.CanonicalBinary bound)
+    (v : (Rowl.Floats.binaryOf bound).Valid (Rowl.Floats.fmt double)) :
+    ∃ r, data_ontology.facet_edges edges F bound double = .ok r := by
+  unfold data_ontology.facet_edges
+  rw [Rowl.FloatOrder.is_nan_spec]
+  by_cases nan : Rowl.Floats.binaryOf bound = .nan
+  · exact ⟨edges, by simp [nan]⟩
+  · have pf := Rowl.FloatOrder.proper_fmt double
+    obtain ⟨lowP, lowRun, lowVal⟩ := Rowl.FloatOrder.low_position_spec bound double c v
+    obtain ⟨highP, highRun, highVal⟩ := Rowl.FloatOrder.high_position_spec bound double c v
+    have small := Rowl.FloatOrder.top_small double
+    have highLe : highP.val ≤ 2 * Rowl.FloatOrder.topPlace (Rowl.Floats.fmt double) + 2 := by
+      rw [highVal]
+      obtain ⟨_, h, _, ph, _, upper⟩ := Rowl.FloatOrder.places_of pf v nan
+      have : (Rowl.FloatOrder.highPosition (Rowl.Floats.fmt double) (Rowl.Floats.binaryOf bound) : ℤ) ≤
+          2 * Rowl.FloatOrder.topPlace (Rowl.Floats.fmt double) + 2 := by
+        rw [h]; unfold Rowl.FloatOrder.highOf; split_ifs <;> omega
+      omega
+    obtain ⟨h1, h1Run, _⟩ := WP.spec_imp_exists
+      (UScalar.add_spec (x := highP) (y := 1#u128) (by simp [UScalar.max, U128.max_eq]; omega))
+    cases F with
+    | MinInclusive =>
+      obtain ⟨r, run⟩ := add_edge_ok edges lowP
+      exact ⟨r, by simp [nan, lowRun, run]⟩
+    | MinExclusive =>
+      obtain ⟨r, run⟩ := add_edge_ok edges h1
+      exact ⟨r, by simp [nan, highRun, h1Run, run]⟩
+    | MaxInclusive =>
+      obtain ⟨r1, run1⟩ := add_edge_ok edges 1#u128
+      obtain ⟨r, run⟩ := add_edge_ok r1 h1
+      exact ⟨r, by simp [nan, highRun, h1Run, run1, run]⟩
+    | MaxExclusive =>
+      obtain ⟨r1, run1⟩ := add_edge_ok edges 1#u128
+      obtain ⟨r, run⟩ := add_edge_ok r1 lowP
+      exact ⟨r, by simp [nan, lowRun, run1, run]⟩
+
+theorem edge_context_good (context : data_ontology.Context) (restriction : FacetRestriction) :
+    ∃ r, data_ontology.edge_context context restriction = .ok r ∧ (Good context → Good r) := by
+  rw [data_ontology.edge_context, Rowl.Datatypes.facet_of_correct]
+  obtain ⟨result, run, some', _⟩ := Rowl.Datatypes.literal_value_correct.{0} restriction.value
+  rw [run]
+  cases facet : Rowl.Datatypes.facetOf restriction.facet with
+  | none => exact ⟨context, by simp, id⟩
+  | some F =>
+    cases result with
+    | none => exact ⟨context, by simp, id⟩
+    | some value =>
+      have canonical := (some' value rfl).1
+      cases value with
+      | Double b =>
+        obtain ⟨r, run⟩ := facet_edges_ok context.double_edges F b true canonical.1 canonical.2
+        exact ⟨{ context with double_edges := r }, by simp [run], fun good => good⟩
+      | Float b =>
+        obtain ⟨r, run⟩ := facet_edges_ok context.float_edges F b false canonical.1 canonical.2
+        exact ⟨{ context with float_edges := r }, by simp [run], fun good => good⟩
+      | _ => exact ⟨context, by simp, id⟩
+
+theorem edges_context_good (context : data_ontology.Context) (restrictions : alloc.vec.Vec FacetRestriction)
+    (index : Usize) (good : Good context) :
+    ∃ r, data_ontology.edges_context context restrictions index = .ok r ∧ Good r := by
+  rw [data_ontology.edges_context]
+  by_cases inside : index.val < restrictions.val.length
+  · have lookup : restrictions.index_usize index = .ok restrictions.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    obtain ⟨c, run, cGood⟩ := edge_context_good context restrictions.val[index.val]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨r, rest, rGood⟩ := edges_context_good c restrictions next (cGood good)
+    exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run, advance, rest], rGood⟩
+  · exact ⟨context, by simp [UScalar.lt_equiv, inside], good⟩
+termination_by restrictions.val.length - index.val
+decreasing_by omega
+
+theorem binary_kind_eq (k : datatypes.Kind) :
+    data_ontology.binary_kind k = .ok (decide (k = .Double ∨ k = .Float)) := by
+  cases k <;> simp [data_ontology.binary_kind]
+
 theorem ranges_context_good (ranges : alloc.vec.Vec DataRange) (index : Usize)
     (each : ∀ e ∈ ranges.val, ∀ context, Good context → ∃ r, data_ontology.range_context context e = .ok r ∧ Good r)
     (context : data_ontology.Context) (good : Good context) :
@@ -883,10 +1047,15 @@ theorem range_context_good (range : DataRange) (context : data_ontology.Context)
       obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 good0)
       exact ⟨r, by simp [kindsRun, run2, run], rGood⟩
     | some k =>
-      obtain ⟨c1, run1, good1⟩ := kind_context_good { context with kinds := kinds } k
-      obtain ⟨c2, run2, good2⟩ := facet_context_good c1 restrictions.first
-      obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 (good1 good0))
-      exact ⟨r, by simp [kindsRun, run1, run2, run], rGood⟩
+      by_cases binary : k = .Double ∨ k = .Float
+      · obtain ⟨c1, run1, good1⟩ := kind_context_good context k
+        obtain ⟨c2, run2, good2⟩ := edge_context_good c1 restrictions.first
+        obtain ⟨r, run, rGood⟩ := edges_context_good c2 restrictions.rest 0#usize (good2 (good1 good))
+        exact ⟨r, by simp [binary_kind_eq, binary, run1, run2, run], rGood⟩
+      · obtain ⟨c1, run1, good1⟩ := kind_context_good { context with kinds := kinds } k
+        obtain ⟨c2, run2, good2⟩ := facet_context_good c1 restrictions.first
+        obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 (good1 good0))
+        exact ⟨r, by simp [binary_kind_eq, binary, kindsRun, run1, run2, run], rGood⟩
 termination_by sizeOf range
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -1141,7 +1310,8 @@ theorem closure_context_good (items : alloc.vec.Vec AnnotatedAxiom) :
       (data_ontology.Kinds.mk false false false false false false false false false false false false false false
         false false false false false false false)
       (alloc.vec.Vec.new ObjectProperty)
-      (alloc.vec.Vec.new DataProperty) (alloc.vec.Vec.new regions.Cut)) := by
+      (alloc.vec.Vec.new DataProperty) (alloc.vec.Vec.new regions.Cut) (alloc.vec.Vec.new U128)
+      (alloc.vec.Vec.new U128)) := by
     simp [Good, GoodValues, GoodCuts, new_val]
   obtain ⟨r, run, rGood⟩ := items_context_good _ items 0#usize empty
   exact ⟨r, by simp [data_ontology.no_kinds, run], rGood⟩

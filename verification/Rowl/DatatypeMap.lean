@@ -3,6 +3,7 @@ import Rowl.LangTag
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Int.Log
 import Mathlib.Data.Rat.Floor
+import Mathlib.Data.EReal.Basic
 
 /-!
 Independent specification of the OWL 2 datatype map on the datatypes the
@@ -11,9 +12,10 @@ rdf:PlainLiteral specification): `owl:real`, `owl:rational`, `xsd:decimal`,
 `xsd:integer` and its twelve subtypes, `xsd:string` and its six subtypes
 `xsd:normalizedString`, `xsd:token`, `xsd:language`, `xsd:NMTOKEN`, `xsd:Name`
 and `xsd:NCName`, `rdf:PlainLiteral`, `xsd:boolean`, `xsd:anyURI`,
-`xsd:hexBinary` and `xsd:base64Binary`, with the four range facets
-`xsd:minInclusive`,
-`xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive`.
+`xsd:hexBinary` and `xsd:base64Binary`, `xsd:dateTime` and `xsd:dateTimeStamp`,
+and `xsd:double` and `xsd:float`, with the four range facets
+`xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
+`xsd:maxExclusive`.
 
 Numbers are real numbers: the value space of `owl:real` is the image of ℝ, and
 the rationals, decimals and integers are the images of their own sets, so a
@@ -31,9 +33,13 @@ intersects it with the datatype's value space (Direct Semantics Table 4), which
 gives the per-datatype facet values of Table 4 of §4.1. The facet spaces are
 those of Table 4 for `owl:real` and `owl:rational` (every real constraining
 value) and those of XML Schema for its numeric datatypes (a constraining value
-of the datatype's value space). `Normative` says that a datatype map agrees
-with the OWL 2 datatype map on these datatypes and facets and leaves every
-other datatype open.
+of the datatype's value space). The values of `xsd:double` and `xsd:float`
+are those of their binary formats (`Binary`), each datatype apart from the
+reals and from the other; their range facets take a constraining value of the
+datatype and select its values on the facet's side in the order of XML Schema,
+in which the two zeros are equal and NaN is comparable to no value. `Normative`
+says that a datatype map agrees with the OWL 2 datatype map on these datatypes
+and facets and leaves every other datatype open.
 -/
 namespace Rowl.DatatypeMap
 open Aeneas Aeneas.Std RowlRust.model
@@ -421,6 +427,24 @@ def Binary.Valid (f : FloatFormat) : Binary → Prop
   | .finite q => ∃ (m e : ℤ), q = m * (2 : ℚ) ^ e ∧ 0 < abs m ∧ abs m < 2 ^ f.precision ∧ f.least ≤ e ∧ e ≤ f.most
   | _ => True
 
+/-- The place of a value in the order of XML Schema 1.1 on the values of
+    `xsd:double` and `xsd:float` (Part 2 §3.3.4.1 and §3.3.5.1): a number at its
+    value, both zeros at zero, and the infinities at the ends of the extended
+    real line; NaN has no place, so that it is comparable to no value, itself
+    included. -/
+noncomputable def Binary.key : Binary → Option EReal
+  | .finite q => some ((q : ℝ) : EReal)
+  | .zero _ => some 0
+  | .infinity negative => some (if negative then ⊥ else ⊤)
+  | .nan => none
+
+/-- `a` is at or below `b` in the order of XML Schema: the two zeros are equal,
+    and NaN is neither. -/
+def Binary.Le (a b : Binary) : Prop := ∃ x y, a.key = some x ∧ b.key = some y ∧ x ≤ y
+
+/-- `a` is below `b` in the order of XML Schema. -/
+def Binary.Lt (a b : Binary) : Prop := ∃ x y, a.key = some x ∧ b.key = some y ∧ x < y
+
 /-- `floatingPointRound` of XML Schema 1.1 Part 2 (§E.1.1, the auxiliary
     functions for binary floating-point lexical mappings) for a nonzero
     number: the exponent `e` with `2^(p−1) ≤ |v| / 2^e < 2^p`, or the least
@@ -500,7 +524,10 @@ def BinaryForm (f : FloatFormat) (text : List U8) (b : Binary) : Prop :=
     and `xsd:float` are the images of the values of their formats, injectively,
     the two datatypes apart from each other and from every other value
     (OWL 2 Structural Specification §4.2), each lexical form with the value
-    that `BinaryForm` gives it. -/
+    that `BinaryForm` gives it, and their facet spaces the four range facets
+    with a value of the datatype as constraining value, whose facet values
+    are the datatype's values on the facet's side of it in the order of XML
+    Schema (`Binary.Le`, `Binary.Lt`). -/
 structure Normative {Native : Type w} (D : DatatypeMap Native) where
   number : ℚ → Native
   text : List U8 → Native
@@ -630,5 +657,23 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
   double_value : ∀ t b, BinaryForm doubleFormat t b → D.lexicalValue doubleType t = double b
   float_lexical : ∀ t, D.lexicalSpace floatType t ↔ ∃ b, BinaryForm floatFormat t b
   float_value : ∀ t b, BinaryForm floatFormat t b → D.lexicalValue floatType t = float b
+  double_facets : ∀ f v, D.facetSpace doubleType f v ↔ f ∈ rangeFacets ∧ ∃ b, b.Valid doubleFormat ∧ v = double b
+  float_facets : ∀ f v, D.facetSpace floatType f v ↔ f ∈ rangeFacets ∧ ∃ b, b.Valid floatFormat ∧ v = float b
+  min_inclusive_double : ∀ b y, b.Valid doubleFormat →
+    (D.facetValue minInclusiveFacet (double b) y ↔ ∃ x, x.Valid doubleFormat ∧ b.Le x ∧ y = double x)
+  max_inclusive_double : ∀ b y, b.Valid doubleFormat →
+    (D.facetValue maxInclusiveFacet (double b) y ↔ ∃ x, x.Valid doubleFormat ∧ x.Le b ∧ y = double x)
+  min_exclusive_double : ∀ b y, b.Valid doubleFormat →
+    (D.facetValue minExclusiveFacet (double b) y ↔ ∃ x, x.Valid doubleFormat ∧ b.Lt x ∧ y = double x)
+  max_exclusive_double : ∀ b y, b.Valid doubleFormat →
+    (D.facetValue maxExclusiveFacet (double b) y ↔ ∃ x, x.Valid doubleFormat ∧ x.Lt b ∧ y = double x)
+  min_inclusive_float : ∀ b y, b.Valid floatFormat →
+    (D.facetValue minInclusiveFacet (float b) y ↔ ∃ x, x.Valid floatFormat ∧ b.Le x ∧ y = float x)
+  max_inclusive_float : ∀ b y, b.Valid floatFormat →
+    (D.facetValue maxInclusiveFacet (float b) y ↔ ∃ x, x.Valid floatFormat ∧ x.Le b ∧ y = float x)
+  min_exclusive_float : ∀ b y, b.Valid floatFormat →
+    (D.facetValue minExclusiveFacet (float b) y ↔ ∃ x, x.Valid floatFormat ∧ b.Lt x ∧ y = float x)
+  max_exclusive_float : ∀ b y, b.Valid floatFormat →
+    (D.facetValue maxExclusiveFacet (float b) y ↔ ∃ x, x.Valid floatFormat ∧ x.Lt b ∧ y = float x)
 
 end Rowl.DatatypeMap

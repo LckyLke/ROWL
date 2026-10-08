@@ -107,13 +107,26 @@ def PointsNamed (context : data_ontology.Context) (order : List Usize) (position
     (cutAt context.cuts.val order[p - 1].val).value = (cutAt context.cuts.val order[p].val).value →
     (cutAt context.cuts.val order[p - 1].val).value ∈ context.values.val
 
+/-- Whether the encoding bounds the data nodes of an element along `U`: the
+    integers are in use while numbers are ordered, or floating-point numbers
+    are in use. -/
+def BoundsRuns (kinds : data_ontology.Kinds) : Prop :=
+  (kinds.ordered = true ∧ kinds.integer = true) ∨ kinds.double = true ∨ kinds.float = true
+
+theorem bounds_runs_eq (kinds : data_ontology.Kinds) :
+    data_ontology.bounds_runs kinds = .ok (decide (BoundsRuns kinds)) := by
+  rw [data_ontology.bounds_runs]
+  cases h1 : kinds.ordered <;> cases h2 : kinds.integer <;> cases h3 : kinds.double <;> cases h4 : kinds.float <;>
+    simp [BoundsRuns, h1, h2, h3, h4]
+
 /-- What the axioms of the ordered numbers say, for the kernel's order of the
-    cuts. -/
+    cuts, and that every data property is below `U` when the encoding bounds
+    data nodes along it. -/
 def RegionFacts (context : data_ontology.Context) (capacity : Nat) (order : List Usize)
     (J : Interpretation Object' Value') : Prop :=
-  context.kinds.ordered = true →
+  (context.kinds.ordered = true →
     (∀ first, order.head? = some first → ∀ y, J.classes (cutClass first) y → J.classes (kindClass .Real) y) ∧
-    ChainFacts context capacity order 1 J ∧ (Used context.kinds .Integer = true → SuperFacts context 0 J)
+    ChainFacts context capacity order 1 J) ∧ (BoundsRuns context.kinds → SuperFacts context 0 J)
 
 /-! ### The literal values of a run -/
 
@@ -883,7 +896,7 @@ theorem region_axioms_spec (context : data_ontology.Context) (good : Good contex
           PointsNamed context order 1) ∧
         ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
           ((∀ b ∈ new, satisfies J b.axiom) ↔ RegionFacts context capacity.val order J) := by
-  rw [data_ontology.region_axioms]
+  rw [data_ontology.region_axioms, bounds_runs_eq]
   by_cases ordered : context.kinds.ordered = true
   · obtain ⟨order, orderRun, sorted⟩ := Rowl.Regions.cut_order_spec context.cuts fine
     have orderIn : ∀ k ∈ order.val, k.val < context.cuts.val.length := fun k m =>
@@ -899,21 +912,28 @@ theorem region_axioms_spec (context : data_ontology.Context) (good : Good contex
       | some o2 =>
         obtain ⟨n1, c1, m1⟩ := facts1 o1 rfl
         obtain ⟨named, n2, c2, m2⟩ := facts2 o2 rfl
-        by_cases integer : context.kinds.integer = true
+        by_cases runs : BoundsRuns context.kinds
         · obtain ⟨r3, run3, facts3⟩ := super_axioms_spec context 0#usize o2
-          refine ⟨r3, by simp [ordered, orderRun, run1, run2, integer, run3], fun out' h => ?_⟩
+          refine ⟨r3, by simp [ordered, orderRun, run1, run2, runs, run3], fun out' h => ?_⟩
           obtain ⟨n3, c3, m3⟩ := facts3 out' h
           refine ⟨order.val, fun _ => ⟨sorted, named⟩, n1 ++ n2 ++ n3, by rw [c3, c2, c1]; simp, fun J => ?_⟩
           simp only [List.forall_mem_append]
           rw [m1 J, m2 J, m3 J]
-          simp [RegionFacts, ordered, Used, integer, and_assoc]
-        · refine ⟨some o2, by simp [ordered, orderRun, run1, run2, integer], fun out' h => ?_⟩
+          simp [RegionFacts, ordered, runs, and_assoc]
+        · refine ⟨some o2, by simp [ordered, orderRun, run1, run2, runs], fun out' h => ?_⟩
           cases h
           refine ⟨order.val, fun _ => ⟨sorted, named⟩, n1 ++ n2, by rw [c2, c1]; simp, fun J => ?_⟩
           simp only [List.forall_mem_append]
           rw [m1 J, m2 J]
-          simp [RegionFacts, ordered, Used, integer]
-  · refine ⟨some out, by simp [ordered], fun out' h => ⟨[], by simp [ordered], [], by cases h; simp, fun J => ?_⟩⟩
-    simp [RegionFacts, ordered]
+          simp [RegionFacts, ordered, runs]
+  · by_cases runs : BoundsRuns context.kinds
+    · obtain ⟨r3, run3, facts3⟩ := super_axioms_spec context 0#usize out
+      refine ⟨r3, by simp [ordered, runs, run3], fun out' h => ?_⟩
+      obtain ⟨n3, c3, m3⟩ := facts3 out' h
+      refine ⟨[], by simp [ordered], n3, c3, fun J => ?_⟩
+      rw [m3 J]
+      simp [RegionFacts, ordered, runs]
+    · refine ⟨some out, by simp [ordered, runs], fun out' h => ⟨[], by simp [ordered], [], by cases h; simp, fun J => ?_⟩⟩
+      simp [RegionFacts, ordered, runs]
 
 end Rowl.DataRegions

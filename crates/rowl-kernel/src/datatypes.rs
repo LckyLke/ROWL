@@ -1427,9 +1427,25 @@ pub fn facet_holds(facet: Facet, bound: &DataValue, value: &DataValue) -> Option
     }
 }
 /// Whether the facet with the bound is in the facet space of the kind's
-/// datatype: for `owl:real` and `owl:rational` every number, and for the
-/// numeric datatypes of XML Schema every number of their value space.
+/// datatype: for `owl:real` and `owl:rational` every number, for the
+/// numeric datatypes of XML Schema every number of their value space, and for
+/// `xsd:double` and `xsd:float` every value of their own.
 pub fn facet_applies(kind: Kind, bound: &DataValue) -> bool {
+    match bound {
+        DataValue::Double(_) => match kind {
+            Kind::Double => true,
+            _ => false,
+        },
+        DataValue::Float(_) => match kind {
+            Kind::Float => true,
+            _ => false,
+        },
+        _ => numeric_facet_applies(kind, bound),
+    }
+}
+/// Whether the facet with a bound other than a floating-point value is in the
+/// facet space of the kind's datatype.
+fn numeric_facet_applies(kind: Kind, bound: &DataValue) -> bool {
     if numeric(bound) {
         match kind {
             Kind::Real => true,

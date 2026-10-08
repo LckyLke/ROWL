@@ -19,7 +19,8 @@
     clippy::manual_range_contains,
     clippy::vec_init_then_push,
     clippy::manual_is_multiple_of,
-    clippy::type_complexity
+    clippy::type_complexity,
+    clippy::match_like_matches_macro
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 
 use crate::datatypes::Binary;
@@ -597,6 +598,112 @@ fn numeral(lexical: &Vec<u8>, start: usize, negative: bool, double: bool) -> Opt
         None
     }
 }
+// ---------------------------------------------------------------------------
+// The order of the values
+// ---------------------------------------------------------------------------
+
+/// The number of binary digits of `m`.
+fn length(m: u64) -> usize {
+    if m == 0 {
+        0
+    } else {
+        1 + length(m / 2)
+    }
+}
+/// The place of a positive value `m × 2^e` among the positive values of its
+/// format, from 1, for a value of the format with the exponent `e` plus
+/// `BIAS` (`scale`): its IEEE 754 encoding, the exponent where `m` has the
+/// precision's digits, or the least one, above the significand there.
+fn place(m: u64, scale: usize, double: bool) -> u128 {
+    let p = precision(double);
+    let low = least(double);
+    if scale < usize::MAX - 64 {
+        let high = scale + length(m);
+        let exponent = if low + p <= high { high - p } else { low };
+        if exponent <= scale {
+            if scale - exponent < 64 {
+                ((exponent - low) as u128) * native_two(p - 1)
+                    + (m as u128) * native_two(scale - exponent)
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    } else {
+        0
+    }
+}
+/// The place of positive infinity among the positive values: one more than
+/// the greatest number's.
+fn top_place(double: bool) -> u128 {
+    ((most(double) - least(double) + 2) as u128) * native_two(precision(double) - 1)
+}
+/// The place of a value in the order of its format, from 0: NaN, negative
+/// infinity, the negative numbers from the least, negative zero, positive
+/// zero, the positive numbers and positive infinity, one place for each
+/// value (XML Schema 1.1 Part 2 §3.3.4.1 and §3.3.5.1).
+pub fn position(value: &Binary, double: bool) -> u128 {
+    let top = top_place(double);
+    match value {
+        Binary::NotANumber => 0,
+        Binary::Infinite(negative) => {
+            if *negative {
+                1
+            } else {
+                2 * top + 2
+            }
+        }
+        Binary::Finite(negative, m, scale) => {
+            if *m == 0 {
+                if *negative {
+                    top + 1
+                } else {
+                    top + 2
+                }
+            } else {
+                let p = place(*m, *scale, double);
+                if p < top {
+                    if *negative {
+                        top + 1 - p
+                    } else {
+                        top + 2 + p
+                    }
+                } else {
+                    0
+                }
+            }
+        }
+    }
+}
+/// The number of the values of a format, NaN and the infinities included.
+pub fn places(double: bool) -> u128 {
+    2 * top_place(double) + 3
+}
+/// Whether a value is NaN.
+pub fn is_nan(value: &Binary) -> bool {
+    match value {
+        Binary::NotANumber => true,
+        _ => false,
+    }
+}
+/// The first place of the values equal to a value: negative zero's for a
+/// zero, which equals positive zero.
+pub fn low_position(value: &Binary, double: bool) -> u128 {
+    match value {
+        Binary::Finite(_, 0, _) => top_place(double) + 1,
+        _ => position(value, double),
+    }
+}
+/// The last place of the values equal to a value: positive zero's for a
+/// zero.
+pub fn high_position(value: &Binary, double: bool) -> u128 {
+    match value {
+        Binary::Finite(_, 0, _) => top_place(double) + 2,
+        _ => position(value, double),
+    }
+}
+
 /// The value of a lexical form of `xsd:double` (`double`) or `xsd:float`, if
 /// it is one.
 pub fn binary_value(lexical: &Vec<u8>, double: bool) -> Option<Binary> {

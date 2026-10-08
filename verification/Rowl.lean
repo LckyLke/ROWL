@@ -192,12 +192,14 @@ import Rowl.Numbers
 import Rowl.Strings
 import Rowl.Moments
 import Rowl.Floats
+import Rowl.FloatOrder
 import Rowl.Datatypes
 import Rowl.Regions
 import Rowl.DataEncoding
 import Rowl.DataMeaning
 import Rowl.DataAxioms
 import Rowl.DataRegions
+import Rowl.DataEdges
 import Rowl.DataReals
 import Rowl.DataStructure
 import Rowl.DataComplete

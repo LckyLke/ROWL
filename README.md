@@ -359,10 +359,14 @@ properties:
   `:age` a name for its data range, usable in data ranges like any datatype
   (but not restricted by facets), also in other definitions and in questions.
 - **Facets:** `xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
-  `xsd:maxExclusive` on the numeric datatypes. Numbers are compared exactly:
-  `"8001/2"^^owl:rational` and `"4000.5"^^xsd:decimal` are the same value.
+  `xsd:maxExclusive` on the numeric datatypes and on `xsd:double` and
+  `xsd:float`. Numbers are compared exactly: `"8001/2"^^owl:rational` and
+  `"4000.5"^^xsd:decimal` are the same value. Floating-point numbers follow
+  XML Schema's order: `-0` and `+0` are equal there, so `xsd:double[>= 0]`
+  holds both zeros, NaN is comparable to nothing, and a range counts its
+  values exactly (one `xsd:float` lies strictly between `1` and `1.0000002`).
 - **Not yet:** `rdf:XMLLiteral`, and the other facets (such as `xsd:length`,
-  `xsd:pattern`, and facets on time instants and floating-point numbers).
+  `xsd:pattern`, and facets on time instants).
 
 ### Questions
 

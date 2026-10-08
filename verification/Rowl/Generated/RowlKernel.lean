@@ -21175,7 +21175,7 @@ structure regions.Cut where
   «open» : Bool
 
 /-- [rowl_kernel::data_ontology::Kinds]
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 102:0-124:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 114:0-136:1
     Visibility: public -/
 structure data_ontology.Kinds where
   integer : Bool
@@ -21201,7 +21201,7 @@ structure data_ontology.Kinds where
   ordered : Bool
 
 /-- [rowl_kernel::data_ontology::Context]
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 130:0-136:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 143:0-151:1
     Visibility: public -/
 structure data_ontology.Context where
   values : alloc.vec.Vec datatypes.DataValue
@@ -21209,9 +21209,11 @@ structure data_ontology.Context where
   roles : alloc.vec.Vec model.ObjectProperty
   data : alloc.vec.Vec model.DataProperty
   cuts : alloc.vec.Vec regions.Cut
+  double_edges : alloc.vec.Vec Std.U128
+  float_edges : alloc.vec.Vec Std.U128
 
 /-- [rowl_kernel::data_ontology::Prepared]
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3483:0-3488:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4128:0-4133:1
     Visibility: public -/
 @[discriminant isize]
 inductive data_ontology.Prepared where
@@ -21234,12 +21236,12 @@ inductive data_ontology.Prepared where
   data_ontology.Prepared
 
 /-- [rowl_kernel::data_ontology::LIMIT]
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3381:0-3381:48 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4026:0-4026:48 -/
 @[global_simps, irreducible]
 def data_ontology.LIMIT : Result Std.Usize := core.num.Usize.MAX / 16#usize
 
 /-- [rowl_kernel::data_ontology::add_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3386:0-3396:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4031:0-4041:1 -/
 def data_ontology.add_count
   (total : Std.Usize) (amount : Std.Usize) : Result Std.Usize := do
   let i ← data_ontology.LIMIT
@@ -21251,7 +21253,7 @@ def data_ontology.add_count
   else ok i
 
 /-- [rowl_kernel::data_ontology::natural_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3398:0-3403:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4043:0-4048:1 -/
 def data_ontology.natural_count
   (value : probes.Natural) (total : Std.Usize) : Result Std.Usize := do
   match value with
@@ -21264,7 +21266,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::data_ontology::class_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3406:0-3434:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4051:0-4079:1 -/
 def data_ontology.class_count
   («class» : model.ClassExpression) (total : Std.Usize) :
   Result Std.Usize
@@ -21314,7 +21316,7 @@ def data_ontology.class_count
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::classes_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3435:0-3441:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4080:0-4086:1 -/
 def data_ontology.classes_count
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (total : Std.Usize) :
@@ -21333,7 +21335,7 @@ def data_ontology.classes_count
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::members_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3442:0-3448:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4087:0-4093:1 -/
 def data_ontology.members_count
   (members : model.AtLeastTwo model.ClassExpression) (total : Std.Usize) :
   Result Std.Usize
@@ -21346,7 +21348,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::data_ontology::individual_known]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3322:0-3327:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3967:0-3972:1 -/
 def data_ontology.individual_known
   (nodes : alloc.vec.Vec model.Individual) (individual : model.Individual) :
   Result Bool
@@ -21358,7 +21360,7 @@ def data_ontology.individual_known
   | model.Individual.Anonymous _ => ok false
 
 /-- [rowl_kernel::data_ontology::individuals_known]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3328:0-3335:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3973:0-3980:1 -/
 def data_ontology.individuals_known
   (nodes : alloc.vec.Vec model.Individual)
   (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -21382,7 +21384,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::data_ontology::class_known]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3338:0-3362:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3983:0-4007:1 -/
 def data_ontology.class_known
   (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
   :
@@ -21443,7 +21445,7 @@ def data_ontology.class_known
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::classes_known]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3363:0-3369:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4008:0-4014:1 -/
 def data_ontology.classes_known
   (nodes : alloc.vec.Vec model.Individual)
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
@@ -22810,38 +22812,38 @@ def numbers.ten_power (count : Std.Usize) : Result (alloc.vec.Vec Std.U8) := do
   numbers.times_power one count
 
 /-- [rowl_kernel::floats::BIAS]
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 33:0-33:29
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 34:0-34:29
     Visibility: public -/
 @[global_simps, irreducible] def floats.BIAS : Std.Usize := 2048#usize
 
 /-- [rowl_kernel::floats::most]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 60:0-66:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 61:0-67:1 -/
 def floats.most (double : Bool) : Result Std.Usize := do
   if double
   then floats.BIAS + 971#usize
   else floats.BIAS + 104#usize
 
 /-- [rowl_kernel::floats::least]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 52:0-58:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 53:0-59:1 -/
 def floats.least (double : Bool) : Result Std.Usize := do
   if double
   then floats.BIAS - 1074#usize
   else floats.BIAS - 149#usize
 
 /-- [rowl_kernel::floats::precision]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 44:0-50:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 45:0-51:1 -/
 def floats.precision (double : Bool) : Result Std.Usize := do
   if double
   then ok 53#usize
   else ok 24#usize
 
 /-- [rowl_kernel::floats::ORDER_BIAS]
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 35:0-35:38 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 36:0-36:38 -/
 @[global_simps, irreducible]
 def floats.ORDER_BIAS : Std.Usize := 268435456#usize
 
 /-- [rowl_kernel::floats::estimate]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 422:0-440:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 423:0-441:1 -/
 def floats.estimate
   (order : Std.Usize) (double : Bool) : Result Std.Usize := do
   let guess ←
@@ -22926,7 +22928,7 @@ def numbers.compare_naturals
     else numbers.compare_from left right 0#usize
 
 /-- [rowl_kernel::floats::small_number]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 309:0-315:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 310:0-316:1 -/
 def floats.small_number
   (digits : alloc.vec.Vec Std.U8) (index : Std.Usize) (total : Std.U64) :
   Result Std.U64
@@ -22947,7 +22949,7 @@ def floats.small_number
 partial_fixpoint
 
 /-- [rowl_kernel::floats::odd_form]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 140:0-146:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 141:0-147:1 -/
 def floats.odd_form
   (m : Std.U64) (e : Std.Usize) (fuel : Std.Usize) :
   Result (Std.U64 × Std.Usize)
@@ -22966,7 +22968,7 @@ def floats.odd_form
 partial_fixpoint
 
 /-- [rowl_kernel::floats::finite]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 131:0-138:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 132:0-139:1 -/
 def floats.finite
   (negative : Bool) (m : Std.U64) (e : Std.Usize) :
   Result datatypes.Binary
@@ -22978,7 +22980,7 @@ def floats.finite
     ok (datatypes.Binary.Finite negative odd scale)
 
 /-- [rowl_kernel::floats::native_two]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 111:0-117:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 112:0-118:1 -/
 def floats.native_two (count : Std.Usize) : Result Std.U128 := do
   if 0#usize < count
   then let i ← count - 1#usize
@@ -22988,13 +22990,13 @@ def floats.native_two (count : Std.Usize) : Result Std.U128 := do
 partial_fixpoint
 
 /-- [rowl_kernel::floats::top]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 127:0-129:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 128:0-130:1 -/
 def floats.top (double : Bool) : Result Std.U128 := do
   let i ← floats.precision double
   floats.native_two i
 
 /-- [rowl_kernel::floats::digits_of]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 93:0-101:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 94:0-102:1 -/
 def floats.digits_of (value : Std.U128) : Result (alloc.vec.Vec Std.U8) := do
   if value = 0#u128
   then ok (alloc.vec.Vec.new Std.U8)
@@ -23008,12 +23010,12 @@ def floats.digits_of (value : Std.U128) : Result (alloc.vec.Vec Std.U8) := do
 partial_fixpoint
 
 /-- [rowl_kernel::floats::one]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 87:0-91:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 88:0-92:1 -/
 def floats.one : Result (alloc.vec.Vec Std.U8) := do
   alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 49#u8
 
 /-- [rowl_kernel::floats::wide_round]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 378:0-405:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 379:0-406:1 -/
 def floats.wide_round
   (k : alloc.vec.Vec Std.U8) (rest : alloc.vec.Vec Std.U8)
   (denominator : alloc.vec.Vec Std.U8) (e : Std.Usize) (negative : Bool)
@@ -23138,7 +23140,7 @@ def numbers.divide_naturals
     (alloc.vec.Vec.new Std.U8)
 
 /-- [rowl_kernel::floats::wide_settle]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 330:0-376:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 331:0-377:1 -/
 def floats.wide_settle
   (k : alloc.vec.Vec Std.U8) (rest : alloc.vec.Vec Std.U8)
   (denominator : alloc.vec.Vec Std.U8) (e : Std.Usize) (double : Bool)
@@ -23199,7 +23201,7 @@ def floats.wide_settle
 partial_fixpoint
 
 /-- [rowl_kernel::floats::doubled]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 301:0-307:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 302:0-308:1 -/
 def floats.doubled
   (digits : alloc.vec.Vec Std.U8) (count : Std.Usize) :
   Result (alloc.vec.Vec Std.U8)
@@ -23213,7 +23215,7 @@ def floats.doubled
 partial_fixpoint
 
 /-- [rowl_kernel::floats::wide_state]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 318:0-328:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 319:0-329:1 -/
 def floats.wide_state
   (n : alloc.vec.Vec Std.U8) (q : alloc.vec.Vec Std.U8) (e : Std.Usize) :
   Result ((alloc.vec.Vec Std.U8) × (alloc.vec.Vec Std.U8) × (alloc.vec.Vec
@@ -23235,11 +23237,11 @@ def floats.wide_state
     ok (k, rest, v1)
 
 /-- [rowl_kernel::floats::STEPS]
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 41:0-41:26 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 42:0-42:26 -/
 @[global_simps, irreducible] def floats.STEPS : Std.Usize := 4096#usize
 
 /-- [rowl_kernel::floats::wide]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 407:0-419:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 408:0-420:1 -/
 def floats.wide
   (n : alloc.vec.Vec Std.U8) (q : alloc.vec.Vec Std.U8) (e : Std.Usize)
   (negative : Bool) (double : Bool) :
@@ -23259,7 +23261,7 @@ def floats.wide
       ok (some b)
 
 /-- [rowl_kernel::floats::native_round]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 240:0-269:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 241:0-270:1 -/
 def floats.native_round
   (k : Std.U128) (rest : Std.U128) (denominator : Std.U128) (e : Std.Usize)
   (negative : Bool) (double : Bool) :
@@ -23300,7 +23302,7 @@ def floats.native_round
   else ok none
 
 /-- [rowl_kernel::floats::native_settle]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 188:0-237:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 189:0-238:1 -/
 def floats.native_settle
   (k : Std.U128) (rest : Std.U128) (denominator : Std.U128) (e : Std.Usize)
   (double : Bool) (fuel : Std.Usize) :
@@ -23357,7 +23359,7 @@ def floats.native_settle
 partial_fixpoint
 
 /-- [rowl_kernel::floats::native_ten]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 119:0-125:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 120:0-126:1 -/
 def floats.native_ten (count : Std.Usize) : Result Std.U128 := do
   if 0#usize < count
   then let i ← count - 1#usize
@@ -23367,7 +23369,7 @@ def floats.native_ten (count : Std.Usize) : Result Std.U128 := do
 partial_fixpoint
 
 /-- [rowl_kernel::floats::native_state]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 155:0-184:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 156:0-185:1 -/
 def floats.native_state
   (d : Std.U128) (up : Bool) (scale : Std.Usize) (e : Std.Usize) :
   Result (Option (Std.U128 × Std.U128 × Std.U128))
@@ -23413,7 +23415,7 @@ def floats.native_state
     else ok none
 
 /-- [rowl_kernel::floats::native]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 272:0-294:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 273:0-295:1 -/
 def floats.native
   (d : Std.U128) (up : Bool) (scale : Std.Usize) (e : Std.Usize)
   (negative : Bool) (double : Bool) :
@@ -23435,7 +23437,7 @@ def floats.native
       else floats.native_round k1 rest1 denominator1 e1 negative double
 
 /-- [rowl_kernel::floats::native_value]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 103:0-109:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 104:0-110:1 -/
 def floats.native_value
   (digits : alloc.vec.Vec Std.U8) (index : Std.Usize) (total : Std.U128) :
   Result Std.U128
@@ -23456,7 +23458,7 @@ def floats.native_value
 partial_fixpoint
 
 /-- [rowl_kernel::floats::exact]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 444:0-468:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 445:0-469:1 -/
 def floats.exact
   (digits : alloc.vec.Vec Std.U8) (order : Std.Usize) (negative : Bool)
   (double : Bool) :
@@ -23498,21 +23500,21 @@ def floats.exact
   | some _ => ok quick
 
 /-- [rowl_kernel::floats::under]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 78:0-84:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 79:0-85:1 -/
 def floats.under (double : Bool) : Result Std.Usize := do
   if double
   then floats.ORDER_BIAS - 324#usize
   else floats.ORDER_BIAS - 46#usize
 
 /-- [rowl_kernel::floats::over]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 69:0-75:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 70:0-76:1 -/
 def floats.over (double : Bool) : Result Std.Usize := do
   if double
   then floats.ORDER_BIAS + 310#usize
   else floats.ORDER_BIAS + 40#usize
 
 /-- [rowl_kernel::floats::numeral_value]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 507:0-548:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 508:0-549:1 -/
 def floats.numeral_value
   (lexical : alloc.vec.Vec Std.U8) (whole_start : Std.Usize)
   (whole_end : Std.Usize) (fraction_start : Std.Usize)
@@ -23558,12 +23560,12 @@ def floats.numeral_value
         floats.exact v1 order negative double
 
 /-- [rowl_kernel::floats::SATURATED]
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 39:0-39:37 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 40:0-40:37 -/
 @[global_simps, irreducible]
 def floats.SATURATED : Std.Usize := 100000000#usize
 
 /-- [rowl_kernel::floats::small_value]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 486:0-503:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 487:0-504:1 -/
 def floats.small_value
   (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
   (total : Std.Usize) :
@@ -23595,7 +23597,7 @@ def floats.small_value
 partial_fixpoint
 
 /-- [rowl_kernel::floats::numeral]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 550:0-599:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 551:0-600:1 -/
 def floats.numeral
   (lexical : alloc.vec.Vec Std.U8) (start : Std.Usize) (negative : Bool)
   (double : Bool) :
@@ -23721,7 +23723,7 @@ def floats.numeral
     else ok none
 
 /-- [rowl_kernel::floats::rest_is]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 477:0-483:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 478:0-484:1 -/
 def floats.rest_is
   (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (word : Slice Std.U8)
   («at» : Std.Usize) :
@@ -23747,7 +23749,7 @@ def floats.rest_is
 partial_fixpoint
 
 /-- [rowl_kernel::floats::word_at]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 470:0-476:1 -/
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 471:0-477:1 -/
 def floats.word_at
   (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (word : Slice Std.U8) :
   Result Bool
@@ -23764,12 +23766,12 @@ def floats.word_at
   else ok false
 
 /-- [rowl_kernel::floats::LIMIT]
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 37:0-37:30
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 38:0-38:30
     Visibility: public -/
 @[global_simps, irreducible] def floats.LIMIT : Std.Usize := 1024#usize
 
 /-- [rowl_kernel::floats::binary_value]:
-    Source: 'crates/rowl-kernel/src/floats.rs', lines 602:0-617:1
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 709:0-724:1
     Visibility: public -/
 def floats.binary_value
   (lexical : alloc.vec.Vec Std.U8) (double : Bool) :
@@ -26518,8 +26520,334 @@ def datatypes.literal_value
   | none => ok none
   | some kind => datatypes.kind_value kind literal.lexical
 
+/-- [rowl_kernel::floats::top_place]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 639:0-641:1 -/
+def floats.top_place (double : Bool) : Result Std.U128 := do
+  let i ← floats.most double
+  let i1 ← floats.least double
+  let i2 ← i - i1
+  let i3 ← i2 + 2#usize
+  let i4 ← lift (UScalar.cast .U128 i3)
+  let i5 ← floats.precision double
+  let i6 ← i5 - 1#usize
+  let i7 ← floats.native_two i6
+  i4 * i7
+
+/-- [rowl_kernel::floats::length]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 606:0-612:1 -/
+def floats.length (m : Std.U64) : Result Std.Usize := do
+  if m = 0#u64
+  then ok 0#usize
+  else let i ← m / 2#u64
+       let i1 ← floats.length i
+       1#usize + i1
+partial_fixpoint
+
+/-- [rowl_kernel::floats::place]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 617:0-636:1 -/
+def floats.place
+  (m : Std.U64) (scale : Std.Usize) (double : Bool) : Result Std.U128 := do
+  let p ← floats.precision double
+  let low ← floats.least double
+  let i ← core.num.Usize.MAX - 64#usize
+  if scale < i
+  then
+    let i1 ← floats.length m
+    let high ← scale + i1
+    let i2 ← low + p
+    let exponent ← if i2 <= high
+                     then high - p
+                     else ok low
+    if exponent <= scale
+    then
+      let i3 ← scale - exponent
+      if i3 < 64#usize
+      then
+        let i4 ← exponent - low
+        let i5 ← lift (UScalar.cast .U128 i4)
+        let i6 ← p - 1#usize
+        let i7 ← floats.native_two i6
+        let i8 ← i5 * i7
+        let i9 ← lift (UScalar.cast .U128 m)
+        let i10 ← floats.native_two i3
+        let i11 ← i9 * i10
+        i8 + i11
+      else ok 0#u128
+    else ok 0#u128
+  else ok 0#u128
+
+/-- [rowl_kernel::floats::position]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 646:0-678:1
+    Visibility: public -/
+def floats.position
+  (value : datatypes.Binary) (double : Bool) : Result Std.U128 := do
+  let top ← floats.top_place double
+  match value with
+  | datatypes.Binary.Finite negative m scale =>
+    if m = 0#u64
+    then if negative
+         then top + 1#u128
+         else top + 2#u128
+    else
+      let p ← floats.place m scale double
+      if p < top
+      then
+        if negative
+        then let i ← top + 1#u128
+             i - p
+        else let i ← top + 2#u128
+             i + p
+      else ok 0#u128
+  | datatypes.Binary.Infinite negative =>
+    if negative
+    then ok 1#u128
+    else let i ← 2#u128 * top
+         i + 2#u128
+  | datatypes.Binary.NotANumber => ok 0#u128
+
+/-- [rowl_kernel::floats::high_position]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 700:0-705:1
+    Visibility: public -/
+def floats.high_position
+  (value : datatypes.Binary) (double : Bool) : Result Std.U128 := do
+  match value with
+  | datatypes.Binary.Finite _ i _ =>
+    match i with
+    | 0#uscalar => let i1 ← floats.top_place double
+                   i1 + 2#u128
+    | _ => floats.position value double
+  | datatypes.Binary.Infinite _ => floats.position value double
+  | datatypes.Binary.NotANumber =>
+    floats.position datatypes.Binary.NotANumber double
+
+/-- [rowl_kernel::floats::low_position]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 692:0-697:1
+    Visibility: public -/
+def floats.low_position
+  (value : datatypes.Binary) (double : Bool) : Result Std.U128 := do
+  match value with
+  | datatypes.Binary.Finite _ i _ =>
+    match i with
+    | 0#uscalar => let i1 ← floats.top_place double
+                   i1 + 1#u128
+    | _ => floats.position value double
+  | datatypes.Binary.Infinite _ => floats.position value double
+  | datatypes.Binary.NotANumber =>
+    floats.position datatypes.Binary.NotANumber double
+
+/-- [rowl_kernel::floats::is_nan]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 684:0-689:1
+    Visibility: public -/
+def floats.is_nan (value : datatypes.Binary) : Result Bool := do
+  match value with
+  | datatypes.Binary.Finite _ _ _ => ok false
+  | datatypes.Binary.Infinite _ => ok false
+  | datatypes.Binary.NotANumber => ok true
+
+/-- [rowl_kernel::data_ontology::edge_index]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1273:0-1283:1 -/
+def data_ontology.edge_index
+  (edges : alloc.vec.Vec Std.U128) (edge : Std.U128) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges index
+    if i1 = edge
+    then ok (some index)
+    else let i2 ← index + 1#usize
+         data_ontology.edge_index edges edge i2
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::class_named]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 281:0-285:1 -/
+def data_ontology.class_named
+  (spelling : alloc.vec.Vec Std.U8) : Result model.ClassExpression := do
+  ok (model.ClassExpression.Class { iri := { spelling } })
+
+/-- [rowl_kernel::data_ontology::copy_after]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 273:0-280:1 -/
+def data_ontology.copy_after
+  (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len source
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) source
+        index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    data_ontology.copy_after source i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::tagged_name]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 266:0-271:1 -/
+def data_ontology.tagged_name
+  (tag : Std.U8) (rest : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let spelling ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 0#u8
+  let spelling1 ← alloc.vec.Vec.push spelling tag
+  data_ontology.copy_after rest 0#usize spelling1
+
+/-- [rowl_kernel::data_ontology::bytes]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 257:0-264:1 -/
+def data_ontology.bytes
+  (value : Std.Usize) (count : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if count < 8#usize
+  then
+    let i ← value % 256#usize
+    let i1 ← lift (UScalar.cast .U8 i)
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← value / 256#usize
+    let i3 ← count + 1#usize
+    data_ontology.bytes i2 i3 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::edge_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 356:0-360:1 -/
+def data_ontology.edge_class
+  (double : Bool) (index : Std.Usize) : Result model.ClassExpression := do
+  if double
+  then
+    let rest ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 1#u8
+    let v ← data_ontology.bytes index 0#usize rest
+    let v1 ← data_ontology.tagged_name 70#u8 v
+    data_ontology.class_named v1
+  else
+    let rest ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 0#u8
+    let v ← data_ontology.bytes index 0#usize rest
+    let v1 ← data_ontology.tagged_name 70#u8 v
+    data_ontology.class_named v1
+
+/-- [rowl_kernel::data_ontology::at_edge]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1286:0-1296:1 -/
+def data_ontology.at_edge
+  (context : data_ontology.Context) (double : Bool) (edge : Std.U128) :
+  Result (Option model.ClassExpression)
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let o ← data_ontology.edge_index edges edge 0#usize
+  match o with
+  | none => ok none
+  | some index => let ce ← data_ontology.edge_class double index
+                  ok (some ce)
+
+/-- [rowl_kernel::data_ontology::not]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1194:0-1196:1 -/
+def data_ontology.not
+  («class» : model.ClassExpression) : Result model.ClassExpression := do
+  ok (model.ClassExpression.ObjectComplementOf «class»)
+
+/-- [rowl_kernel::data_ontology::and]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1069:0-1075:1 -/
+def data_ontology.and
+  (left : model.ClassExpression) (right : model.ClassExpression) :
+  Result model.ClassExpression
+  := do
+  ok (model.ClassExpression.ObjectIntersectionOf
+    {
+      first := left,
+      second := right,
+      rest := (alloc.vec.Vec.new model.ClassExpression)
+    })
+
+/-- [rowl_kernel::data_ontology::between_edges]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1299:0-1312:1 -/
+def data_ontology.between_edges
+  (context : data_ontology.Context) (double : Bool) (low : Std.U128)
+  (high : Std.U128) :
+  Result (Option model.ClassExpression)
+  := do
+  let o ← data_ontology.at_edge context double low
+  let o1 ← data_ontology.at_edge context double high
+  match o with
+  | none => ok none
+  | some low1 =>
+    match o1 with
+    | none => ok none
+    | some high1 =>
+      let ce ← data_ontology.not high1
+      let ce1 ← data_ontology.and low1 ce
+      ok (some ce1)
+
+/-- [rowl_kernel::data_ontology::pattern_from]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 174:0-181:1 -/
+def data_ontology.pattern_from
+  (pattern : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := Slice.len pattern
+  if index < i
+  then
+    let i1 ← Slice.index_usize pattern index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    data_ontology.pattern_from pattern i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::thing]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 377:0-383:1 -/
+def data_ontology.thing : Result model.ClassExpression := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  let v ← data_ontology.pattern_from s 0#usize (alloc.vec.Vec.new Std.U8)
+  data_ontology.class_named v
+
+/-- [rowl_kernel::data_ontology::nothing]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1269:0-1271:1 -/
+def data_ontology.nothing : Result model.ClassExpression := do
+  let ce ← data_ontology.thing
+  data_ontology.not ce
+
+/-- [rowl_kernel::data_ontology::binary_facet_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1318:0-1336:1 -/
+def data_ontology.binary_facet_class
+  (context : data_ontology.Context) (double : Bool) (facet : datatypes.Facet)
+  (bound : datatypes.Binary) :
+  Result (Option model.ClassExpression)
+  := do
+  let b ← floats.is_nan bound
+  if b
+  then let ce ← data_ontology.nothing
+       ok (some ce)
+  else
+    let low ← floats.low_position bound double
+    let high ← floats.high_position bound double
+    match facet with
+    | datatypes.Facet.MinInclusive => data_ontology.at_edge context double low
+    | datatypes.Facet.MaxInclusive =>
+      let i ← high + 1#u128
+      data_ontology.between_edges context double 1#u128 i
+    | datatypes.Facet.MinExclusive =>
+      let i ← high + 1#u128
+      data_ontology.at_edge context double i
+    | datatypes.Facet.MaxExclusive =>
+      data_ontology.between_edges context double 1#u128 low
+
 /-- [rowl_kernel::data_ontology::facet_outside]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1149:0-1156:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1260:0-1267:1 -/
 def data_ontology.facet_outside (facet : datatypes.Facet) : Result Bool := do
   match facet with
   | datatypes.Facet.MinInclusive => ok false
@@ -26810,96 +27138,8 @@ def regions.cut_index
   else ok none
 partial_fixpoint
 
-/-- [rowl_kernel::data_ontology::not]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1083:0-1085:1 -/
-def data_ontology.not
-  («class» : model.ClassExpression) : Result model.ClassExpression := do
-  ok (model.ClassExpression.ObjectComplementOf «class»)
-
-/-- [rowl_kernel::data_ontology::class_named]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 266:0-270:1 -/
-def data_ontology.class_named
-  (spelling : alloc.vec.Vec Std.U8) : Result model.ClassExpression := do
-  ok (model.ClassExpression.Class { iri := { spelling } })
-
-/-- [rowl_kernel::data_ontology::pattern_from]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 159:0-166:1 -/
-def data_ontology.pattern_from
-  (pattern : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := Slice.len pattern
-  if index < i
-  then
-    let i1 ← Slice.index_usize pattern index
-    let out1 ← alloc.vec.Vec.push out i1
-    let i2 ← index + 1#usize
-    data_ontology.pattern_from pattern i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::data_ontology::thing]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 355:0-361:1 -/
-def data_ontology.thing : Result model.ClassExpression := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 35#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
-        ]))
-  let v ← data_ontology.pattern_from s 0#usize (alloc.vec.Vec.new Std.U8)
-  data_ontology.class_named v
-
-/-- [rowl_kernel::data_ontology::copy_after]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 258:0-265:1 -/
-def data_ontology.copy_after
-  (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := alloc.vec.Vec.len source
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) source
-        index
-    let out1 ← alloc.vec.Vec.push out i1
-    let i2 ← index + 1#usize
-    data_ontology.copy_after source i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::data_ontology::tagged_name]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 251:0-256:1 -/
-def data_ontology.tagged_name
-  (tag : Std.U8) (rest : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let spelling ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 0#u8
-  let spelling1 ← alloc.vec.Vec.push spelling tag
-  data_ontology.copy_after rest 0#usize spelling1
-
-/-- [rowl_kernel::data_ontology::bytes]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 242:0-249:1 -/
-def data_ontology.bytes
-  (value : Std.Usize) (count : Std.Usize) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  if count < 8#usize
-  then
-    let i ← value % 256#usize
-    let i1 ← lift (UScalar.cast .U8 i)
-    let out1 ← alloc.vec.Vec.push out i1
-    let i2 ← value / 256#usize
-    let i3 ← count + 1#usize
-    data_ontology.bytes i2 i3 out1
-  else ok out
-partial_fixpoint
-
 /-- [rowl_kernel::data_ontology::cut_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 336:0-338:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 351:0-353:1 -/
 def data_ontology.cut_class
   (index : Std.Usize) : Result model.ClassExpression := do
   let v ← data_ontology.bytes index 0#usize (alloc.vec.Vec.new Std.U8)
@@ -26907,7 +27147,7 @@ def data_ontology.cut_class
   data_ontology.class_named v1
 
 /-- [rowl_kernel::data_ontology::bound_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1102:0-1121:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1213:0-1232:1 -/
 def data_ontology.bound_class
   (context : data_ontology.Context) (bound : Option datatypes.DataValue)
   («open» : Bool) (outside : Bool) :
@@ -26930,7 +27170,7 @@ def data_ontology.bound_class
            ok (some ce)
 
 /-- [rowl_kernel::data_ontology::facet_open]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 682:0-689:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 704:0-711:1 -/
 def data_ontology.facet_open (facet : datatypes.Facet) : Result Bool := do
   match facet with
   | datatypes.Facet.MinInclusive => ok false
@@ -26938,10 +27178,48 @@ def data_ontology.facet_open (facet : datatypes.Facet) : Result Bool := do
   | datatypes.Facet.MinExclusive => ok true
   | datatypes.Facet.MaxExclusive => ok false
 
+/-- [rowl_kernel::data_ontology::numeric_kind]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 476:0-496:1 -/
+def data_ontology.numeric_kind (kind : datatypes.Kind) : Result Bool := do
+  match kind with
+  | datatypes.Kind.Integer => ok true
+  | datatypes.Kind.Decimal => ok true
+  | datatypes.Kind.String => ok false
+  | datatypes.Kind.Plain => ok false
+  | datatypes.Kind.Boolean => ok false
+  | datatypes.Kind.Real => ok true
+  | datatypes.Kind.Rational => ok true
+  | datatypes.Kind.NonNegativeInteger => ok true
+  | datatypes.Kind.NonPositiveInteger => ok true
+  | datatypes.Kind.PositiveInteger => ok true
+  | datatypes.Kind.NegativeInteger => ok true
+  | datatypes.Kind.Long => ok true
+  | datatypes.Kind.Int => ok true
+  | datatypes.Kind.Short => ok true
+  | datatypes.Kind.Byte => ok true
+  | datatypes.Kind.UnsignedLong => ok true
+  | datatypes.Kind.UnsignedInt => ok true
+  | datatypes.Kind.UnsignedShort => ok true
+  | datatypes.Kind.UnsignedByte => ok true
+  | datatypes.Kind.AnyUri => ok false
+  | datatypes.Kind.HexBinary => ok false
+  | datatypes.Kind.Base64Binary => ok false
+  | datatypes.Kind.NormalizedString => ok false
+  | datatypes.Kind.Token => ok false
+  | datatypes.Kind.Language => ok false
+  | datatypes.Kind.NmToken => ok false
+  | datatypes.Kind.Name => ok false
+  | datatypes.Kind.NcName => ok false
+  | datatypes.Kind.DateTime => ok false
+  | datatypes.Kind.DateTimeStamp => ok false
+  | datatypes.Kind.Double => ok false
+  | datatypes.Kind.Float => ok false
+
 /-- [rowl_kernel::data_ontology::facet_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1159:0-1178:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1342:0-1379:1 -/
 def data_ontology.facet_class
-  (context : data_ontology.Context) (restriction : model.FacetRestriction) :
+  (context : data_ontology.Context) (kind : datatypes.Kind)
+  (restriction : model.FacetRestriction) :
   Result (Option model.ClassExpression)
   := do
   let o ← datatypes.facet_of restriction.facet
@@ -26952,18 +27230,306 @@ def data_ontology.facet_class
     match o1 with
     | none => ok none
     | some value =>
-      let b ← datatypes.numeric value
-      if b
-      then
-        let b1 ← data_ontology.facet_open facet
-        let b2 ← data_ontology.facet_outside facet
-        data_ontology.bound_class context o1 b1 b2
-      else ok none
+      match value with
+      | datatypes.DataValue.Number _ _ _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Fraction _ _ _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Text _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Tagged _ _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Truth _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Uri _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Hex _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Base64 _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Moment _ =>
+        let b ← datatypes.numeric value
+        if b
+        then
+          let b1 ← data_ontology.numeric_kind kind
+          if b1
+          then
+            let b2 ← data_ontology.facet_open facet
+            let b3 ← data_ontology.facet_outside facet
+            data_ontology.bound_class context o1 b2 b3
+          else let ce ← data_ontology.nothing
+               ok (some ce)
+        else ok none
+      | datatypes.DataValue.Double bound =>
+        match kind with
+        | datatypes.Kind.Integer =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Decimal =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.String =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Plain => let ce ← data_ontology.nothing
+                                  ok (some ce)
+        | datatypes.Kind.Boolean =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Real => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.Rational =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NonNegativeInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NonPositiveInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.PositiveInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NegativeInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Long => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.Int => let ce ← data_ontology.nothing
+                                ok (some ce)
+        | datatypes.Kind.Short => let ce ← data_ontology.nothing
+                                  ok (some ce)
+        | datatypes.Kind.Byte => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.UnsignedLong =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.UnsignedInt =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.UnsignedShort =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.UnsignedByte =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.AnyUri =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.HexBinary =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Base64Binary =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NormalizedString =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Token => let ce ← data_ontology.nothing
+                                  ok (some ce)
+        | datatypes.Kind.Language =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NmToken =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Name => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.NcName =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.DateTime =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.DateTimeStamp =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Double =>
+          data_ontology.binary_facet_class context true facet bound
+        | datatypes.Kind.Float => let ce ← data_ontology.nothing
+                                  ok (some ce)
+      | datatypes.DataValue.Float bound =>
+        match kind with
+        | datatypes.Kind.Integer =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Decimal =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.String =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Plain => let ce ← data_ontology.nothing
+                                  ok (some ce)
+        | datatypes.Kind.Boolean =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Real => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.Rational =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NonNegativeInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NonPositiveInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.PositiveInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NegativeInteger =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Long => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.Int => let ce ← data_ontology.nothing
+                                ok (some ce)
+        | datatypes.Kind.Short => let ce ← data_ontology.nothing
+                                  ok (some ce)
+        | datatypes.Kind.Byte => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.UnsignedLong =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.UnsignedInt =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.UnsignedShort =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.UnsignedByte =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.AnyUri =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.HexBinary =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Base64Binary =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NormalizedString =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Token => let ce ← data_ontology.nothing
+                                  ok (some ce)
+        | datatypes.Kind.Language =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.NmToken =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Name => let ce ← data_ontology.nothing
+                                 ok (some ce)
+        | datatypes.Kind.NcName =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.DateTime =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.DateTimeStamp =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Double =>
+          let ce ← data_ontology.nothing
+          ok (some ce)
+        | datatypes.Kind.Float =>
+          data_ontology.binary_facet_class context false facet bound
 
 /-- [rowl_kernel::data_ontology::facet_classes]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1179:0-1198:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1380:0-1400:1 -/
 def data_ontology.facet_classes
-  (context : data_ontology.Context)
+  (context : data_ontology.Context) (kind : datatypes.Kind)
   (restrictions : alloc.vec.Vec model.FacetRestriction) (index : Std.Usize)
   (out : alloc.vec.Vec model.ClassExpression) :
   Result (Option (alloc.vec.Vec model.ClassExpression))
@@ -26974,7 +27540,7 @@ def data_ontology.facet_classes
     let fr ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
         model.FacetRestriction) restrictions index
-    let o ← data_ontology.facet_class context fr
+    let o ← data_ontology.facet_class context kind fr
     match o with
     | none => ok none
     | some «class» =>
@@ -26984,12 +27550,12 @@ def data_ontology.facet_classes
         then alloc.vec.Vec.push out «class»
         else ok out
       let i2 ← index + 1#usize
-      data_ontology.facet_classes context restrictions i2 out1
+      data_ontology.facet_classes context kind restrictions i2 out1
   else ok (some out)
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::and3]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1087:0-1099:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1198:0-1210:1 -/
 def data_ontology.and3
   (first : model.ClassExpression) (second : model.ClassExpression)
   (third : model.ClassExpression) :
@@ -27000,7 +27566,7 @@ def data_ontology.and3
   ok (model.ClassExpression.ObjectIntersectionOf { first, second, rest })
 
 /-- [rowl_kernel::data_ontology::used]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 394:0-426:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 416:0-448:1 -/
 def data_ontology.used
   (kinds : data_ontology.Kinds) (kind : datatypes.Kind) : Result Bool := do
   match kind with
@@ -27040,7 +27606,7 @@ def data_ontology.used
   | datatypes.Kind.Float => ok kinds.float
 
 /-- [rowl_kernel::data_ontology::kind_index]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 281:0-316:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 296:0-331:1 -/
 def data_ontology.kind_index (kind : datatypes.Kind) : Result Std.U8 := do
   match kind with
   | datatypes.Kind.Integer => ok 0#u8
@@ -27077,7 +27643,7 @@ def data_ontology.kind_index (kind : datatypes.Kind) : Result Std.U8 := do
   | datatypes.Kind.Float => ok 31#u8
 
 /-- [rowl_kernel::data_ontology::kind_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 318:0-322:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 333:0-337:1 -/
 def data_ontology.kind_class
   (kind : datatypes.Kind) : Result model.ClassExpression := do
   let i ← data_ontology.kind_index kind
@@ -27086,7 +27652,7 @@ def data_ontology.kind_class
   data_ontology.class_named v
 
 /-- [rowl_kernel::data_ontology::subtype_range]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1124:0-1136:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1235:0-1247:1 -/
 def data_ontology.subtype_range
   (context : data_ontology.Context) (kind : datatypes.Kind) :
   Result (Option model.ClassExpression)
@@ -27110,7 +27676,7 @@ def data_ontology.subtype_range
   else ok none
 
 /-- [rowl_kernel::data_ontology::bounded]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 428:0-452:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 450:0-474:1 -/
 def data_ontology.bounded (kind : datatypes.Kind) : Result Bool := do
   match kind with
   | datatypes.Kind.Integer => ok false
@@ -27147,7 +27713,7 @@ def data_ontology.bounded (kind : datatypes.Kind) : Result Bool := do
   | datatypes.Kind.Float => ok false
 
 /-- [rowl_kernel::data_ontology::kind_range]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1138:0-1146:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1249:0-1257:1 -/
 def data_ontology.kind_range
   (context : data_ontology.Context) (kind : datatypes.Kind) :
   Result (Option model.ClassExpression)
@@ -27162,29 +27728,29 @@ def data_ontology.kind_range
          ok (some ce)
     else ok none
 
-/-- [rowl_kernel::data_ontology::numeric_kind]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 454:0-474:1 -/
-def data_ontology.numeric_kind (kind : datatypes.Kind) : Result Bool := do
+/-- [rowl_kernel::data_ontology::binary_kind]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 797:0-803:1 -/
+def data_ontology.binary_kind (kind : datatypes.Kind) : Result Bool := do
   match kind with
-  | datatypes.Kind.Integer => ok true
-  | datatypes.Kind.Decimal => ok true
+  | datatypes.Kind.Integer => ok false
+  | datatypes.Kind.Decimal => ok false
   | datatypes.Kind.String => ok false
   | datatypes.Kind.Plain => ok false
   | datatypes.Kind.Boolean => ok false
-  | datatypes.Kind.Real => ok true
-  | datatypes.Kind.Rational => ok true
-  | datatypes.Kind.NonNegativeInteger => ok true
-  | datatypes.Kind.NonPositiveInteger => ok true
-  | datatypes.Kind.PositiveInteger => ok true
-  | datatypes.Kind.NegativeInteger => ok true
-  | datatypes.Kind.Long => ok true
-  | datatypes.Kind.Int => ok true
-  | datatypes.Kind.Short => ok true
-  | datatypes.Kind.Byte => ok true
-  | datatypes.Kind.UnsignedLong => ok true
-  | datatypes.Kind.UnsignedInt => ok true
-  | datatypes.Kind.UnsignedShort => ok true
-  | datatypes.Kind.UnsignedByte => ok true
+  | datatypes.Kind.Real => ok false
+  | datatypes.Kind.Rational => ok false
+  | datatypes.Kind.NonNegativeInteger => ok false
+  | datatypes.Kind.NonPositiveInteger => ok false
+  | datatypes.Kind.PositiveInteger => ok false
+  | datatypes.Kind.NegativeInteger => ok false
+  | datatypes.Kind.Long => ok false
+  | datatypes.Kind.Int => ok false
+  | datatypes.Kind.Short => ok false
+  | datatypes.Kind.Byte => ok false
+  | datatypes.Kind.UnsignedLong => ok false
+  | datatypes.Kind.UnsignedInt => ok false
+  | datatypes.Kind.UnsignedShort => ok false
+  | datatypes.Kind.UnsignedByte => ok false
   | datatypes.Kind.AnyUri => ok false
   | datatypes.Kind.HexBinary => ok false
   | datatypes.Kind.Base64Binary => ok false
@@ -27196,23 +27762,24 @@ def data_ontology.numeric_kind (kind : datatypes.Kind) : Result Bool := do
   | datatypes.Kind.NcName => ok false
   | datatypes.Kind.DateTime => ok false
   | datatypes.Kind.DateTimeStamp => ok false
-  | datatypes.Kind.Double => ok false
-  | datatypes.Kind.Float => ok false
+  | datatypes.Kind.Double => ok true
+  | datatypes.Kind.Float => ok true
 
 /-- [rowl_kernel::data_ontology::restriction_range]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1200:0-1223:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1403:0-1426:1 -/
 def data_ontology.restriction_range
   (context : data_ontology.Context) (kind : datatypes.Kind)
   (restrictions : model.NonEmpty model.FacetRestriction) :
   Result (Option model.ClassExpression)
   := do
   let b ← data_ontology.numeric_kind kind
-  if b && context.kinds.ordered
+  let b1 ← data_ontology.binary_kind kind
+  if (b && context.kinds.ordered) || b1
   then
     let o ← data_ontology.kind_range context kind
-    let o1 ← data_ontology.facet_class context restrictions.first
+    let o1 ← data_ontology.facet_class context kind restrictions.first
     let o2 ←
-      data_ontology.facet_classes context restrictions.rest 0#usize
+      data_ontology.facet_classes context kind restrictions.rest 0#usize
         (alloc.vec.Vec.new model.ClassExpression)
     match o with
     | none => ok none
@@ -27228,7 +27795,7 @@ def data_ontology.restriction_range
   else ok none
 
 /-- [rowl_kernel::data_ontology::value_index]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 569:0-579:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 591:0-601:1 -/
 def data_ontology.value_index
   (values : alloc.vec.Vec datatypes.DataValue) (value : datatypes.DataValue)
   (index : Std.Usize) :
@@ -27249,7 +27816,7 @@ def data_ontology.value_index
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::value_individual]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 328:0-334:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 343:0-349:1 -/
 def data_ontology.value_individual
   (index : Std.Usize) : Result model.Individual := do
   let v ← data_ontology.bytes index 0#usize (alloc.vec.Vec.new Std.U8)
@@ -27257,7 +27824,7 @@ def data_ontology.value_individual
   ok (model.Individual.Named { iri := { spelling := v1 } })
 
 /-- [rowl_kernel::data_ontology::literal_individual]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1055:0-1063:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1166:0-1174:1 -/
 def data_ontology.literal_individual
   (context : data_ontology.Context) (literal : model.Literal) :
   Result (Option model.Individual)
@@ -27273,7 +27840,7 @@ def data_ontology.literal_individual
                     ok (some i)
 
 /-- [rowl_kernel::data_ontology::literal_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1064:0-1081:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1175:0-1192:1 -/
 def data_ontology.literal_individuals
   (context : data_ontology.Context) (literals : alloc.vec.Vec model.Literal)
   (index : Std.Usize) (out : alloc.vec.Vec model.Individual) :
@@ -27296,7 +27863,7 @@ def data_ontology.literal_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::equal_from]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 138:0-144:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 153:0-159:1 -/
 def data_ontology.equal_from
   (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
   Result Bool
@@ -27316,7 +27883,7 @@ def data_ontology.equal_from
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::same_pattern]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 145:0-147:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 160:0-162:1 -/
 def data_ontology.same_pattern
   (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
   let i := alloc.vec.Vec.len key
@@ -27326,7 +27893,7 @@ def data_ontology.same_pattern
   else ok false
 
 /-- [rowl_kernel::data_ontology::is_literal]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 196:0-201:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 211:0-216:1 -/
 def data_ontology.is_literal (datatype : model.Datatype) : Result Bool := do
   let s ←
     lift (Array.to_slice
@@ -27342,7 +27909,7 @@ def data_ontology.is_literal (datatype : model.Datatype) : Result Bool := do
 mutual
 
 /-- [rowl_kernel::data_ontology::encode_range]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1225:0-1261:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1428:0-1464:1
     Visibility: public -/
 def data_ontology.encode_range
   (context : data_ontology.Context) (range : model.DataRange) :
@@ -27396,7 +27963,7 @@ def data_ontology.encode_range
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encode_range_list]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1262:0-1279:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1465:0-1482:1 -/
 def data_ontology.encode_range_list
   (context : data_ontology.Context) (ranges : alloc.vec.Vec model.DataRange)
   (index : Std.Usize) (out : alloc.vec.Vec model.ClassExpression) :
@@ -27419,7 +27986,7 @@ def data_ontology.encode_range_list
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encode_ranges]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1280:0-1298:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1483:0-1501:1 -/
 def data_ontology.encode_ranges
   (context : data_ontology.Context)
   (members : model.AtLeastTwo model.DataRange) :
@@ -27444,7 +28011,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::data_ontology::encode_optional_range]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1299:0-1310:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1502:0-1513:1 -/
 def data_ontology.encode_optional_range
   (context : data_ontology.Context) (range : Option model.DataRange) :
   Result (Option (Option model.ClassExpression))
@@ -27458,7 +28025,7 @@ def data_ontology.encode_optional_range
     | some _ => ok (some o)
 
 /-- [rowl_kernel::data_ontology::same_from]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 148:0-154:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 163:0-169:1 -/
 def data_ontology.same_from
   (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
   (index : Std.Usize) :
@@ -27485,7 +28052,7 @@ def data_ontology.same_from
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::same_bytes]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 155:0-157:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 170:0-172:1 -/
 def data_ontology.same_bytes
   (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
   Result Bool
@@ -27497,7 +28064,7 @@ def data_ontology.same_bytes
   else ok false
 
 /-- [rowl_kernel::data_ontology::has_data]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 603:0-613:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 625:0-635:1 -/
 def data_ontology.has_data
   (data : alloc.vec.Vec model.DataProperty) (property : model.DataProperty)
   (index : Std.Usize) :
@@ -27518,7 +28085,7 @@ def data_ontology.has_data
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::is_bottom_data]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 187:0-192:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 202:0-207:1 -/
 def data_ontology.is_bottom_data
   (property : model.DataProperty) : Result Bool := do
   let s ←
@@ -27534,7 +28101,7 @@ def data_ontology.is_bottom_data
   data_ontology.same_pattern property.iri.spelling s
 
 /-- [rowl_kernel::data_ontology::reserved]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 168:0-174:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 183:0-189:1 -/
 def data_ontology.reserved
   (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
   let i := alloc.vec.Vec.len spelling
@@ -27547,7 +28114,7 @@ def data_ontology.reserved
   else ok false
 
 /-- [rowl_kernel::data_ontology::data_role]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1027:0-1053:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1138:0-1164:1 -/
 def data_ontology.data_role
   (context : data_ontology.Context) (property : model.DataProperty) :
   Result (Option model.ObjectPropertyExpression)
@@ -27588,7 +28155,7 @@ def data_ontology.data_role
     else ok none
 
 /-- [rowl_kernel::data_ontology::object_individual_of]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 996:0-1007:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1107:0-1118:1 -/
 def data_ontology.object_individual_of
   (individual : model.Individual) : Result (Option model.Individual) := do
   match individual with
@@ -27603,7 +28170,7 @@ def data_ontology.object_individual_of
     ok (some i)
 
 /-- [rowl_kernel::data_ontology::individuals_from]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1008:0-1024:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1119:0-1135:1 -/
 def data_ontology.individuals_from
   (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize)
   (out : alloc.vec.Vec model.Individual) :
@@ -27626,7 +28193,7 @@ def data_ontology.individuals_from
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::has_role]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 592:0-602:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 614:0-624:1 -/
 def data_ontology.has_role
   (roles : alloc.vec.Vec model.ObjectProperty)
   (property : model.ObjectProperty) (index : Std.Usize) :
@@ -27647,7 +28214,7 @@ def data_ontology.has_role
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::named]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 203:0-208:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 218:0-223:1 -/
 def data_ontology.named
   (role : model.ObjectPropertyExpression) : Result model.ObjectProperty := do
   match role with
@@ -27655,7 +28222,7 @@ def data_ontology.named
   | model.ObjectPropertyExpression.Inverse property => ok property
 
 /-- [rowl_kernel::data_ontology::is_top_object]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 175:0-180:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 190:0-195:1 -/
 def data_ontology.is_top_object
   (property : model.ObjectProperty) : Result Bool := do
   let s ←
@@ -27671,7 +28238,7 @@ def data_ontology.is_top_object
   data_ontology.same_pattern property.iri.spelling s
 
 /-- [rowl_kernel::data_ontology::object_role]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 974:0-994:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1085:0-1105:1 -/
 def data_ontology.object_role
   (context : data_ontology.Context) (role : model.ObjectPropertyExpression) :
   Result (Option model.ObjectPropertyExpression)
@@ -27707,7 +28274,7 @@ def data_ontology.object_role
       else ok none
 
 /-- [rowl_kernel::data_ontology::or]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 965:0-971:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1076:0-1082:1 -/
 def data_ontology.or
   (left : model.ClassExpression) (right : model.ClassExpression) :
   Result model.ClassExpression
@@ -27719,21 +28286,8 @@ def data_ontology.or
       rest := (alloc.vec.Vec.new model.ClassExpression)
     })
 
-/-- [rowl_kernel::data_ontology::and]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 958:0-964:1 -/
-def data_ontology.and
-  (left : model.ClassExpression) (right : model.ClassExpression) :
-  Result model.ClassExpression
-  := do
-  ok (model.ClassExpression.ObjectIntersectionOf
-    {
-      first := left,
-      second := right,
-      rest := (alloc.vec.Vec.new model.ClassExpression)
-    })
-
 /-- [rowl_kernel::data_ontology::copy_natural]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 946:0-951:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1057:0-1062:1 -/
 def data_ontology.copy_natural
   (value : probes.Natural) : Result probes.Natural := do
   match value with
@@ -27744,19 +28298,19 @@ def data_ontology.copy_natural
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::data_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 272:0-274:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 287:0-289:1 -/
 def data_ontology.data_class : Result model.ClassExpression := do
   let v ← data_ontology.tagged_name 68#u8 (alloc.vec.Vec.new Std.U8)
   data_ontology.class_named v
 
 /-- [rowl_kernel::data_ontology::object_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 276:0-278:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 291:0-293:1 -/
 def data_ontology.object_class : Result model.ClassExpression := do
   let ce ← data_ontology.data_class
   ok (model.ClassExpression.ObjectComplementOf ce)
 
 /-- [rowl_kernel::data_ontology::universal]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 210:0-212:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 225:0-227:1 -/
 def data_ontology.universal
   (role : model.ObjectPropertyExpression) : Result Bool := do
   let op ← data_ontology.named role
@@ -27765,7 +28319,7 @@ def data_ontology.universal
 mutual
 
 /-- [rowl_kernel::data_ontology::encode_counted]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1313:0-1331:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1516:0-1534:1 -/
 def data_ontology.encode_counted
   (context : data_ontology.Context) (role : model.ObjectPropertyExpression)
   (filler : Option model.ClassExpression) :
@@ -27790,7 +28344,7 @@ def data_ontology.encode_counted
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encode_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1334:0-1506:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1537:0-1709:1
     Visibility: public -/
 def data_ontology.encode_class
   (context : data_ontology.Context) («class» : model.ClassExpression) :
@@ -27972,7 +28526,7 @@ def data_ontology.encode_class
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encode_class_list]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1507:0-1524:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1710:0-1727:1 -/
 def data_ontology.encode_class_list
   (context : data_ontology.Context)
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -27996,7 +28550,7 @@ def data_ontology.encode_class_list
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encode_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1525:0-1543:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1728:0-1746:1 -/
 def data_ontology.encode_members
   (context : data_ontology.Context)
   (members : model.AtLeastTwo model.ClassExpression) :
@@ -28021,7 +28575,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::data_ontology::prepared_class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3563:0-3601:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4208:0-4246:1
     Visibility: public -/
 def data_ontology.prepared_class_satisfiable
   (prepared : data_ontology.Prepared) («class» : model.ClassExpression) :
@@ -30355,7 +30909,7 @@ def components.plain_role_members
   else ok false
 
 /-- [rowl_kernel::data_ontology::is_top_data]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 181:0-186:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 196:0-201:1 -/
 def data_ontology.is_top_data
   (property : model.DataProperty) : Result Bool := do
   let s ←
@@ -30899,7 +31453,7 @@ def components.add_all
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::list_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3185:0-3198:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3830:0-3843:1 -/
 def data_ontology.list_individuals
   (nodes : alloc.vec.Vec model.Individual)
   (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -30923,7 +31477,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::data_ontology::class_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3201:0-3224:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3846:0-3869:1 -/
 def data_ontology.class_individuals
   (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
   :
@@ -30971,7 +31525,7 @@ def data_ontology.class_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::classes_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3225:0-3238:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3870:0-3883:1 -/
 def data_ontology.classes_individuals
   (nodes : alloc.vec.Vec model.Individual)
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
@@ -30993,7 +31547,7 @@ def data_ontology.classes_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::members_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3239:0-3250:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3884:0-3895:1 -/
 def data_ontology.members_individuals
   (nodes : alloc.vec.Vec model.Individual)
   (members : model.AtLeastTwo model.ClassExpression) :
@@ -31013,7 +31567,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::data_ontology::axiom_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3252:0-3288:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3897:0-3933:1 -/
 def data_ontology.axiom_individuals
   (nodes : alloc.vec.Vec model.Individual) («axiom» : model.Axiom) :
   Result (Option (alloc.vec.Vec model.Individual))
@@ -31928,7 +32482,7 @@ def shi_ontology.prepared_consistent
     completion.Fact)
 
 /-- [rowl_kernel::data_ontology::prepared_consistent]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3553:0-3560:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4198:0-4205:1
     Visibility: public -/
 def data_ontology.prepared_consistent
   (prepared : data_ontology.Prepared) : Result (Option Bool) := do
@@ -34957,7 +35511,7 @@ def key_ontology.is_key («axiom» : model.Axiom) : Result Bool := do
   | model.Axiom.AnnotationPropertyRange _ _ => ok false
 
 /-- [rowl_kernel::data_ontology::object_roles_from]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1784:0-1801:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1987:0-2004:1 -/
 def data_ontology.object_roles_from
   (context : data_ontology.Context)
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
@@ -34981,7 +35535,7 @@ def data_ontology.object_roles_from
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::object_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1802:0-1820:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2005:0-2023:1 -/
 def data_ontology.object_members
   (context : data_ontology.Context)
   (roles : model.AtLeastTwo model.ObjectPropertyExpression) :
@@ -35003,7 +35557,7 @@ def data_ontology.object_members
       | some rest => ok (some { first, second, rest })
 
 /-- [rowl_kernel::data_ontology::encode_sub]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1965:0-1979:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2168:0-2182:1 -/
 def data_ontology.encode_sub
   (context : data_ontology.Context) (sub : model.SubObjectPropertyExpression) :
   Result (Option model.SubObjectPropertyExpression)
@@ -35021,7 +35575,7 @@ def data_ontology.encode_sub
     | some roles1 => ok (some (model.SubObjectPropertyExpression.Chain roles1))
 
 /-- [rowl_kernel::data_ontology::push]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1658:0-1668:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1861:0-1871:1 -/
 def data_ontology.push
   (out : alloc.vec.Vec model.AnnotatedAxiom) («axiom» : model.Axiom) :
   Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
@@ -35037,7 +35591,7 @@ def data_ontology.push
   else ok none
 
 /-- [rowl_kernel::data_ontology::object_assertion]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1670:0-1678:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1873:0-1881:1 -/
 def data_ontology.object_assertion
   (individual : model.Individual) (out : alloc.vec.Vec model.AnnotatedAxiom) :
   Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
@@ -35050,7 +35604,7 @@ def data_ontology.object_assertion
     data_ontology.push out (model.Axiom.ClassAssertion ce individual1)
 
 /-- [rowl_kernel::data_ontology::valued]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1940:0-1963:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2143:0-2166:1 -/
 def data_ontology.valued
   (role : model.ObjectPropertyExpression) (source : model.Individual)
   (value : model.Individual) (negative : Bool)
@@ -35074,7 +35628,7 @@ def data_ontology.valued
           «from» value)
 
 /-- [rowl_kernel::data_ontology::related]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1914:0-1937:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2117:0-2140:1 -/
 def data_ontology.related
   (role : model.ObjectPropertyExpression) (source : model.Individual)
   (target : model.Individual) (negative : Bool)
@@ -35107,7 +35661,7 @@ def data_ontology.related
               «from» «to»)
 
 /-- [rowl_kernel::data_ontology::role_axiom]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1886:0-1911:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2089:0-2114:1 -/
 def data_ontology.role_axiom
   (context : data_ontology.Context) (role : model.ObjectPropertyExpression)
   (kind : Std.U8) (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -35136,7 +35690,7 @@ def data_ontology.role_axiom
     data_ontology.push out «axiom»
 
 /-- [rowl_kernel::data_ontology::object_assertions]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1679:0-1692:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1882:0-1895:1 -/
 def data_ontology.object_assertions
   (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -35160,7 +35714,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::data_ontology::nominal_objects]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1695:0-1720:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1898:0-1923:1 -/
 def data_ontology.nominal_objects
   («class» : model.ClassExpression)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -35208,7 +35762,7 @@ def data_ontology.nominal_objects
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::nominal_list]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1721:0-1734:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1924:0-1937:1 -/
 def data_ontology.nominal_list
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -35230,7 +35784,7 @@ def data_ontology.nominal_list
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::nominal_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1735:0-1746:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1938:0-1949:1 -/
 def data_ontology.nominal_members
   (members : model.AtLeastTwo model.ClassExpression)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -35249,7 +35803,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::data_ontology::domain_or_range]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1862:0-1884:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2065:0-2087:1 -/
 def data_ontology.domain_or_range
   (context : data_ontology.Context) (role : model.ObjectPropertyExpression)
   («class» : model.ClassExpression) (domain : Bool)
@@ -35283,7 +35837,7 @@ def data_ontology.domain_or_range
               encoded)
 
 /-- [rowl_kernel::data_ontology::with_nominals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1852:0-1861:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2055:0-2064:1 -/
 def data_ontology.with_nominals
   (out : alloc.vec.Vec model.AnnotatedAxiom) («axiom» : model.Axiom)
   (members : model.AtLeastTwo model.ClassExpression) :
@@ -35295,7 +35849,7 @@ def data_ontology.with_nominals
   | some out1 => data_ontology.nominal_members members out1
 
 /-- [rowl_kernel::data_ontology::member_objects]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1838:0-1849:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2041:0-2052:1 -/
 def data_ontology.member_objects
   (individuals : model.AtLeastTwo model.Individual)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -35312,7 +35866,7 @@ def data_ontology.member_objects
       data_ontology.object_assertions individuals.rest 0#usize out2
 
 /-- [rowl_kernel::data_ontology::individual_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1821:0-1836:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2024:0-2039:1 -/
 def data_ontology.individual_members
   (individuals : model.AtLeastTwo model.Individual) :
   Result (Option (model.AtLeastTwo model.Individual))
@@ -35333,7 +35887,7 @@ def data_ontology.individual_members
       | some rest => ok (some { first, second, rest })
 
 /-- [rowl_kernel::data_ontology::data_roles_from]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1747:0-1764:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1950:0-1967:1 -/
 def data_ontology.data_roles_from
   (context : data_ontology.Context) (data : alloc.vec.Vec model.DataProperty)
   (index : Std.Usize) (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -35356,7 +35910,7 @@ def data_ontology.data_roles_from
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::data_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1765:0-1783:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1968:0-1986:1 -/
 def data_ontology.data_members
   (context : data_ontology.Context)
   (data : model.AtLeastTwo model.DataProperty) :
@@ -35378,14 +35932,14 @@ def data_ontology.data_members
       | some rest => ok (some { first, second, rest })
 
 /-- [rowl_kernel::data_ontology::positive]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 952:0-957:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1063:0-1068:1 -/
 def data_ontology.positive (value : probes.Natural) : Result Bool := do
   match value with
   | probes.Natural.Zero => ok false
   | probes.Natural.Succ _ => ok true
 
 /-- [rowl_kernel::data_ontology::is_thing]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 193:0-195:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 208:0-210:1 -/
 def data_ontology.is_thing («class» : model.Class) : Result Bool := do
   let s ←
     lift (Array.to_slice
@@ -35400,7 +35954,7 @@ def data_ontology.is_thing («class» : model.Class) : Result Bool := do
 mutual
 
 /-- [rowl_kernel::data_ontology::guarded]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1549:0-1578:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1752:0-1781:1
     Visibility: public -/
 def data_ontology.guarded
   («class» : model.ClassExpression) : Result Bool := do
@@ -35462,7 +36016,7 @@ def data_ontology.guarded
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::any_guarded]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1579:0-1589:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1782:0-1792:1 -/
 def data_ontology.any_guarded
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
   Result Bool
@@ -35482,7 +36036,7 @@ def data_ontology.any_guarded
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::all_guarded]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1590:0-1600:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1793:0-1803:1 -/
 def data_ontology.all_guarded
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
   Result Bool
@@ -35504,7 +36058,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::data_ontology::encode_object]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1603:0-1614:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1806:0-1817:1 -/
 def data_ontology.encode_object
   (context : data_ontology.Context) («class» : model.ClassExpression) :
   Result (Option model.ClassExpression)
@@ -35522,7 +36076,7 @@ def data_ontology.encode_object
       ok (some ce1)
 
 /-- [rowl_kernel::data_ontology::encode_object_list]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1615:0-1632:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1818:0-1835:1 -/
 def data_ontology.encode_object_list
   (context : data_ontology.Context)
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -35546,7 +36100,7 @@ def data_ontology.encode_object_list
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encode_object_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1633:0-1651:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1836:0-1854:1 -/
 def data_ontology.encode_object_members
   (context : data_ontology.Context)
   (members : model.AtLeastTwo model.ClassExpression) :
@@ -35568,7 +36122,7 @@ def data_ontology.encode_object_members
       | some rest => ok (some { first, second, rest })
 
 /-- [rowl_kernel::data_ontology::any_universal]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 220:0-230:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 235:0-245:1 -/
 def data_ontology.any_universal
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
   Result Bool
@@ -35588,7 +36142,7 @@ def data_ontology.any_universal
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::members_universal]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 232:0-234:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 247:0-249:1 -/
 def data_ontology.members_universal
   (roles : model.AtLeastTwo model.ObjectPropertyExpression) : Result Bool := do
   let b ← data_ontology.universal roles.first
@@ -35601,7 +36155,7 @@ def data_ontology.members_universal
     else data_ontology.any_universal roles.rest 0#usize
 
 /-- [rowl_kernel::data_ontology::sub_universal]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 236:0-241:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 251:0-256:1 -/
 def data_ontology.sub_universal
   (sub : model.SubObjectPropertyExpression) : Result Bool := do
   match sub with
@@ -35611,7 +36165,7 @@ def data_ontology.sub_universal
     data_ontology.members_universal roles
 
 /-- [rowl_kernel::data_ontology::encode_axiom]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1981:0-2210:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2184:0-2413:1 -/
 def data_ontology.encode_axiom
   (context : data_ontology.Context) (item : model.Axiom)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -36723,6 +37277,485 @@ def key_ontology.named_assertions
   else ok (some out)
 partial_fixpoint
 
+/-- [rowl_kernel::floats::places]:
+    Source: 'crates/rowl-kernel/src/floats.rs', lines 680:0-682:1
+    Visibility: public -/
+def floats.places (double : Bool) : Result Std.U128 := do
+  let i ← floats.top_place double
+  let i1 ← 2#u128 * i
+  i1 + 3#u128
+
+/-- [rowl_kernel::data_ontology::edge_above]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3550:0-3556:1 -/
+def data_ontology.edge_above
+  (edges : alloc.vec.Vec Std.U128) (edge : Std.U128) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges index
+    let i2 ← index + 1#usize
+    let b ← data_ontology.edge_above edges edge i2
+    ok ((edge < i1) || b)
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::format_kind]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3396:0-3402:1 -/
+def data_ontology.format_kind (double : Bool) : Result datatypes.Kind := do
+  if double
+  then ok datatypes.Kind.Double
+  else ok datatypes.Kind.Float
+
+/-- [rowl_kernel::data_ontology::slot_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3460:0-3470:1 -/
+def data_ontology.slot_class
+  (double : Bool) (low : Option Std.Usize) (high : Option Std.Usize) :
+  Result model.ClassExpression
+  := do
+  let k ← data_ontology.format_kind double
+  let kind ← data_ontology.kind_class k
+  let «from» ←
+    match low with
+    | none => ok kind
+    | some index =>
+      do
+      let ce ← data_ontology.edge_class double index
+      data_ontology.and kind ce
+  match high with
+  | none => ok «from»
+  | some index =>
+    let ce ← data_ontology.edge_class double index
+    let ce1 ← data_ontology.not ce
+    data_ontology.and «from» ce1
+
+/-- [rowl_kernel::data_ontology::format_place]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2942:0-2960:1 -/
+def data_ontology.format_place
+  (value : datatypes.DataValue) (double : Bool) :
+  Result (Option Std.U128)
+  := do
+  match value with
+  | datatypes.DataValue.Number _ _ _ => ok none
+  | datatypes.DataValue.Fraction _ _ _ => ok none
+  | datatypes.DataValue.Text _ => ok none
+  | datatypes.DataValue.Tagged _ _ => ok none
+  | datatypes.DataValue.Truth _ => ok none
+  | datatypes.DataValue.Uri _ => ok none
+  | datatypes.DataValue.Hex _ => ok none
+  | datatypes.DataValue.Base64 _ => ok none
+  | datatypes.DataValue.Moment _ => ok none
+  | datatypes.DataValue.Double bound =>
+    if double
+    then let i ← floats.position bound true
+         ok (some i)
+    else ok none
+  | datatypes.DataValue.Float bound =>
+    if double
+    then ok none
+    else let i ← floats.position bound false
+         ok (some i)
+
+/-- [rowl_kernel::data_ontology::in_slot]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3405:0-3410:1 -/
+def data_ontology.in_slot
+  (value : datatypes.DataValue) (double : Bool) (low : Std.U128)
+  (high : Std.U128) :
+  Result Bool
+  := do
+  let o ← data_ontology.format_place value double
+  match o with
+  | none => ok false
+  | some place => ok ((low <= place) && (place < high))
+
+/-- [rowl_kernel::data_ontology::slot_count]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3440:0-3457:1 -/
+def data_ontology.slot_count
+  (context : data_ontology.Context) (double : Bool) (low : Std.U128)
+  (high : Std.U128) (index : Std.Usize) (count : Std.U128) :
+  Result Std.U128
+  := do
+  let i := alloc.vec.Vec.len context.values
+  if index < i
+  then
+    let dv ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        datatypes.DataValue) context.values index
+    let b ← data_ontology.in_slot dv double low high
+    if b && (count < core.num.U128.MAX)
+    then
+      let i1 ← index + 1#usize
+      let i2 ← count + 1#u128
+      data_ontology.slot_count context double low high i1 i2
+    else
+      let i1 ← index + 1#usize
+      data_ontology.slot_count context double low high i1 count
+  else ok count
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::add_named]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3102:0-3118:1 -/
+def data_ontology.add_named
+  (found : Option (model.NonEmpty model.Individual))
+  (individual : model.Individual) :
+  Result (Option (model.NonEmpty model.Individual))
+  := do
+  match found with
+  | none =>
+    ok (some
+      { first := individual, rest := (alloc.vec.Vec.new model.Individual) })
+  | some list =>
+    let i := alloc.vec.Vec.len list.rest
+    if i < core.num.Usize.MAX
+    then
+      let v ← alloc.vec.Vec.push list.rest individual
+      ok (some { list with rest := v })
+    else ok found
+
+/-- [rowl_kernel::data_ontology::slot_literals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3413:0-3437:1 -/
+def data_ontology.slot_literals
+  (context : data_ontology.Context) (double : Bool) (low : Std.U128)
+  (high : Std.U128) (index : Std.Usize)
+  (found : Option (model.NonEmpty model.Individual)) :
+  Result (Option (model.NonEmpty model.Individual))
+  := do
+  let i := alloc.vec.Vec.len context.values
+  if index < i
+  then
+    let dv ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        datatypes.DataValue) context.values index
+    let b ← data_ontology.in_slot dv double low high
+    if b
+    then
+      let i1 ← index + 1#usize
+      let i2 ← data_ontology.value_individual index
+      let o ← data_ontology.add_named found i2
+      data_ontology.slot_literals context double low high i1 o
+    else
+      let i1 ← index + 1#usize
+      data_ontology.slot_literals context double low high i1 found
+  else ok found
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::natural_of]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3084:0-3090:1 -/
+def data_ontology.natural_of (count : Std.Usize) : Result probes.Natural := do
+  if count = 0#usize
+  then ok probes.Natural.Zero
+  else
+    let i ← count - 1#usize
+    let n ← data_ontology.natural_of i
+    ok (probes.Natural.Succ n)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::data_super]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 362:0-368:1 -/
+def data_ontology.data_super : Result model.ObjectPropertyExpression := do
+  let v ← data_ontology.tagged_name 85#u8 (alloc.vec.Vec.new Std.U8)
+  ok (model.ObjectPropertyExpression.Property { iri := { spelling := v } })
+
+/-- [rowl_kernel::data_ontology::slot_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3476:0-3532:1 -/
+def data_ontology.slot_axiom
+  (context : data_ontology.Context) (double : Bool)
+  (low_edge : Option Std.Usize) (high_edge : Option Std.Usize) (low : Std.U128)
+  (high : Std.U128) (capacity : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let «end» ← floats.places double
+  let low1 ← if low < «end»
+               then ok low
+               else ok «end»
+  let high1 ← if high < «end»
+                then ok high
+                else ok «end»
+  let size ← if low1 <= high1
+               then high1 - low1
+               else ok 0#u128
+  let named ←
+    data_ontology.slot_count context double low1 high1 0#usize 0#u128
+  let free ← if named <= size
+               then size - named
+               else ok 0#u128
+  let found ←
+    data_ontology.slot_literals context double low1 high1 0#usize none
+  if free = 0#u128
+  then
+    match found with
+    | none =>
+      let ce ← data_ontology.slot_class double low_edge high_edge
+      let ce1 ← data_ontology.not ce
+      data_ontology.push out (model.Axiom.SubClassOf ce ce1)
+    | some list =>
+      let ce ← data_ontology.slot_class double low_edge high_edge
+      data_ontology.push out (model.Axiom.SubClassOf ce
+        (model.ClassExpression.ObjectOneOf list))
+  else
+    let i ← lift (UScalar.cast .U128 capacity)
+    if free < i
+    then
+      let filler ←
+        match found with
+        | none => data_ontology.slot_class double low_edge high_edge
+        | some list =>
+          do
+          let ce ← data_ontology.slot_class double low_edge high_edge
+          let ce1 ←
+            data_ontology.not (model.ClassExpression.ObjectOneOf list)
+          data_ontology.and ce ce1
+      let ce ← data_ontology.thing
+      let i1 ← lift (UScalar.cast .Usize free)
+      let n ← data_ontology.natural_of i1
+      let ope ← data_ontology.data_super
+      data_ontology.push out (model.Axiom.SubClassOf ce
+        (model.ClassExpression.ObjectMaxCardinality n ope (some filler)))
+    else ok (some out)
+
+/-- [rowl_kernel::data_ontology::highest_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3681:0-3712:1 -/
+def data_ontology.highest_axiom
+  (context : data_ontology.Context) (double : Bool) (capacity : Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let edge ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges index
+    let b ← data_ontology.edge_above edges edge 0#usize
+    if b
+    then ok (some out)
+    else
+      let i1 ← floats.places double
+      data_ontology.slot_axiom context double (some index) none edge i1
+        capacity out
+  else ok (some out)
+
+/-- [rowl_kernel::data_ontology::edge_below]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3542:0-3548:1 -/
+def data_ontology.edge_below
+  (edges : alloc.vec.Vec Std.U128) (edge : Std.U128) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges index
+    let i2 ← index + 1#usize
+    let b ← data_ontology.edge_below edges edge i2
+    ok ((i1 < edge) || b)
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::lowest_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3649:0-3678:1 -/
+def data_ontology.lowest_axioms
+  (context : data_ontology.Context) (double : Bool) (capacity : Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let edge ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges index
+    let b ← data_ontology.edge_below edges edge 0#usize
+    if b
+    then ok (some out)
+    else
+      let kind ← data_ontology.format_kind double
+      let ce ← data_ontology.edge_class double index
+      let ce1 ← data_ontology.kind_class kind
+      let o ← data_ontology.push out (model.Axiom.SubClassOf ce ce1)
+      match o with
+      | none => ok none
+      | some out1 =>
+        data_ontology.slot_axiom context double none (some index) 0#u128 edge
+          capacity out1
+  else ok (some out)
+
+/-- [rowl_kernel::data_ontology::edge_between]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3534:0-3540:1 -/
+def data_ontology.edge_between
+  (edges : alloc.vec.Vec Std.U128) (low : Std.U128) (high : Std.U128)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges index
+    let i2 ← index + 1#usize
+    let b ← data_ontology.edge_between edges low high i2
+    ok (((low < i1) && (i1 < high)) || b)
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::neighbour_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3586:0-3619:1 -/
+def data_ontology.neighbour_axiom
+  (context : data_ontology.Context) (double : Bool) (capacity : Std.Usize)
+  (first : Std.Usize) (second : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let i := alloc.vec.Vec.len edges
+  let i1 := alloc.vec.Vec.len edges
+  if (first < i) && (second < i1)
+  then
+    let low ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges first
+    let high ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges second
+    let b ← data_ontology.edge_between edges low high 0#usize
+    if (low < high) && (¬ b)
+    then
+      data_ontology.slot_axiom context double (some first) (some second) low
+        high capacity out
+    else ok (some out)
+  else ok (some out)
+
+/-- [rowl_kernel::data_ontology::inclusion_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3559:0-3583:1 -/
+def data_ontology.inclusion_axiom
+  (context : data_ontology.Context) (double : Bool) (first : Std.Usize)
+  (second : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let i := alloc.vec.Vec.len edges
+  let i1 := alloc.vec.Vec.len edges
+  if (first < i) && (second < i1)
+  then
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges second
+    let i3 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges first
+    if (first != second) && (i2 <= i3)
+    then
+      let ce ← data_ontology.edge_class double first
+      let ce1 ← data_ontology.edge_class double second
+      data_ontology.push out (model.Axiom.SubClassOf ce ce1)
+    else ok (some out)
+  else ok (some out)
+
+/-- [rowl_kernel::data_ontology::pair_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3622:0-3646:1 -/
+def data_ontology.pair_axioms
+  (context : data_ontology.Context) (double : Bool) (capacity : Std.Usize)
+  (first : Std.Usize) (second : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let i := alloc.vec.Vec.len edges
+  if second < i
+  then
+    let o ← data_ontology.inclusion_axiom context double first second out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let o1 ←
+        data_ontology.neighbour_axiom context double capacity first second out1
+      match o1 with
+      | none => ok none
+      | some out2 =>
+        let i1 ← second + 1#usize
+        data_ontology.pair_axioms context double capacity first i1 out2
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::edge_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3715:0-3741:1 -/
+def data_ontology.edge_axioms
+  (context : data_ontology.Context) (double : Bool) (capacity : Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let o ←
+      data_ontology.pair_axioms context double capacity index 0#usize out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let o1 ← data_ontology.lowest_axioms context double capacity index out1
+      match o1 with
+      | none => ok none
+      | some out2 =>
+        let o2 ←
+          data_ontology.highest_axiom context double capacity index out2
+        match o2 with
+        | none => ok none
+        | some out3 =>
+          let i1 ← index + 1#usize
+          data_ontology.edge_axioms context double capacity i1 out3
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::binary_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3744:0-3774:1 -/
+def data_ontology.binary_axioms
+  (context : data_ontology.Context) (double : Bool) (capacity : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let kind ← data_ontology.format_kind double
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let b ← data_ontology.used context.kinds kind
+  if b
+  then
+    let i := alloc.vec.Vec.len edges
+    if i = 0#usize
+    then
+      let i1 ← floats.places double
+      data_ontology.slot_axiom context double none none 0#u128 i1 capacity out
+    else data_ontology.edge_axioms context double capacity 0#usize out
+  else ok (some out)
+
 /-- [rowl_kernel::datatypes::sum_of]:
     Source: 'crates/rowl-kernel/src/datatypes.rs', lines 1354:0-1360:1 -/
 def datatypes.sum_of
@@ -36899,8 +37932,13 @@ def regions.cut_order
   (cuts : alloc.vec.Vec regions.Cut) : Result (alloc.vec.Vec Std.Usize) := do
   regions.order_from cuts none (alloc.vec.Vec.new Std.Usize)
 
+/-- [rowl_kernel::data_ontology::bounds_runs]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3360:0-3362:1 -/
+def data_ontology.bounds_runs (kinds : data_ontology.Kinds) : Result Bool := do
+  ok (((kinds.ordered && kinds.integer) || kinds.double) || kinds.float)
+
 /-- [rowl_kernel::data_ontology::least_axiom]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3057:0-3066:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3321:0-3330:1 -/
 def data_ontology.least_axiom
   (order : alloc.vec.Vec Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom)
   :
@@ -36917,14 +37955,8 @@ def data_ontology.least_axiom
     data_ontology.push out (model.Axiom.SubClassOf ce ce1)
   else ok (some out)
 
-/-- [rowl_kernel::data_ontology::data_super]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 340:0-346:1 -/
-def data_ontology.data_super : Result model.ObjectPropertyExpression := do
-  let v ← data_ontology.tagged_name 85#u8 (alloc.vec.Vec.new Std.U8)
-  ok (model.ObjectPropertyExpression.Property { iri := { spelling := v } })
-
 /-- [rowl_kernel::data_ontology::super_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3036:0-3055:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3300:0-3319:1 -/
 def data_ontology.super_axioms
   (context : data_ontology.Context) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37206,7 +38238,7 @@ def regions.run_size
   regions.capped v cap
 
 /-- [rowl_kernel::data_ontology::free_integers]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2913:0-2929:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3177:0-3193:1 -/
 def data_ontology.free_integers
   (low : Std.Usize) (high : Std.Usize)
   (named : Option (model.NonEmpty model.Individual)) :
@@ -37229,7 +38261,7 @@ def data_ontology.free_integers
     data_ontology.and ce4 ce5
 
 /-- [rowl_kernel::data_ontology::no_free_integers]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2896:0-2911:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3160:0-3175:1 -/
 def data_ontology.no_free_integers
   (low : Std.Usize) (high : Std.Usize)
   (named : Option (model.NonEmpty model.Individual)) :
@@ -37581,7 +38613,7 @@ def datatypes.in_kind
     | datatypes.Kind.Float => ok true
 
 /-- [rowl_kernel::data_ontology::in_run]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2834:0-2836:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3098:0-3100:1 -/
 def data_ontology.in_run
   (low : regions.Cut) (high : regions.Cut) (value : datatypes.DataValue) :
   Result Bool
@@ -37592,7 +38624,7 @@ def data_ontology.in_run
   ok ((b && b1) && (¬ b2))
 
 /-- [rowl_kernel::data_ontology::run_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2882:0-2892:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3146:0-3156:1 -/
 def data_ontology.run_count
   (context : data_ontology.Context) (low : regions.Cut) (high : regions.Cut)
   (index : Std.Usize) (count : Std.Usize) :
@@ -37616,27 +38648,8 @@ def data_ontology.run_count
   else ok count
 partial_fixpoint
 
-/-- [rowl_kernel::data_ontology::add_named]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2838:0-2854:1 -/
-def data_ontology.add_named
-  (found : Option (model.NonEmpty model.Individual))
-  (individual : model.Individual) :
-  Result (Option (model.NonEmpty model.Individual))
-  := do
-  match found with
-  | none =>
-    ok (some
-      { first := individual, rest := (alloc.vec.Vec.new model.Individual) })
-  | some list =>
-    let i := alloc.vec.Vec.len list.rest
-    if i < core.num.Usize.MAX
-    then
-      let v ← alloc.vec.Vec.push list.rest individual
-      ok (some { list with rest := v })
-    else ok found
-
 /-- [rowl_kernel::data_ontology::run_literals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2857:0-2879:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3121:0-3143:1 -/
 def data_ontology.run_literals
   (context : data_ontology.Context) (low : regions.Cut) (high : regions.Cut)
   (index : Std.Usize) (found : Option (model.NonEmpty model.Individual)) :
@@ -37661,19 +38674,8 @@ def data_ontology.run_literals
   else ok found
 partial_fixpoint
 
-/-- [rowl_kernel::data_ontology::natural_of]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2820:0-2826:1 -/
-def data_ontology.natural_of (count : Std.Usize) : Result probes.Natural := do
-  if count = 0#usize
-  then ok probes.Natural.Zero
-  else
-    let i ← count - 1#usize
-    let n ← data_ontology.natural_of i
-    ok (probes.Natural.Succ n)
-partial_fixpoint
-
 /-- [rowl_kernel::data_ontology::gap_axiom]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2935:0-2979:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3199:0-3243:1 -/
 def data_ontology.gap_axiom
   (context : data_ontology.Context) (low : Std.Usize) (high : Std.Usize)
   (capacity : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37720,7 +38722,7 @@ def data_ontology.gap_axiom
   else ok none
 
 /-- [rowl_kernel::data_ontology::between_axiom]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2980:0-3010:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3244:0-3274:1 -/
 def data_ontology.between_axiom
   (context : data_ontology.Context) (low : Std.Usize) (high : Std.Usize)
   (capacity : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37758,7 +38760,7 @@ def data_ontology.between_axiom
   else ok none
 
 /-- [rowl_kernel::data_ontology::chain_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3014:0-3034:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3278:0-3298:1 -/
 def data_ontology.chain_axioms
   (context : data_ontology.Context) (order : alloc.vec.Vec Std.Usize)
   (position : Std.Usize) (capacity : Std.Usize)
@@ -37791,7 +38793,7 @@ def data_ontology.chain_axioms
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::region_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3114:0-3137:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3366:0-3389:1 -/
 def data_ontology.region_axioms
   (context : data_ontology.Context) (capacity : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37808,29 +38810,15 @@ def data_ontology.region_axioms
       match o1 with
       | none => ok none
       | some out2 =>
-        if context.kinds.integer
+        let b ← data_ontology.bounds_runs context.kinds
+        if b
         then data_ontology.super_axioms context 0#usize out2
         else ok o1
-  else ok (some out)
-
-/-- [rowl_kernel::data_ontology::FLOAT_ROOM]
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3095:0-3095:37 -/
-@[global_simps, irreducible]
-def data_ontology.FLOAT_ROOM : Std.Usize := 16777215#usize
-
-/-- [rowl_kernel::data_ontology::float_room]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3100:0-3110:1 -/
-def data_ontology.float_room
-  (context : data_ontology.Context) (capacity : Std.Usize) : Result Bool := do
-  if context.kinds.double || context.kinds.float
-  then
-    if capacity < data_ontology.FLOAT_ROOM
-    then
-      let i := alloc.vec.Vec.len context.values
-      let i1 ← data_ontology.FLOAT_ROOM - capacity
-      ok (i < i1)
-    else ok false
-  else ok true
+  else
+    let b ← data_ontology.bounds_runs context.kinds
+    if b
+    then data_ontology.super_axioms context 0#usize out
+    else ok (some out)
 
 /-- [rowl_kernel::regions::fits]:
     Source: 'crates/rowl-kernel/src/regions.rs', lines 202:0-207:1
@@ -37861,7 +38849,7 @@ def regions.cuts_fit
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::value_fits]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3068:0-3074:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3332:0-3338:1 -/
 def data_ontology.value_fits (value : datatypes.DataValue) : Result Bool := do
   let b ← datatypes.numeric value
   if b
@@ -37869,7 +38857,7 @@ def data_ontology.value_fits (value : datatypes.DataValue) : Result Bool := do
   else ok true
 
 /-- [rowl_kernel::data_ontology::values_fit]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3077:0-3087:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3341:0-3351:1 -/
 def data_ontology.values_fit
   (context : data_ontology.Context) (index : Std.Usize) : Result Bool := do
   let i := alloc.vec.Vec.len context.values
@@ -37887,7 +38875,7 @@ def data_ontology.values_fit
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encodable]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3090:0-3092:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3354:0-3356:1 -/
 def data_ontology.encodable
   (context : data_ontology.Context) : Result Bool := do
   let b ← regions.cuts_fit context.cuts 0#usize
@@ -37895,7 +38883,7 @@ def data_ontology.encodable
   ok (b && b1)
 
 /-- [rowl_kernel::data_ontology::member]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2610:0-2627:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2813:0-2830:1 -/
 def data_ontology.member
   («class» : model.ClassExpression) (positive : Bool)
   (individual : model.Individual) (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37907,8 +38895,44 @@ def data_ontology.member
     data_ontology.push out (model.Axiom.ClassAssertion
       (model.ClassExpression.ObjectComplementOf «class») individual)
 
+/-- [rowl_kernel::data_ontology::edge_memberships]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2964:0-2992:1 -/
+def data_ontology.edge_memberships
+  (context : data_ontology.Context) (double : Bool) (index : Std.Usize)
+  (edge : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let edges ←
+    if double
+    then ok context.double_edges
+    else ok context.float_edges
+  let i := alloc.vec.Vec.len context.values
+  let i1 := alloc.vec.Vec.len edges
+  if (index < i) && (edge < i1)
+  then
+    let dv ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        datatypes.DataValue) context.values index
+    let o ← data_ontology.format_place dv double
+    match o with
+    | none => ok (some out)
+    | some place =>
+      let ce ← data_ontology.edge_class double edge
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+          edges edge
+      let i3 ← data_ontology.value_individual index
+      let o1 ← data_ontology.member ce (i2 <= place) i3 out
+      match o1 with
+      | none => ok none
+      | some out1 =>
+        let i4 ← edge + 1#usize
+        data_ontology.edge_memberships context double index i4 out1
+  else ok (some out)
+partial_fixpoint
+
 /-- [rowl_kernel::data_ontology::cut_memberships]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2673:0-2692:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2876:0-2895:1 -/
 def data_ontology.cut_memberships
   (context : data_ontology.Context) (index : Std.Usize) (cut : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37937,7 +38961,7 @@ def data_ontology.cut_memberships
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::cut_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2693:0-2707:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2896:0-2910:1 -/
 def data_ontology.cut_members
   (context : data_ontology.Context) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37956,7 +38980,7 @@ def data_ontology.cut_members
   else ok (some out)
 
 /-- [rowl_kernel::data_ontology::kind_member]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2630:0-2646:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2833:0-2849:1 -/
 def data_ontology.kind_member
   (context : data_ontology.Context) (kind : datatypes.Kind) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37979,7 +39003,7 @@ def data_ontology.kind_member
   else ok (some out)
 
 /-- [rowl_kernel::data_ontology::number_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2725:0-2737:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2928:0-2940:1 -/
 def data_ontology.number_members
   (context : data_ontology.Context) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37995,7 +39019,7 @@ def data_ontology.number_members
     | some out2 => data_ontology.cut_members context index out2
 
 /-- [rowl_kernel::data_ontology::chain_kind]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2494:0-2504:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2697:0-2707:1 -/
 def data_ontology.chain_kind (rank : Std.U8) : Result datatypes.Kind := do
   match rank with
   | 0#uscalar => ok datatypes.Kind.String
@@ -38007,7 +39031,7 @@ def data_ontology.chain_kind (rank : Std.U8) : Result datatypes.Kind := do
   | _ => ok datatypes.Kind.Language
 
 /-- [rowl_kernel::data_ontology::string_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2710:0-2724:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2913:0-2927:1 -/
 def data_ontology.string_members
   (context : data_ontology.Context) (index : Std.Usize) (rank : Std.U8)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38026,7 +39050,7 @@ def data_ontology.string_members
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::bit]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2589:0-2595:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2792:0-2798:1 -/
 def data_ontology.bit
   (value : Std.Usize) (position : Std.Usize) : Result Bool := do
   if position = 0#usize
@@ -38039,7 +39063,7 @@ def data_ontology.bit
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::bit_class]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 324:0-326:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 339:0-341:1 -/
 def data_ontology.bit_class
   (position : Std.Usize) : Result model.ClassExpression := do
   let v ← data_ontology.bytes position 0#usize (alloc.vec.Vec.new Std.U8)
@@ -38047,7 +39071,7 @@ def data_ontology.bit_class
   data_ontology.class_named v1
 
 /-- [rowl_kernel::data_ontology::bit_members]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2649:0-2668:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2852:0-2871:1 -/
 def data_ontology.bit_members
   (index : Std.Usize) (position : Std.Usize) (bits : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38068,7 +39092,7 @@ def data_ontology.bit_members
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::value_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2741:0-2818:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2997:0-3082:1 -/
 def data_ontology.value_axioms
   (context : data_ontology.Context) (index : Std.Usize) (bits : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38164,19 +39188,31 @@ def data_ontology.value_axioms
                                 | none => ok none
                                 | some out15 =>
                                   let o15 ←
-                                    data_ontology.bit_members index 0#usize
-                                      bits out15
+                                    data_ontology.edge_memberships context true
+                                      index 0#usize out15
                                   match o15 with
                                   | none => ok none
                                   | some out16 =>
-                                    let i2 ← index + 1#usize
-                                    data_ontology.value_axioms context i2 bits
-                                      out16
+                                    let o16 ←
+                                      data_ontology.edge_memberships context
+                                        false index 0#usize out16
+                                    match o16 with
+                                    | none => ok none
+                                    | some out17 =>
+                                      let o17 ←
+                                        data_ontology.bit_members index 0#usize
+                                          bits out17
+                                      match o17 with
+                                      | none => ok none
+                                      | some out18 =>
+                                        let i2 ← index + 1#usize
+                                        data_ontology.value_axioms context i2
+                                          bits out18
   else ok (some out)
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::bits_for]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2598:0-2608:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2801:0-2811:1 -/
 def data_ontology.bits_for
   (count : Std.Usize) (bits : Std.Usize) (power : Std.Usize) :
   Result Std.Usize
@@ -38194,7 +39230,7 @@ def data_ontology.bits_for
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::kinds_axiom]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2289:0-2315:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2492:0-2518:1 -/
 def data_ontology.kinds_axiom
   (kinds : data_ontology.Kinds) (first : datatypes.Kind)
   (second : datatypes.Kind) (inclusion : Bool)
@@ -38225,7 +39261,7 @@ def data_ontology.kinds_axiom
   else ok (some out)
 
 /-- [rowl_kernel::data_ontology::above_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2507:0-2521:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2710:0-2724:1 -/
 def data_ontology.above_axioms
   (kinds : data_ontology.Kinds) (rank : Std.U8) (below : Std.U8)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38244,7 +39280,7 @@ def data_ontology.above_axioms
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::string_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2524:0-2533:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2727:0-2736:1 -/
 def data_ontology.string_axioms
   (kinds : data_ontology.Kinds) (rank : Std.U8)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38262,7 +39298,7 @@ def data_ontology.string_axioms
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::apart_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2371:0-2385:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2574:0-2588:1 -/
 def data_ontology.apart_axioms
   (kinds : data_ontology.Kinds) (kind : datatypes.Kind)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38281,7 +39317,7 @@ def data_ontology.apart_axioms
       data_ontology.kinds_axiom kinds kind datatypes.Kind.Boolean false out2
 
 /-- [rowl_kernel::data_ontology::distinct_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2388:0-2410:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2591:0-2613:1 -/
 def data_ontology.distinct_axioms
   (kinds : data_ontology.Kinds) (kind : datatypes.Kind)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38309,7 +39345,7 @@ def data_ontology.distinct_axioms
         | some out4 => data_ontology.apart_axioms kinds kind out4
 
 /-- [rowl_kernel::data_ontology::float_apart]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2459:0-2477:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2662:0-2680:1 -/
 def data_ontology.float_apart
   (kinds : data_ontology.Kinds) (kind : datatypes.Kind)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38340,7 +39376,7 @@ def data_ontology.float_apart
             out4
 
 /-- [rowl_kernel::data_ontology::float_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2480:0-2490:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2683:0-2693:1 -/
 def data_ontology.float_axioms
   (kinds : data_ontology.Kinds) (out : alloc.vec.Vec model.AnnotatedAxiom) :
   Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
@@ -38357,7 +39393,7 @@ def data_ontology.float_axioms
         datatypes.Kind.Float false out2
 
 /-- [rowl_kernel::data_ontology::moment_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2438:0-2456:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2641:0-2659:1 -/
 def data_ontology.moment_axioms
   (kinds : data_ontology.Kinds) (out : alloc.vec.Vec model.AnnotatedAxiom) :
   Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
@@ -38388,7 +39424,7 @@ def data_ontology.moment_axioms
             datatypes.Kind.Base64Binary false out4
 
 /-- [rowl_kernel::data_ontology::sequence_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2413:0-2435:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2616:0-2638:1 -/
 def data_ontology.sequence_axioms
   (kinds : data_ontology.Kinds) (out : alloc.vec.Vec model.AnnotatedAxiom) :
   Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
@@ -38423,7 +39459,7 @@ def data_ontology.sequence_axioms
               datatypes.Kind.Base64Binary false out5
 
 /-- [rowl_kernel::data_ontology::number_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2346:0-2368:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2549:0-2571:1 -/
 def data_ontology.number_axioms
   (kinds : data_ontology.Kinds) (out : alloc.vec.Vec model.AnnotatedAxiom) :
   Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
@@ -38462,7 +39498,7 @@ def data_ontology.number_axioms
               datatypes.Kind.Real true out5
 
 /-- [rowl_kernel::data_ontology::truth_axiom]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2318:0-2343:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2521:0-2546:1 -/
 def data_ontology.truth_axiom
   (context : data_ontology.Context) (out : alloc.vec.Vec model.AnnotatedAxiom)
   :
@@ -38491,7 +39527,7 @@ def data_ontology.truth_axiom
   else ok (some out)
 
 /-- [rowl_kernel::data_ontology::kind_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2536:0-2587:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2739:0-2790:1 -/
 def data_ontology.kind_axioms
   (context : data_ontology.Context) (out : alloc.vec.Vec model.AnnotatedAxiom)
   :
@@ -38562,7 +39598,7 @@ def data_ontology.kind_axioms
                         | some out12 => data_ontology.truth_axiom context out12
 
 /-- [rowl_kernel::data_ontology::data_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2262:0-2286:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2465:0-2489:1 -/
 def data_ontology.data_axioms
   (context : data_ontology.Context) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38600,7 +39636,7 @@ def data_ontology.data_axioms
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::role_axioms]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2233:0-2259:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2436:0-2462:1 -/
 def data_ontology.role_axioms
   (context : data_ontology.Context) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38635,7 +39671,7 @@ def data_ontology.role_axioms
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::encode_items]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2211:0-2225:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2414:0-2428:1 -/
 def data_ontology.encode_items
   (context : data_ontology.Context)
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
@@ -38658,13 +39694,13 @@ def data_ontology.encode_items
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::object_individual]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 348:0-354:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 370:0-376:1 -/
 def data_ontology.object_individual : Result model.Individual := do
   let v ← data_ontology.tagged_name 79#u8 (alloc.vec.Vec.new Std.U8)
   ok (model.Individual.Named { iri := { spelling := v } })
 
 /-- [rowl_kernel::data_ontology::encode]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3143:0-3178:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3780:0-3823:1
     Visibility: public -/
 def data_ontology.encode
   (context : data_ontology.Context) (capacity : Std.Usize)
@@ -38672,8 +39708,7 @@ def data_ontology.encode
   Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
   := do
   let b ← data_ontology.encodable context
-  let b1 ← data_ontology.float_room context capacity
-  if b && b1
+  if b
   then
     let o ←
       data_ontology.encode_items context items 0#usize (alloc.vec.Vec.new
@@ -38697,15 +39732,24 @@ def data_ontology.encode
             match o4 with
             | none => ok none
             | some out4 =>
-              let i := alloc.vec.Vec.len context.values
-              let i1 ← data_ontology.bits_for i 0#usize 1#usize
-              let o5 ← data_ontology.value_axioms context 0#usize i1 out4
+              let o5 ← data_ontology.binary_axioms context true capacity out4
               match o5 with
               | none => ok none
               | some out5 =>
-                let ce ← data_ontology.object_class
-                let i2 ← data_ontology.object_individual
-                data_ontology.push out5 (model.Axiom.ClassAssertion ce i2)
+                let o6 ←
+                  data_ontology.binary_axioms context false capacity out5
+                match o6 with
+                | none => ok none
+                | some out6 =>
+                  let i := alloc.vec.Vec.len context.values
+                  let i1 ← data_ontology.bits_for i 0#usize 1#usize
+                  let o7 ← data_ontology.value_axioms context 0#usize i1 out6
+                  match o7 with
+                  | none => ok none
+                  | some out7 =>
+                    let ce ← data_ontology.object_class
+                    let i2 ← data_ontology.object_individual
+                    data_ontology.push out7 (model.Axiom.ClassAssertion ce i2)
   else ok none
 
 /-- [rowl_kernel::key_ontology::encode]:
@@ -38879,7 +39923,7 @@ def key_ontology.key_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::items_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3290:0-3303:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3935:0-3948:1 -/
 def data_ontology.items_individuals
   (nodes : alloc.vec.Vec model.Individual)
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
@@ -38992,7 +40036,7 @@ def key_ontology.keys_count
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::add_data]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 631:0-646:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 653:0-668:1 -/
 def data_ontology.add_data
   (context : data_ontology.Context) (property : model.DataProperty) :
   Result data_ontology.Context
@@ -39020,7 +40064,7 @@ def data_ontology.add_data
           ok { context with data := v1 }
 
 /-- [rowl_kernel::data_ontology::data_list_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 821:0-831:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 930:0-940:1 -/
 def data_ontology.data_list_context
   (context : data_ontology.Context) (data : alloc.vec.Vec model.DataProperty)
   (index : Std.Usize) :
@@ -39039,7 +40083,7 @@ def data_ontology.data_list_context
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::add_role]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 614:0-630:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 636:0-652:1 -/
 def data_ontology.add_role
   (context : data_ontology.Context) (role : model.ObjectPropertyExpression) :
   Result data_ontology.Context
@@ -39068,7 +40112,7 @@ def data_ontology.add_role
           ok { context with roles := v1 }
 
 /-- [rowl_kernel::data_ontology::roles_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 805:0-815:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 914:0-924:1 -/
 def data_ontology.roles_context
   (context : data_ontology.Context)
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
@@ -39169,7 +40213,7 @@ def regions.add_cut
   | some _ => ok cuts
 
 /-- [rowl_kernel::data_ontology::facet_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 691:0-704:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 713:0-726:1 -/
 def data_ontology.facet_context
   (context : data_ontology.Context) (restriction : model.FacetRestriction) :
   Result data_ontology.Context
@@ -39191,7 +40235,7 @@ def data_ontology.facet_context
       else ok context
 
 /-- [rowl_kernel::data_ontology::facets_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 706:0-716:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 805:0-815:1 -/
 def data_ontology.facets_context
   (context : data_ontology.Context)
   (restrictions : alloc.vec.Vec model.FacetRestriction) (index : Std.Usize) :
@@ -39209,8 +40253,122 @@ def data_ontology.facets_context
   else ok context
 partial_fixpoint
 
+/-- [rowl_kernel::data_ontology::has_edge]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 728:0-734:1 -/
+def data_ontology.has_edge
+  (edges : alloc.vec.Vec Std.U128) (edge : Std.U128) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U128)
+        edges index
+    let i2 ← index + 1#usize
+    let b ← data_ontology.has_edge edges edge i2
+    ok ((i1 = edge) || b)
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::add_edge]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 736:0-745:1 -/
+def data_ontology.add_edge
+  (edges : alloc.vec.Vec Std.U128) (edge : Std.U128) :
+  Result (alloc.vec.Vec Std.U128)
+  := do
+  let b ← data_ontology.has_edge edges edge 0#usize
+  if b
+  then ok edges
+  else
+    let i := alloc.vec.Vec.len edges
+    if i < core.num.Usize.MAX
+    then alloc.vec.Vec.push edges edge
+    else ok edges
+
+/-- [rowl_kernel::data_ontology::facet_edges]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 749:0-764:1 -/
+def data_ontology.facet_edges
+  (edges : alloc.vec.Vec Std.U128) (facet : datatypes.Facet)
+  (bound : datatypes.Binary) (double : Bool) :
+  Result (alloc.vec.Vec Std.U128)
+  := do
+  let b ← floats.is_nan bound
+  if b
+  then ok edges
+  else
+    match facet with
+    | datatypes.Facet.MinInclusive =>
+      let i ← floats.low_position bound double
+      data_ontology.add_edge edges i
+    | datatypes.Facet.MaxInclusive =>
+      let v ← data_ontology.add_edge edges 1#u128
+      let i ← floats.high_position bound double
+      let i1 ← i + 1#u128
+      data_ontology.add_edge v i1
+    | datatypes.Facet.MinExclusive =>
+      let i ← floats.high_position bound double
+      let i1 ← i + 1#u128
+      data_ontology.add_edge edges i1
+    | datatypes.Facet.MaxExclusive =>
+      let v ← data_ontology.add_edge edges 1#u128
+      let i ← floats.low_position bound double
+      data_ontology.add_edge v i
+
+/-- [rowl_kernel::data_ontology::edge_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 767:0-782:1 -/
+def data_ontology.edge_context
+  (context : data_ontology.Context) (restriction : model.FacetRestriction) :
+  Result data_ontology.Context
+  := do
+  let o ← datatypes.facet_of restriction.facet
+  let o1 ← datatypes.literal_value restriction.value
+  match o with
+  | none => ok context
+  | some facet =>
+    match o1 with
+    | none => ok context
+    | some dv =>
+      match dv with
+      | datatypes.DataValue.Number _ _ _ => ok context
+      | datatypes.DataValue.Fraction _ _ _ => ok context
+      | datatypes.DataValue.Text _ => ok context
+      | datatypes.DataValue.Tagged _ _ => ok context
+      | datatypes.DataValue.Truth _ => ok context
+      | datatypes.DataValue.Uri _ => ok context
+      | datatypes.DataValue.Hex _ => ok context
+      | datatypes.DataValue.Base64 _ => ok context
+      | datatypes.DataValue.Moment _ => ok context
+      | datatypes.DataValue.Double bound =>
+        let v ←
+          data_ontology.facet_edges context.double_edges facet bound true
+        ok { context with double_edges := v }
+      | datatypes.DataValue.Float bound =>
+        let v ←
+          data_ontology.facet_edges context.float_edges facet bound false
+        ok { context with float_edges := v }
+
+/-- [rowl_kernel::data_ontology::edges_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 785:0-795:1 -/
+def data_ontology.edges_context
+  (context : data_ontology.Context)
+  (restrictions : alloc.vec.Vec model.FacetRestriction) (index : Std.Usize) :
+  Result data_ontology.Context
+  := do
+  let i := alloc.vec.Vec.len restrictions
+  if index < i
+  then
+    let fr ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.FacetRestriction) restrictions index
+    let c ← data_ontology.edge_context context fr
+    let i1 ← index + 1#usize
+    data_ontology.edges_context c restrictions i1
+  else ok context
+partial_fixpoint
+
 /-- [rowl_kernel::data_ontology::add_bound]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 665:0-670:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 687:0-692:1 -/
 def data_ontology.add_bound
   (cuts : alloc.vec.Vec regions.Cut) (bound : Option datatypes.DataValue)
   («open» : Bool) :
@@ -39221,7 +40379,7 @@ def data_ontology.add_bound
   | some value => regions.add_cut cuts value «open»
 
 /-- [rowl_kernel::data_ontology::with_kind]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 476:0-559:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 498:0-581:1 -/
 def data_ontology.with_kind
   (kinds : data_ontology.Kinds) (kind : datatypes.Kind) :
   Result data_ontology.Kinds
@@ -39273,7 +40431,7 @@ def data_ontology.with_kind
   | datatypes.Kind.Float => ok { kinds with float := true }
 
 /-- [rowl_kernel::data_ontology::kind_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 674:0-679:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 696:0-701:1 -/
 def data_ontology.kind_context
   (context : data_ontology.Context) (kind : datatypes.Kind) :
   Result data_ontology.Context
@@ -39286,7 +40444,7 @@ def data_ontology.kind_context
   ok { context with kinds := k, cuts := v1 }
 
 /-- [rowl_kernel::data_ontology::add_value]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 581:0-591:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 603:0-613:1 -/
 def data_ontology.add_value
   (values : alloc.vec.Vec datatypes.DataValue) (value : datatypes.DataValue) :
   Result (alloc.vec.Vec datatypes.DataValue)
@@ -39301,7 +40459,7 @@ def data_ontology.add_value
   | some _ => ok values
 
 /-- [rowl_kernel::data_ontology::add_literal]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 648:0-656:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 670:0-678:1 -/
 def data_ontology.add_literal
   (context : data_ontology.Context) (literal : model.Literal) :
   Result data_ontology.Context
@@ -39314,7 +40472,7 @@ def data_ontology.add_literal
     ok { context with values := v }
 
 /-- [rowl_kernel::data_ontology::literals_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 657:0-663:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 679:0-685:1 -/
 def data_ontology.literals_context
   (context : data_ontology.Context) (literals : alloc.vec.Vec model.Literal)
   (index : Std.Usize) :
@@ -39333,7 +40491,7 @@ def data_ontology.literals_context
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::with_order]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 561:0-567:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 583:0-589:1 -/
 def data_ontology.with_order
   (kinds : data_ontology.Kinds) : Result data_ontology.Kinds := do
   ok { kinds with real := true, ordered := true }
@@ -39341,7 +40499,7 @@ def data_ontology.with_order
 mutual
 
 /-- [rowl_kernel::data_ontology::range_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 717:0-743:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 816:0-852:1 -/
 def data_ontology.range_context
   (context : data_ontology.Context) (range : model.DataRange) :
   Result data_ontology.Context
@@ -39366,19 +40524,32 @@ def data_ontology.range_context
     let context1 ← data_ontology.add_literal context literals.first
     data_ontology.literals_context context1 literals.rest 0#usize
   | model.DataRange.Restriction datatype restrictions =>
-    let k ← data_ontology.with_order context.kinds
     let o ← datatypes.kind_of datatype
-    let context1 ←
-      match o with
-      | none => ok { context with kinds := k }
-      | some kind =>
-        data_ontology.kind_context { context with kinds := k } kind
-    let context2 ← data_ontology.facet_context context1 restrictions.first
-    data_ontology.facets_context context2 restrictions.rest 0#usize
+    match o with
+    | none =>
+      let k ← data_ontology.with_order context.kinds
+      let context1 ←
+        data_ontology.facet_context { context with kinds := k }
+          restrictions.first
+      data_ontology.facets_context context1 restrictions.rest 0#usize
+    | some kind =>
+      let b ← data_ontology.binary_kind kind
+      if b
+      then
+        let context1 ← data_ontology.kind_context context kind
+        let context2 ← data_ontology.edge_context context1 restrictions.first
+        data_ontology.edges_context context2 restrictions.rest 0#usize
+      else
+        let k ← data_ontology.with_order context.kinds
+        let context1 ←
+          data_ontology.kind_context { context with kinds := k } kind
+        let context2 ←
+          data_ontology.facet_context context1 restrictions.first
+        data_ontology.facets_context context2 restrictions.rest 0#usize
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::ranges_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 744:0-750:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 853:0-859:1 -/
 def data_ontology.ranges_context
   (context : data_ontology.Context) (ranges : alloc.vec.Vec model.DataRange)
   (index : Std.Usize) :
@@ -39399,7 +40570,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::data_ontology::optional_range_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 751:0-756:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 860:0-865:1 -/
 def data_ontology.optional_range_context
   (context : data_ontology.Context) (range : Option model.DataRange) :
   Result data_ontology.Context
@@ -39411,7 +40582,7 @@ def data_ontology.optional_range_context
 mutual
 
 /-- [rowl_kernel::data_ontology::class_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 757:0-792:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 866:0-901:1 -/
 def data_ontology.class_context
   (context : data_ontology.Context) («class» : model.ClassExpression) :
   Result data_ontology.Context
@@ -39471,7 +40642,7 @@ def data_ontology.class_context
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::classes_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 793:0-799:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 902:0-908:1 -/
 def data_ontology.classes_context
   (context : data_ontology.Context)
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
@@ -39490,7 +40661,7 @@ def data_ontology.classes_context
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::members_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 800:0-804:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 909:0-913:1 -/
 def data_ontology.members_context
   (context : data_ontology.Context)
   (members : model.AtLeastTwo model.ClassExpression) :
@@ -39572,7 +40743,7 @@ def key_ontology.keys_context
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::axiom_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3451:0-3463:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4096:0-4108:1 -/
 def data_ontology.axiom_count
   («axiom» : model.Axiom) (total : Std.Usize) : Result Std.Usize := do
   match «axiom» with
@@ -39624,7 +40795,7 @@ def data_ontology.axiom_count
   | model.Axiom.AnnotationPropertyRange _ _ => ok total
 
 /-- [rowl_kernel::data_ontology::items_count]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3464:0-3470:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4109:0-4115:1 -/
 def data_ontology.items_count
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (total : Std.Usize) :
@@ -39643,7 +40814,7 @@ def data_ontology.items_count
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::points_from]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 918:0-932:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1029:0-1043:1 -/
 def data_ontology.points_from
   (cuts : alloc.vec.Vec regions.Cut) (index : Std.Usize)
   (values : alloc.vec.Vec datatypes.DataValue) :
@@ -39669,7 +40840,7 @@ def data_ontology.points_from
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::with_truths]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 909:0-915:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1020:0-1026:1 -/
 def data_ontology.with_truths
   (context : data_ontology.Context) : Result data_ontology.Context := do
   if context.kinds.boolean
@@ -39681,7 +40852,7 @@ def data_ontology.with_truths
   else ok context
 
 /-- [rowl_kernel::data_ontology::finished]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 936:0-940:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1047:0-1051:1 -/
 def data_ontology.finished
   (context : data_ontology.Context) : Result data_ontology.Context := do
   let context1 ← data_ontology.with_truths context
@@ -39728,7 +40899,7 @@ def key_ontology.has_keys
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::data_free]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3490:0-3501:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4135:0-4146:1 -/
 def data_ontology.data_free
   (context : data_ontology.Context) : Result Bool := do
   let i := alloc.vec.Vec.len context.data
@@ -39762,7 +40933,7 @@ def data_ontology.data_free
   else ok false
 
 /-- [rowl_kernel::data_ontology::prepare_in]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3505:0-3530:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4150:0-4175:1 -/
 def data_ontology.prepare_in
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (context : data_ontology.Context) (room : Std.Usize) :
@@ -39804,7 +40975,7 @@ def data_ontology.prepare_in
       else ok none
 
 /-- [rowl_kernel::data_ontology::role_members_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 816:0-820:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 925:0-929:1 -/
 def data_ontology.role_members_context
   (context : data_ontology.Context)
   (roles : model.AtLeastTwo model.ObjectPropertyExpression) :
@@ -39815,7 +40986,7 @@ def data_ontology.role_members_context
   data_ontology.roles_context context2 roles.rest 0#usize
 
 /-- [rowl_kernel::data_ontology::axiom_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 832:0-881:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 941:0-990:1 -/
 def data_ontology.axiom_context
   (context : data_ontology.Context) («axiom» : model.Axiom) :
   Result data_ontology.Context
@@ -39907,7 +41078,7 @@ def data_ontology.axiom_context
   | model.Axiom.AnnotationPropertyRange _ _ => ok context
 
 /-- [rowl_kernel::data_ontology::items_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 882:0-892:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 991:0-1001:1 -/
 def data_ontology.items_context
   (context : data_ontology.Context)
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
@@ -39926,7 +41097,7 @@ def data_ontology.items_context
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::no_kinds]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 367:0-391:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 389:0-413:1 -/
 def data_ontology.no_kinds : Result data_ontology.Kinds := do
   ok
     {
@@ -39954,7 +41125,7 @@ def data_ontology.no_kinds : Result data_ontology.Kinds := do
     }
 
 /-- [rowl_kernel::data_ontology::closure_context]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 894:0-906:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1003:0-1017:1 -/
 def data_ontology.closure_context
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
   Result data_ontology.Context
@@ -39966,11 +41137,13 @@ def data_ontology.closure_context
       kinds := k,
       roles := (alloc.vec.Vec.new model.ObjectProperty),
       data := (alloc.vec.Vec.new model.DataProperty),
-      cuts := (alloc.vec.Vec.new regions.Cut)
+      cuts := (alloc.vec.Vec.new regions.Cut),
+      double_edges := (alloc.vec.Vec.new Std.U128),
+      float_edges := (alloc.vec.Vec.new Std.U128)
     } items 0#usize
 
 /-- [rowl_kernel::data_ontology::consistent_closure]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3700:0-3705:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4345:0-4350:1 -/
 def data_ontology.consistent_closure
   (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
   let c ← data_ontology.closure_context items
@@ -40154,7 +41327,7 @@ def components.closure_parts
   else ok none
 
 /-- [rowl_kernel::data_ontology::named_known]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3306:0-3320:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3951:0-3965:1 -/
 def data_ontology.named_known
   (nodes : alloc.vec.Vec model.Individual) (individual : model.NamedIndividual)
   :
@@ -40171,7 +41344,7 @@ def data_ontology.named_known
     ok (i != 0#usize)
 
 /-- [rowl_kernel::data_ontology::QUESTION_ROOM]
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3384:0-3384:32 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4029:0-4029:32 -/
 @[global_simps, irreducible]
 def data_ontology.QUESTION_ROOM : Std.Usize := 64#usize
 
@@ -40861,7 +42034,7 @@ def unfolding.has_definitions
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::prepare]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3534:0-3551:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4179:0-4196:1
     Visibility: public -/
 def data_ontology.prepare
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -40916,7 +42089,7 @@ def shi_ontology.prepared_subsumed
       | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::data_ontology::prepared_subsumed]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3604:0-3647:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4249:0-4292:1
     Visibility: public -/
 def data_ontology.prepared_subsumed
   (prepared : data_ontology.Prepared) (sub : model.ClassExpression)
@@ -41012,7 +42185,7 @@ def shi_ontology.prepared_instance_of
     | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::data_ontology::prepared_instance_of]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3652:0-3698:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4297:0-4343:1
     Visibility: public -/
 def data_ontology.prepared_instance_of
   (prepared : data_ontology.Prepared) (individual : model.NamedIndividual)
@@ -41071,7 +42244,7 @@ def data_ontology.prepared_instance_of
 partial_fixpoint
 
 /-- [rowl_kernel::data_ontology::consistent]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3709:0-3718:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4354:0-4363:1
     Visibility: public -/
 def data_ontology.consistent
   (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
@@ -41086,7 +42259,7 @@ def data_ontology.consistent
   else data_ontology.consistent_closure items
 
 /-- [rowl_kernel::data_ontology::class_satisfiable_closure]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3719:0-3725:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4364:0-4370:1 -/
 def data_ontology.class_satisfiable_closure
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   («class» : model.ClassExpression) :
@@ -41103,7 +42276,7 @@ def data_ontology.class_satisfiable_closure
     data_ontology.prepared_class_satisfiable prepared «class»
 
 /-- [rowl_kernel::data_ontology::class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3727:0-3740:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4372:0-4385:1
     Visibility: public -/
 def data_ontology.class_satisfiable
   (items : alloc.vec.Vec model.AnnotatedAxiom)
@@ -41125,7 +42298,7 @@ def data_ontology.class_satisfiable
   else data_ontology.class_satisfiable_closure items «class»
 
 /-- [rowl_kernel::data_ontology::subsumed_closure]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3741:0-3754:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4386:0-4399:1 -/
 def data_ontology.subsumed_closure
   (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
   (sup : model.ClassExpression) :
@@ -41143,7 +42316,7 @@ def data_ontology.subsumed_closure
   | some prepared => data_ontology.prepared_subsumed prepared sub sup
 
 /-- [rowl_kernel::data_ontology::subsumed]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3757:0-3775:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4402:0-4420:1
     Visibility: public -/
 def data_ontology.subsumed
   (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
@@ -41169,7 +42342,7 @@ def data_ontology.subsumed
   else data_ontology.subsumed_closure items sub sup
 
 /-- [rowl_kernel::data_ontology::instance_of_closure]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3776:0-3786:1 -/
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4421:0-4431:1 -/
 def data_ontology.instance_of_closure
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (individual : model.NamedIndividual) («class» : model.ClassExpression) :
@@ -41186,7 +42359,7 @@ def data_ontology.instance_of_closure
     data_ontology.prepared_instance_of prepared individual «class»
 
 /-- [rowl_kernel::data_ontology::instance_of]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 3789:0-3806:1
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 4434:0-4451:1
     Visibility: public -/
 def data_ontology.instance_of
   (items : alloc.vec.Vec model.AnnotatedAxiom)
@@ -42312,10 +43485,9 @@ def datatypes.facet_holds
   | some order => let b ← datatypes.facet_order facet order
                   ok (some b)
 
-/-- [rowl_kernel::datatypes::facet_applies]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 1432:0-1458:1
-    Visibility: public -/
-def datatypes.facet_applies
+/-- [rowl_kernel::datatypes::numeric_facet_applies]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 1448:0-1474:1 -/
+def datatypes.numeric_facet_applies
   (kind : datatypes.Kind) (bound : datatypes.DataValue) : Result Bool := do
   let b ← datatypes.numeric bound
   if b
@@ -42362,6 +43534,93 @@ def datatypes.facet_applies
     | datatypes.Kind.Double => ok false
     | datatypes.Kind.Float => ok false
   else ok false
+
+/-- [rowl_kernel::datatypes::facet_applies]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 1433:0-1445:1
+    Visibility: public -/
+def datatypes.facet_applies
+  (kind : datatypes.Kind) (bound : datatypes.DataValue) : Result Bool := do
+  match bound with
+  | datatypes.DataValue.Number _ _ _ =>
+    datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Fraction _ _ _ =>
+    datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Text _ => datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Tagged _ _ =>
+    datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Truth _ => datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Uri _ => datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Hex _ => datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Base64 _ => datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Moment _ => datatypes.numeric_facet_applies kind bound
+  | datatypes.DataValue.Double _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok false
+    | datatypes.Kind.Boolean => ok false
+    | datatypes.Kind.Real => ok false
+    | datatypes.Kind.Rational => ok false
+    | datatypes.Kind.NonNegativeInteger => ok false
+    | datatypes.Kind.NonPositiveInteger => ok false
+    | datatypes.Kind.PositiveInteger => ok false
+    | datatypes.Kind.NegativeInteger => ok false
+    | datatypes.Kind.Long => ok false
+    | datatypes.Kind.Int => ok false
+    | datatypes.Kind.Short => ok false
+    | datatypes.Kind.Byte => ok false
+    | datatypes.Kind.UnsignedLong => ok false
+    | datatypes.Kind.UnsignedInt => ok false
+    | datatypes.Kind.UnsignedShort => ok false
+    | datatypes.Kind.UnsignedByte => ok false
+    | datatypes.Kind.AnyUri => ok false
+    | datatypes.Kind.HexBinary => ok false
+    | datatypes.Kind.Base64Binary => ok false
+    | datatypes.Kind.NormalizedString => ok false
+    | datatypes.Kind.Token => ok false
+    | datatypes.Kind.Language => ok false
+    | datatypes.Kind.NmToken => ok false
+    | datatypes.Kind.Name => ok false
+    | datatypes.Kind.NcName => ok false
+    | datatypes.Kind.DateTime => ok false
+    | datatypes.Kind.DateTimeStamp => ok false
+    | datatypes.Kind.Double => ok true
+    | datatypes.Kind.Float => ok false
+  | datatypes.DataValue.Float _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok false
+    | datatypes.Kind.Boolean => ok false
+    | datatypes.Kind.Real => ok false
+    | datatypes.Kind.Rational => ok false
+    | datatypes.Kind.NonNegativeInteger => ok false
+    | datatypes.Kind.NonPositiveInteger => ok false
+    | datatypes.Kind.PositiveInteger => ok false
+    | datatypes.Kind.NegativeInteger => ok false
+    | datatypes.Kind.Long => ok false
+    | datatypes.Kind.Int => ok false
+    | datatypes.Kind.Short => ok false
+    | datatypes.Kind.Byte => ok false
+    | datatypes.Kind.UnsignedLong => ok false
+    | datatypes.Kind.UnsignedInt => ok false
+    | datatypes.Kind.UnsignedShort => ok false
+    | datatypes.Kind.UnsignedByte => ok false
+    | datatypes.Kind.AnyUri => ok false
+    | datatypes.Kind.HexBinary => ok false
+    | datatypes.Kind.Base64Binary => ok false
+    | datatypes.Kind.NormalizedString => ok false
+    | datatypes.Kind.Token => ok false
+    | datatypes.Kind.Language => ok false
+    | datatypes.Kind.NmToken => ok false
+    | datatypes.Kind.Name => ok false
+    | datatypes.Kind.NcName => ok false
+    | datatypes.Kind.DateTime => ok false
+    | datatypes.Kind.DateTimeStamp => ok false
+    | datatypes.Kind.Double => ok false
+    | datatypes.Kind.Float => ok true
 
 /-- [rowl_kernel::decimal::ReadError]
     Source: 'crates/rowl-kernel/src/decimal.rs', lines 7:0-11:1

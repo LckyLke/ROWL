@@ -30,6 +30,16 @@
 //!   capacity that bounds the counts of the data restrictions of the closure
 //!   and its questions, and at most that many at any element along a role `U`
 //!   above every data property) or treated as infinitely many;
+//! - when a range facet with a bound of `xsd:double` or `xsd:float` is in use,
+//!   the places of the values of that format (`floats::position`: NaN, the
+//!   infinities, the numbers and the two zeros in their order) where a facet's
+//!   values begin or end become edges, each with a class of the values at or
+//!   above it: the classes are included in each other in the order of the
+//!   edges, the first in the format's class, a literal value is in the classes
+//!   of the edges at or below its place, a facet becomes an edge's class or
+//!   its complement, and the values between two neighbouring edges that are
+//!   no literal values, counted exactly, are none or at most their number at
+//!   any element along `U` when there are fewer than the capacity;
 //! - every object property relates only elements that are no data nodes, and
 //!   the individuals are no data nodes; a class expression that a data node
 //!   could satisfy, on the left of an inclusion or in a list of equivalent or
@@ -75,14 +85,16 @@
     clippy::len_zero,
     clippy::match_like_matches_macro,
     clippy::collapsible_else_if,
-    clippy::if_same_then_else
+    clippy::if_same_then_else,
+    clippy::implicit_saturating_sub
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::alc_ontology::{intern, position};
 use crate::concepts::copy_individual;
 use crate::datatypes::{
     facet_of, in_kind, kind_of, literal_value, lower_bound, numeric, same_value, upper_bound,
-    DataValue, Facet, Kind,
+    Binary, DataValue, Facet, Kind,
 };
+use crate::floats;
 use crate::key_ontology;
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange,
@@ -125,14 +137,17 @@ pub struct Kinds {
 /// What the encoding of a closure and its questions knows: the distinct
 /// literal values, the datatypes in use, the named object properties other than
 /// the universal role, the data properties other than the top and bottom
-/// ones, and the cuts of the numbers that facets, bounds of datatypes and
-/// literal values make.
+/// ones, the cuts of the numbers that facets, bounds of datatypes and
+/// literal values make, and the edges that facets make among the places of
+/// the values of `xsd:double` and of `xsd:float`.
 pub struct Context {
     pub values: Vec<DataValue>,
     pub kinds: Kinds,
     pub roles: Vec<ObjectProperty>,
     pub data: Vec<DataProperty>,
     pub cuts: Vec<Cut>,
+    pub double_edges: Vec<u128>,
+    pub float_edges: Vec<u128>,
 }
 
 fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
@@ -335,6 +350,13 @@ fn value_individual(index: usize) -> Individual {
 /// The class `G` of the numbers in the cut at `index`.
 fn cut_class(index: usize) -> ClassExpression {
     class_named(tagged_name(b'G', bytes(index, 0, Vec::new())))
+}
+/// The class `F` of the values of `xsd:double` (`double`) or `xsd:float` at
+/// or above the edge at `index`.
+fn edge_class(double: bool, index: usize) -> ClassExpression {
+    let mut rest = Vec::new();
+    rest.push(if double { 1 } else { 0 });
+    class_named(tagged_name(b'F', bytes(index, 0, rest)))
 }
 /// The role `U` above every data property's role.
 fn data_super() -> ObjectPropertyExpression {
@@ -702,6 +724,83 @@ fn facet_context(mut context: Context, restriction: &FacetRestriction) -> Contex
         _ => context,
     }
 }
+/// Whether `edge` is among `edges[index..]`.
+fn has_edge(edges: &Vec<u128>, edge: u128, index: usize) -> bool {
+    if index < edges.len() {
+        (edges[index] == edge) | has_edge(edges, edge, index + 1)
+    } else {
+        false
+    }
+}
+/// `edges` with `edge`, once.
+fn add_edge(mut edges: Vec<u128>, edge: u128) -> Vec<u128> {
+    if has_edge(&edges, edge, 0) {
+        edges
+    } else {
+        if edges.len() < usize::MAX {
+            edges.push(edge);
+        }
+        edges
+    }
+}
+/// `edges` with the edges of a range facet with a bound of the format: the
+/// first place of its values and, for an upper bound, the place after NaN
+/// and the first place after its values. A NaN bound has no values.
+fn facet_edges(edges: Vec<u128>, facet: Facet, bound: &Binary, double: bool) -> Vec<u128> {
+    if floats::is_nan(bound) {
+        edges
+    } else {
+        match facet {
+            Facet::MinInclusive => add_edge(edges, floats::low_position(bound, double)),
+            Facet::MinExclusive => add_edge(edges, floats::high_position(bound, double) + 1),
+            Facet::MaxInclusive => {
+                add_edge(add_edge(edges, 1), floats::high_position(bound, double) + 1)
+            }
+            Facet::MaxExclusive => {
+                add_edge(add_edge(edges, 1), floats::low_position(bound, double))
+            }
+        }
+    }
+}
+/// The context with the edges of a range facet with a bound of `xsd:double`
+/// or `xsd:float`.
+fn edge_context(mut context: Context, restriction: &FacetRestriction) -> Context {
+    match (
+        facet_of(&restriction.facet),
+        literal_value(&restriction.value),
+    ) {
+        (Some(facet), Some(DataValue::Double(bound))) => {
+            context.double_edges = facet_edges(context.double_edges, facet, &bound, true);
+            context
+        }
+        (Some(facet), Some(DataValue::Float(bound))) => {
+            context.float_edges = facet_edges(context.float_edges, facet, &bound, false);
+            context
+        }
+        _ => context,
+    }
+}
+/// The context with the edges of the facet restrictions
+/// `restrictions[index..]`.
+fn edges_context(context: Context, restrictions: &Vec<FacetRestriction>, index: usize) -> Context {
+    if index < restrictions.len() {
+        edges_context(
+            edge_context(context, &restrictions[index]),
+            restrictions,
+            index + 1,
+        )
+    } else {
+        context
+    }
+}
+/// Whether the kind is `xsd:double` or `xsd:float`.
+fn binary_kind(kind: Kind) -> bool {
+    match kind {
+        Kind::Double => true,
+        Kind::Float => true,
+        _ => false,
+    }
+}
 /// The context with the cuts of the facet restrictions `restrictions[index..]`.
 fn facets_context(context: Context, restrictions: &Vec<FacetRestriction>, index: usize) -> Context {
     if index < restrictions.len() {
@@ -730,15 +829,25 @@ fn range_context(mut context: Context, range: &DataRange) -> Context {
             let context = add_literal(context, &literals.first);
             literals_context(context, &literals.rest, 0)
         }
-        DataRange::Restriction(datatype, restrictions) => {
-            context.kinds = with_order(context.kinds);
-            let context = match kind_of(datatype) {
-                Some(kind) => kind_context(context, kind),
-                None => context,
-            };
-            let context = facet_context(context, &restrictions.first);
-            facets_context(context, &restrictions.rest, 0)
-        }
+        DataRange::Restriction(datatype, restrictions) => match kind_of(datatype) {
+            Some(kind) => {
+                if binary_kind(kind) {
+                    let context = kind_context(context, kind);
+                    let context = edge_context(context, &restrictions.first);
+                    edges_context(context, &restrictions.rest, 0)
+                } else {
+                    context.kinds = with_order(context.kinds);
+                    let context = kind_context(context, kind);
+                    let context = facet_context(context, &restrictions.first);
+                    facets_context(context, &restrictions.rest, 0)
+                }
+            }
+            None => {
+                context.kinds = with_order(context.kinds);
+                let context = facet_context(context, &restrictions.first);
+                facets_context(context, &restrictions.rest, 0)
+            }
+        },
     }
 }
 fn ranges_context(context: Context, ranges: &Vec<DataRange>, index: usize) -> Context {
@@ -899,6 +1008,8 @@ fn closure_context(items: &Vec<AnnotatedAxiom>) -> Context {
             roles: Vec::new(),
             data: Vec::new(),
             cuts: Vec::new(),
+            double_edges: Vec::new(),
+            float_edges: Vec::new(),
         },
         items,
         0,
@@ -1154,41 +1265,132 @@ fn facet_outside(facet: Facet) -> bool {
         Facet::MaxExclusive => true,
     }
 }
-/// The class expression of a facet restriction: a range facet with a numeric
-/// bound, whose cut is in the context.
-fn facet_class(context: &Context, restriction: &FacetRestriction) -> Option<ClassExpression> {
+/// The empty class.
+fn nothing() -> ClassExpression {
+    not(thing())
+}
+/// The index of `edge` in `edges[index..]`.
+fn edge_index(edges: &Vec<u128>, edge: u128, index: usize) -> Option<usize> {
+    if index < edges.len() {
+        if edges[index] == edge {
+            Some(index)
+        } else {
+            edge_index(edges, edge, index + 1)
+        }
+    } else {
+        None
+    }
+}
+/// The class of the values of the format at or above the place `edge`, an
+/// edge of the context.
+fn at_edge(context: &Context, double: bool, edge: u128) -> Option<ClassExpression> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    match edge_index(edges, edge, 0) {
+        Some(index) => Some(edge_class(double, index)),
+        None => None,
+    }
+}
+/// The class of the values of the format from the edge `low` on and before
+/// the edge `high`.
+fn between_edges(
+    context: &Context,
+    double: bool,
+    low: u128,
+    high: u128,
+) -> Option<ClassExpression> {
+    match (
+        at_edge(context, double, low),
+        at_edge(context, double, high),
+    ) {
+        (Some(low), Some(high)) => Some(and(low, not(high))),
+        _ => None,
+    }
+}
+/// The class expression of a range facet with a bound of the format, on the
+/// values of the format: from the first place of the values equal to the
+/// bound, or after the last; for an upper bound, from the place after NaN on
+/// and before the first or after the last; none for a NaN bound, which no
+/// value is comparable to.
+fn binary_facet_class(
+    context: &Context,
+    double: bool,
+    facet: Facet,
+    bound: &Binary,
+) -> Option<ClassExpression> {
+    if floats::is_nan(bound) {
+        Some(nothing())
+    } else {
+        let low = floats::low_position(bound, double);
+        let high = floats::high_position(bound, double);
+        match facet {
+            Facet::MinInclusive => at_edge(context, double, low),
+            Facet::MinExclusive => at_edge(context, double, high + 1),
+            Facet::MaxInclusive => between_edges(context, double, 1, high + 1),
+            Facet::MaxExclusive => between_edges(context, double, 1, low),
+        }
+    }
+}
+/// The class expression of a facet restriction on the values of a kind: a
+/// range facet with a numeric bound, whose cut is in the context, on a
+/// numeric kind, or with a bound of `xsd:double` or `xsd:float` on that
+/// format; a range facet whose bound is of another of these datatypes has no
+/// values in the kind.
+fn facet_class(
+    context: &Context,
+    kind: Kind,
+    restriction: &FacetRestriction,
+) -> Option<ClassExpression> {
     match (
         facet_of(&restriction.facet),
         literal_value(&restriction.value),
     ) {
-        (Some(facet), Some(value)) => {
-            if numeric(&value) {
-                bound_class(
-                    context,
-                    Some(value),
-                    facet_open(facet),
-                    facet_outside(facet),
-                )
-            } else {
-                None
+        (Some(facet), Some(value)) => match value {
+            DataValue::Double(bound) => match kind {
+                Kind::Double => binary_facet_class(context, true, facet, &bound),
+                _ => Some(nothing()),
+            },
+            DataValue::Float(bound) => match kind {
+                Kind::Float => binary_facet_class(context, false, facet, &bound),
+                _ => Some(nothing()),
+            },
+            _ => {
+                if numeric(&value) {
+                    if numeric_kind(kind) {
+                        bound_class(
+                            context,
+                            Some(value),
+                            facet_open(facet),
+                            facet_outside(facet),
+                        )
+                    } else {
+                        Some(nothing())
+                    }
+                } else {
+                    None
+                }
             }
-        }
+        },
         _ => None,
     }
 }
 fn facet_classes(
     context: &Context,
+    kind: Kind,
     restrictions: &Vec<FacetRestriction>,
     index: usize,
     mut out: Vec<ClassExpression>,
 ) -> Option<Vec<ClassExpression>> {
     if index < restrictions.len() {
-        match facet_class(context, &restrictions[index]) {
+        match facet_class(context, kind, &restrictions[index]) {
             Some(class) => {
                 if out.len() < usize::MAX {
                     out.push(class);
                 }
-                facet_classes(context, restrictions, index + 1, out)
+                facet_classes(context, kind, restrictions, index + 1, out)
             }
             None => None,
         }
@@ -1196,17 +1398,18 @@ fn facet_classes(
         Some(out)
     }
 }
-/// The class expression of a datatype restriction of a numeric datatype.
+/// The class expression of a datatype restriction of a numeric datatype, or
+/// of `xsd:double` or `xsd:float`.
 fn restriction_range(
     context: &Context,
     kind: Kind,
     restrictions: &NonEmpty<FacetRestriction>,
 ) -> Option<ClassExpression> {
-    if numeric_kind(kind) & context.kinds.ordered {
+    if (numeric_kind(kind) & context.kinds.ordered) | binary_kind(kind) {
         match (
             kind_range(context, kind),
-            facet_class(context, &restrictions.first),
-            facet_classes(context, &restrictions.rest, 0, Vec::new()),
+            facet_class(context, kind, &restrictions.first),
+            facet_classes(context, kind, &restrictions.rest, 0, Vec::new()),
         ) {
             (Some(base), Some(first), Some(rest)) => Some(ClassExpression::ObjectIntersectionOf(
                 Box::new(AtLeastTwo {
@@ -2735,9 +2938,62 @@ fn number_members(
         None => None,
     }
 }
+/// The place of a literal value of the format, if it is one.
+fn format_place(value: &DataValue, double: bool) -> Option<u128> {
+    match value {
+        DataValue::Double(bound) => {
+            if double {
+                Some(floats::position(bound, true))
+            } else {
+                None
+            }
+        }
+        DataValue::Float(bound) => {
+            if double {
+                None
+            } else {
+                Some(floats::position(bound, false))
+            }
+        }
+        _ => None,
+    }
+}
+/// `out` with the literal value at `index`, when it is of the format, in the
+/// class of every edge of the format from `edge` on at or below its place,
+/// and outside the others.
+fn edge_memberships(
+    context: &Context,
+    double: bool,
+    index: usize,
+    edge: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if (index < context.values.len()) & (edge < edges.len()) {
+        match format_place(&context.values[index], double) {
+            Some(place) => match member(
+                edge_class(double, edge),
+                edges[edge] <= place,
+                value_individual(index),
+                out,
+            ) {
+                Some(out) => edge_memberships(context, double, index, edge + 1, out),
+                None => None,
+            },
+            None => Some(out),
+        }
+    } else {
+        Some(out)
+    }
+}
 /// `out` with the classes of the literal values from `index` on: `D`, each
 /// kind class in use or its complement, the classes of the numbers at and
-/// above a numeric value, and each bit class or its complement.
+/// above a numeric value, the classes of the edges at and below the place of
+/// a floating-point value, and each bit class or its complement.
 fn value_axioms(
     context: &Context,
     index: usize,
@@ -2805,6 +3061,14 @@ fn value_axioms(
             None => return None,
         };
         let out = match number_members(context, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match edge_memberships(context, true, index, 0, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match edge_memberships(context, false, index, 0, out) {
             Some(out) => out,
             None => return None,
         };
@@ -3090,46 +3354,419 @@ fn values_fit(context: &Context, index: usize) -> bool {
 fn encodable(context: &Context) -> bool {
     cuts_fit(&context.cuts, 0) & values_fit(context, 0)
 }
-/// The values of `xsd:double` and `xsd:float` that serve the data nodes of an
-/// element: the integers from 1 up to this bound, which both formats have.
-const FLOAT_ROOM: usize = 16_777_215;
-/// Whether the formats of floating-point numbers in use leave room for the
-/// data nodes of an element apart from the literal values: when they are in
-/// use, the counts of the data restrictions and the literal values together
-/// stay below `FLOAT_ROOM`.
-fn float_room(context: &Context, capacity: usize) -> bool {
-    if context.kinds.double | context.kinds.float {
-        if capacity < FLOAT_ROOM {
-            context.values.len() < FLOAT_ROOM - capacity
-        } else {
-            false
-        }
-    } else {
-        true
-    }
+/// Whether the encoding bounds the data nodes of an element along `U`: the
+/// integers are in use while numbers are ordered, or floating-point numbers
+/// are in use.
+fn bounds_runs(kinds: &Kinds) -> bool {
+    (kinds.ordered & kinds.integer) | kinds.double | kinds.float
 }
 /// `out` with the axioms of the ordered numbers, when numbers are ordered: the
-/// first cut inside the reals and the chain of the cuts, and when the integers
-/// are in use, every data property below `U`.
+/// first cut inside the reals and the chain of the cuts; and every data
+/// property below `U` when the encoding bounds data nodes along it.
 fn region_axioms(
     context: &Context,
     capacity: usize,
     out: Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
-    if context.kinds.ordered {
+    let out = if context.kinds.ordered {
         let order = cut_order(&context.cuts);
         let out = match least_axiom(&order, out) {
             Some(out) => out,
             None => return None,
         };
-        let out = match chain_axioms(context, &order, 1, capacity, out) {
+        match chain_axioms(context, &order, 1, capacity, out) {
             Some(out) => out,
             None => return None,
+        }
+    } else {
+        out
+    };
+    if bounds_runs(&context.kinds) {
+        super_axioms(context, 0, out)
+    } else {
+        Some(out)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The edges of the floating-point numbers
+// ---------------------------------------------------------------------------
+
+/// The kind of the format: `xsd:double` (`double`) or `xsd:float`.
+fn format_kind(double: bool) -> Kind {
+    if double {
+        Kind::Double
+    } else {
+        Kind::Float
+    }
+}
+/// Whether a literal value is of the format with its place from `low` on and
+/// before `high`.
+fn in_slot(value: &DataValue, double: bool, low: u128, high: u128) -> bool {
+    match format_place(value, double) {
+        Some(place) => (low <= place) & (place < high),
+        None => false,
+    }
+}
+/// `found` with the individuals of the literal values of `values[index..]`
+/// of the format from `low` on and before `high`.
+fn slot_literals(
+    context: &Context,
+    double: bool,
+    low: u128,
+    high: u128,
+    index: usize,
+    found: Option<NonEmpty<Individual>>,
+) -> Option<NonEmpty<Individual>> {
+    if index < context.values.len() {
+        if in_slot(&context.values[index], double, low, high) {
+            slot_literals(
+                context,
+                double,
+                low,
+                high,
+                index + 1,
+                add_named(found, value_individual(index)),
+            )
+        } else {
+            slot_literals(context, double, low, high, index + 1, found)
+        }
+    } else {
+        found
+    }
+}
+/// `count` plus the number of the literal values of `values[index..]` of the
+/// format from `low` on and before `high`.
+fn slot_count(
+    context: &Context,
+    double: bool,
+    low: u128,
+    high: u128,
+    index: usize,
+    count: u128,
+) -> u128 {
+    if index < context.values.len() {
+        if in_slot(&context.values[index], double, low, high) & (count < u128::MAX) {
+            slot_count(context, double, low, high, index + 1, count + 1)
+        } else {
+            slot_count(context, double, low, high, index + 1, count)
+        }
+    } else {
+        count
+    }
+}
+/// The class of the values of the format at or above the edge at `low`, when
+/// there is one, and below the edge at `high`, when there is one.
+fn slot_class(double: bool, low: Option<usize>, high: Option<usize>) -> ClassExpression {
+    let kind = kind_class(format_kind(double));
+    let from = match low {
+        Some(index) => and(kind, edge_class(double, index)),
+        None => kind,
+    };
+    match high {
+        Some(index) => and(from, not(edge_class(double, index))),
+        None => from,
+    }
+}
+/// `out` with the axiom on the values of the format from the place `low` on
+/// and before `high`, whose class is that of the edges `low_edge` and
+/// `high_edge`, that are no literal values: none of them when there are none,
+/// and at most their number at any element along `U` when there are fewer
+/// than `capacity`. Places past the last value count as the end.
+fn slot_axiom(
+    context: &Context,
+    double: bool,
+    low_edge: Option<usize>,
+    high_edge: Option<usize>,
+    low: u128,
+    high: u128,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let end = floats::places(double);
+    let low = if low < end { low } else { end };
+    let high = if high < end { high } else { end };
+    let size = if low <= high { high - low } else { 0 };
+    let named = slot_count(context, double, low, high, 0, 0);
+    let free = if named <= size { size - named } else { 0 };
+    let found = slot_literals(context, double, low, high, 0, None);
+    if free == 0 {
+        match found {
+            None => push(
+                out,
+                Axiom::SubClassOf(
+                    slot_class(double, low_edge, high_edge),
+                    not(slot_class(double, low_edge, high_edge)),
+                ),
+            ),
+            Some(list) => push(
+                out,
+                Axiom::SubClassOf(
+                    slot_class(double, low_edge, high_edge),
+                    ClassExpression::ObjectOneOf(list),
+                ),
+            ),
+        }
+    } else if free < capacity as u128 {
+        let filler = match found {
+            None => slot_class(double, low_edge, high_edge),
+            Some(list) => and(
+                slot_class(double, low_edge, high_edge),
+                not(ClassExpression::ObjectOneOf(list)),
+            ),
         };
-        if context.kinds.integer {
-            super_axioms(context, 0, out)
+        push(
+            out,
+            Axiom::SubClassOf(
+                thing(),
+                ClassExpression::ObjectMaxCardinality(
+                    natural_of(free as usize),
+                    data_super(),
+                    Some(Box::new(filler)),
+                ),
+            ),
+        )
+    } else {
+        Some(out)
+    }
+}
+/// Whether an edge of `edges[index..]` lies above `low` and below `high`.
+fn edge_between(edges: &Vec<u128>, low: u128, high: u128, index: usize) -> bool {
+    if index < edges.len() {
+        ((low < edges[index]) & (edges[index] < high)) | edge_between(edges, low, high, index + 1)
+    } else {
+        false
+    }
+}
+/// Whether an edge of `edges[index..]` lies below `edge`.
+fn edge_below(edges: &Vec<u128>, edge: u128, index: usize) -> bool {
+    if index < edges.len() {
+        (edges[index] < edge) | edge_below(edges, edge, index + 1)
+    } else {
+        false
+    }
+}
+/// Whether an edge of `edges[index..]` lies above `edge`.
+fn edge_above(edges: &Vec<u128>, edge: u128, index: usize) -> bool {
+    if index < edges.len() {
+        (edge < edges[index]) | edge_above(edges, edge, index + 1)
+    } else {
+        false
+    }
+}
+/// `out` with the class of the edge at `first` inside the class of the edge at
+/// `second`, when that is another edge at or below it.
+fn inclusion_axiom(
+    context: &Context,
+    double: bool,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if (first < edges.len()) & (second < edges.len()) {
+        if (first != second) & (edges[second] <= edges[first]) {
+            push(
+                out,
+                Axiom::SubClassOf(edge_class(double, first), edge_class(double, second)),
+            )
         } else {
             Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axiom on the slot from the edge at `first` to the edge at
+/// `second`, when that is the next edge above it.
+fn neighbour_axiom(
+    context: &Context,
+    double: bool,
+    capacity: usize,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if (first < edges.len()) & (second < edges.len()) {
+        let low = edges[first];
+        let high = edges[second];
+        if (low < high) & !edge_between(edges, low, high, 0) {
+            slot_axiom(
+                context,
+                double,
+                Some(first),
+                Some(second),
+                low,
+                high,
+                capacity,
+                out,
+            )
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms between the edge at `first` and the edges from
+/// `second` on.
+fn pair_axioms(
+    context: &Context,
+    double: bool,
+    capacity: usize,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if second < edges.len() {
+        match inclusion_axiom(context, double, first, second, out) {
+            Some(out) => match neighbour_axiom(context, double, capacity, first, second, out) {
+                Some(out) => pair_axioms(context, double, capacity, first, second + 1, out),
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with, for a lowest edge at `index`, its class inside the format's
+/// and the axiom on the slot below it.
+fn lowest_axioms(
+    context: &Context,
+    double: bool,
+    capacity: usize,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if index < edges.len() {
+        let edge = edges[index];
+        if edge_below(edges, edge, 0) {
+            Some(out)
+        } else {
+            let kind = format_kind(double);
+            match push(
+                out,
+                Axiom::SubClassOf(edge_class(double, index), kind_class(kind)),
+            ) {
+                Some(out) => slot_axiom(context, double, None, Some(index), 0, edge, capacity, out),
+                None => None,
+            }
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with, for a highest edge at `index`, the axiom on the slot from it
+/// to the end.
+fn highest_axiom(
+    context: &Context,
+    double: bool,
+    capacity: usize,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if index < edges.len() {
+        let edge = edges[index];
+        if edge_above(edges, edge, 0) {
+            Some(out)
+        } else {
+            slot_axiom(
+                context,
+                double,
+                Some(index),
+                None,
+                edge,
+                floats::places(double),
+                capacity,
+                out,
+            )
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms of the edges of the format from `index` on: those
+/// with every other edge, and those of a lowest and of a highest edge.
+fn edge_axioms(
+    context: &Context,
+    double: bool,
+    capacity: usize,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if index < edges.len() {
+        match pair_axioms(context, double, capacity, index, 0, out) {
+            Some(out) => match lowest_axioms(context, double, capacity, index, out) {
+                Some(out) => match highest_axiom(context, double, capacity, index, out) {
+                    Some(out) => edge_axioms(context, double, capacity, index + 1, out),
+                    None => None,
+                },
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms of the values of the format, when it is in use: the
+/// axioms of its edges, or the axiom on all its values when it has none.
+fn binary_axioms(
+    context: &Context,
+    double: bool,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let kind = format_kind(double);
+    let edges = if double {
+        &context.double_edges
+    } else {
+        &context.float_edges
+    };
+    if used(&context.kinds, kind) {
+        if edges.len() == 0 {
+            slot_axiom(
+                context,
+                double,
+                None,
+                None,
+                0,
+                floats::places(double),
+                capacity,
+                out,
+            )
+        } else {
+            edge_axioms(context, double, capacity, 0, out)
         }
     } else {
         Some(out)
@@ -3145,7 +3782,7 @@ pub fn encode(
     capacity: usize,
     items: &Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
-    if !(encodable(context) & float_room(context, capacity)) {
+    if !encodable(context) {
         return None;
     }
     let out = match encode_items(context, items, 0, Vec::new()) {
@@ -3165,6 +3802,14 @@ pub fn encode(
         None => return None,
     };
     let out = match region_axioms(context, capacity, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match binary_axioms(context, true, capacity, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match binary_axioms(context, false, capacity, out) {
         Some(out) => out,
         None => return None,
     };
