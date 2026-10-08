@@ -891,21 +891,27 @@ theorem values_fit_spec (context : data_ontology.Context) (good : Good context) 
 termination_by context.values.val.length - index.val
 decreasing_by omega
 
-/-- When the kernel finds the context encodable, its cuts can be ordered and
-    every number among its literal values can be compared. -/
+/-- When the kernel finds the context encodable, its cuts can be ordered,
+    every number among its literal values can be compared, and it has no
+    language ranges or no lengths. -/
 theorem encodable_spec (context : data_ontology.Context) (good : Good context) :
-    ∃ b, data_ontology.encodable context = .ok b ∧ (b = true → FineCuts context.cuts.val ∧ ValuesFit context) := by
+    ∃ b, data_ontology.encodable context = .ok b ∧ (b = true → FineCuts context.cuts.val ∧ ValuesFit context ∧
+      (context.ranges.val = [] ∨ context.lengths.val = [])) := by
   rw [data_ontology.encodable]
   obtain ⟨f, fRun, fFacts⟩ := Rowl.Regions.cuts_fit_spec context.cuts 0#usize
     (fun c m _ => good.2.2.2.1.1 c m)
   obtain ⟨v, vRun, vFacts⟩ := values_fit_spec context good 0#usize
-  refine ⟨f && v, by simp [fRun, vRun], fun both => ?_⟩
-  simp only [Bool.and_eq_true] at both
-  refine ⟨⟨fun c m => ?_, good.2.2.2.1.2⟩, fun w m => ?_⟩
+  refine ⟨f && v && (decide (alloc.vec.Vec.len context.ranges = 0#usize) ||
+    decide (alloc.vec.Vec.len context.lengths = 0#usize)), by simp [fRun, vRun], fun both => ?_⟩
+  simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq] at both
+  refine ⟨⟨fun c m => ?_, good.2.2.2.1.2⟩, fun w m => ?_, ?_⟩
   · obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem m
-    exact fFacts both.1 j (by simp) hj
+    exact fFacts both.1.1 j (by simp) hj
   · obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem m
-    exact vFacts both.2 i hi (by simp)
+    exact vFacts both.1.2 i hi (by simp)
+  · rcases both.2 with none | none
+    · left; simpa using congrArg UScalar.val none
+    · right; simpa using congrArg UScalar.val none
 
 /-- The axioms of the ordered numbers: when numbers are ordered, the kernel
     lists the cuts in order and adds the axioms of `RegionFacts` for that

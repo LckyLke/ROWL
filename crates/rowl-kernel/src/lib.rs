@@ -95,6 +95,7 @@ pub mod shi_ontology;
 
 pub mod numbers;
 
+pub mod lang_ranges;
 pub mod lengths;
 pub mod moments;
 

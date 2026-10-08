@@ -221,6 +221,49 @@ theorem time_ne_length (j i : Usize) : timeClass j ≠ lengthClass i := by
   have := congrArg (fun c : Class => c.iri.spelling.val) same
   simp [timeClass_name, lengthClass_name, timeName, lengthName] at this
 
+theorem reserved_range (i : Usize) : Reserved (rangeClass i).iri.spelling.val := by
+  simp [Reserved, rangeClass_name, rangeName]
+
+theorem range_class_injective {i i' : Usize} (same : rangeClass i = rangeClass i') : i = i' := by
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp only [rangeClass_name, rangeName, List.cons.injEq, true_and] at this
+  exact UScalar.eq_of_val_eq (eightBytes_injective _ _ 8 (usize_bytes i) (usize_bytes i') this)
+
+theorem data_ne_range (i : Usize) : dataClass ≠ rangeClass i := by
+  intro same
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp [dataClass_name, rangeClass_name, dataName, rangeName] at this
+
+theorem kind_ne_range (k : datatypes.Kind) (i : Usize) : kindClass k ≠ rangeClass i := by
+  intro same
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp [kindClass_name, rangeClass_name, kindName, rangeName] at this
+
+theorem bit_ne_range (j i : Usize) : bitClass j ≠ rangeClass i := by
+  intro same
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp [bitClass_name, rangeClass_name, bitName, rangeName] at this
+
+theorem cut_ne_range (j i : Usize) : cutClass j ≠ rangeClass i := by
+  intro same
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp [cutClass_name, rangeClass_name, cutName, rangeName] at this
+
+theorem edge_ne_range (d : Bool) (j i : Usize) : edgeClass d j ≠ rangeClass i := by
+  intro same
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp [edgeClass_name, rangeClass_name, edgeName, rangeName] at this
+
+theorem time_ne_range (j i : Usize) : timeClass j ≠ rangeClass i := by
+  intro same
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp [timeClass_name, rangeClass_name, timeName, rangeName] at this
+
+theorem length_ne_range (j i : Usize) : lengthClass j ≠ rangeClass i := by
+  intro same
+  have := congrArg (fun c : Class => c.iri.spelling.val) same
+  simp [lengthClass_name, rangeClass_name, lengthName, rangeName] at this
+
 theorem reserved_super : Reserved dataSuper.iri.spelling.val := by simp [Reserved, dataSuper_name, superName]
 
 theorem super_ne_top : dataSuper ≠ topObject := fun same => by
@@ -597,7 +640,7 @@ variable {Object : Type u} {Value : Type v}
     as a floating-point value, and the time cuts of its line it is in as a
     time instant. -/
 def NodeClass (context : data_ontology.Context) (I : Interpretation Object Value)
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Moment → Value) (size : Value → ℕ → Prop) (c : Class) (v : Value) : Prop :=
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Moment → Value) (size : Value → ℕ → Prop) (tag : Value → List U8 → Prop) (c : Class) (v : Value) : Prop :=
   c = thing ∨ c = dataClass ∨ (∃ k, c = kindClass k ∧ I.datatypes (typeOf k) v) ∨
     (∃ (j i : Usize) (_ : i.val < context.values.val.length), c = bitClass j ∧
       v = lit context.values.val[i.val] ∧ i.val.testBit j.val = true) ∨
@@ -610,19 +653,21 @@ def NodeClass (context : data_ontology.Context) (I : Interpretation Object Value
     (∃ (i : Usize) (h : i.val < context.times.val.length), c = timeClass i ∧
       ∃ m, MomentAt mom v m ∧ m.zone.isSome = (context.times.val[i.val]'h).zoned ∧
         InTimeCut (context.times.val[i.val]'h) m) ∨
-    ∃ (i : Usize) (h : i.val < context.lengths.val.length), c = lengthClass i ∧
-      ∃ m, size v m ∧ (context.lengths.val[i.val]'h).val ≤ m
+    (∃ (i : Usize) (h : i.val < context.lengths.val.length), c = lengthClass i ∧
+      ∃ m, size v m ∧ (context.lengths.val[i.val]'h).val ≤ m) ∨
+    ∃ (i : Usize) (h : i.val < context.ranges.val.length), c = rangeClass i ∧
+      ∃ l, tag v l ∧ Rowl.LangRanges.Matches (context.ranges.val[i.val]'h).val l
 
 /-- The interpretation of the encoding made from an OWL interpretation: its
     elements and its data values as the data nodes, with `U` relating each
     element to the values of the context's data properties at it. -/
 noncomputable def lifted (context : data_ontology.Context) (I : Interpretation Object Value)
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Moment → Value) (size : Value → ℕ → Prop) (x0 : Object) : Interpretation (Object ⊕ Value) Value where
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Moment → Value) (size : Value → ℕ → Prop) (tag : Value → List U8 → Prop) (x0 : Object) : Interpretation (Object ⊕ Value) Value where
   objectsNonempty := ⟨.inl x0⟩
   dataNonempty := I.dataNonempty
   classes c y := match y with
     | .inl z => ¬ Reserved c.iri.spelling.val ∧ I.classes c z
-    | .inr v => NodeClass context I lit num mom size c v
+    | .inr v => NodeClass context I lit num mom size tag c v
   objectProperties r y y' := match y, y' with
     | .inl z, .inl z' => ¬ Reserved r.iri.spelling.val ∧ I.objectProperties r z z'
     | .inl z, .inr v => r = topObject ∨ (∃ p, DataRoleOf p r ∧ I.dataProperties p z v) ∨
@@ -642,32 +687,32 @@ noncomputable def lifted (context : data_ontology.Context) (I : Interpretation O
   named := fun _ => True
 
 variable {context : data_ontology.Context} {I : Interpretation Object Value} {lit : datatypes.DataValue → Value}
-  {num : ℝ → Value} {mom : Moment → Value} {size : Value → ℕ → Prop} {x0 : Object}
+  {num : ℝ → Value} {mom : Moment → Value} {size : Value → ℕ → Prop} {tag : Value → List U8 → Prop} {x0 : Object}
 
 theorem lifted_value (i : Usize) (h : i.val < context.values.val.length) :
-    (lifted context I lit num mom size x0).namedIndividuals (valueIndividual i) = .inr (lit context.values.val[i.val]) := by
+    (lifted context I lit num mom size tag x0).namedIndividuals (valueIndividual i) = .inr (lit context.values.val[i.val]) := by
   have ex : ∃ i' : Usize, i'.val < context.values.val.length ∧ valueIndividual i' = valueIndividual i := ⟨i, h, rfl⟩
   have chosen := value_individual_injective (Classical.choose_spec ex).2
   simp only [lifted, dif_pos ex, chosen, List.getElem?_eq_getElem h]
 
 theorem lifted_plain_name {a : NamedIndividual} (plain : ¬ Reserved a.iri.spelling.val) :
-    (lifted context I lit num mom size x0).namedIndividuals a = .inl (I.namedIndividuals a) := by
+    (lifted context I lit num mom size tag x0).namedIndividuals a = .inl (I.namedIndividuals a) := by
   have notValue : ¬ ∃ i : Usize, i.val < context.values.val.length ∧ valueIndividual i = a := by
     rintro ⟨i, _, rfl⟩
     exact plain (reserved_value i)
   simp only [lifted, dif_neg notValue, plain, ↓reduceIte]
 
-theorem lifted_object : (lifted context I lit num mom size x0).namedIndividuals objectIndividual = .inl x0 := by
+theorem lifted_object : (lifted context I lit num mom size tag x0).namedIndividuals objectIndividual = .inl x0 := by
   have notValue : ¬ ∃ i : Usize, i.val < context.values.val.length ∧ valueIndividual i = objectIndividual := by
     rintro ⟨i, _, same⟩
     exact object_ne_value i same.symm
   simp only [lifted, dif_neg notValue, reserved_object, ↓reduceIte]
 
 theorem node_kind (k : datatypes.Kind) (v : Value) :
-    NodeClass context I lit num mom size (kindClass k) v ↔ I.datatypes (typeOf k) v := by
+    NodeClass context I lit num mom size tag (kindClass k) v ↔ I.datatypes (typeOf k) v := by
   constructor
   · rintro (h | h | ⟨k', same, holds⟩ | ⟨j, i, _, same, _⟩ | ⟨i, _, same, _⟩ | ⟨d, i, _, same, _⟩ |
-      ⟨i, _, same, _⟩ | ⟨i, _, same, _⟩)
+      ⟨i, _, same, _⟩ | ⟨i, _, same, _⟩ | ⟨i, _, same, _⟩)
     · exact absurd h.symm (class_ne_of_reserved thing_plain (reserved_kind k))
     · exact absurd h.symm (data_ne_kind k)
     · rw [kind_class_injective same]; exact holds
@@ -676,15 +721,16 @@ theorem node_kind (k : datatypes.Kind) (v : Value) :
     · exact absurd same (kind_ne_edge k d i)
     · exact absurd same (kind_ne_time k i)
     · exact absurd same (kind_ne_length k i)
+    · exact absurd same (kind_ne_range k i)
   · intro holds
     exact .inr (.inr (.inl ⟨k, rfl, holds⟩))
 
 theorem node_bit (j : Usize) (v : Value) :
-    NodeClass context I lit num mom size (bitClass j) v ↔ ∃ (i : Usize) (_ : i.val < context.values.val.length),
+    NodeClass context I lit num mom size tag (bitClass j) v ↔ ∃ (i : Usize) (_ : i.val < context.values.val.length),
       v = lit context.values.val[i.val] ∧ i.val.testBit j.val = true := by
   constructor
   · rintro (h | h | ⟨k, same, _⟩ | ⟨j', i, hi, same, holds⟩ | ⟨i, _, same, _⟩ | ⟨d, i, _, same, _⟩ |
-      ⟨i, _, same, _⟩ | ⟨i, _, same, _⟩)
+      ⟨i, _, same, _⟩ | ⟨i, _, same, _⟩ | ⟨i, _, same, _⟩)
     · exact absurd h.symm (class_ne_of_reserved thing_plain (reserved_bit j))
     · exact absurd h.symm (data_ne_bit j)
     · exact absurd same.symm (kind_ne_bit k j)
@@ -693,14 +739,15 @@ theorem node_bit (j : Usize) (v : Value) :
     · exact absurd same (bit_ne_edge j d i)
     · exact absurd same (bit_ne_time j i)
     · exact absurd same (bit_ne_length j i)
+    · exact absurd same (bit_ne_range j i)
   · rintro ⟨i, hi, holds⟩
     exact .inr (.inr (.inr (.inl ⟨j, i, hi, rfl, holds⟩)))
 
 theorem node_cut (i : Usize) (h : i.val < context.cuts.val.length) (v : Value) :
-    NodeClass context I lit num mom size (cutClass i) v ↔ ∃ r, v = num r ∧ InCut context.cuts.val[i.val] r := by
+    NodeClass context I lit num mom size tag (cutClass i) v ↔ ∃ r, v = num r ∧ InCut context.cuts.val[i.val] r := by
   constructor
   · rintro (h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', hi', same, holds⟩ | ⟨d, i', _, same, _⟩ |
-      ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩)
+      ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩)
     · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_cut i))
     · exact absurd h'.symm (data_ne_cut i)
     · exact absurd same.symm (kind_ne_cut k i)
@@ -711,16 +758,17 @@ theorem node_cut (i : Usize) (h : i.val < context.cuts.val.length) (v : Value) :
     · exact absurd same (cut_ne_edge i d i')
     · exact absurd same (cut_ne_time i i')
     · exact absurd same (cut_ne_length i i')
+    · exact absurd same (cut_ne_range i i')
   · intro holds
     exact .inr (.inr (.inr (.inr (.inl ⟨i, h, rfl, holds⟩))))
 
 theorem node_edge (double : Bool) (i : Usize) (h : i.val < (edgesOf context double).val.length) (v : Value) :
-    NodeClass context I lit num mom size (edgeClass double i) v ↔ ∃ b, FloatAt lit double v b ∧
+    NodeClass context I lit num mom size tag (edgeClass double i) v ↔ ∃ b, FloatAt lit double v b ∧
       ((edgesOf context double).val[i.val]'h).val ≤
         Rowl.FloatOrder.position (Rowl.Floats.fmt double) (Rowl.Floats.binaryOf b) := by
   constructor
   · rintro (h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨d, i', hi', same, holds⟩ |
-      ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩)
+      ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩)
     · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_edge double i))
     · exact absurd h'.symm (data_ne_edge double i)
     · exact absurd same.symm (kind_ne_edge k double i)
@@ -730,15 +778,16 @@ theorem node_edge (double : Bool) (i : Usize) (h : i.val < (edgesOf context doub
       exact holds
     · exact absurd same (edge_ne_time double i i')
     · exact absurd same (edge_ne_length double i i')
+    · exact absurd same (edge_ne_range double i i')
   · intro holds
     exact .inr (.inr (.inr (.inr (.inr (.inl ⟨double, i, h, rfl, holds⟩)))))
 
 theorem node_time (i : Usize) (h : i.val < context.times.val.length) (v : Value) :
-    NodeClass context I lit num mom size (timeClass i) v ↔ ∃ m, MomentAt mom v m ∧
+    NodeClass context I lit num mom size tag (timeClass i) v ↔ ∃ m, MomentAt mom v m ∧
       m.zone.isSome = (context.times.val[i.val]'h).zoned ∧ InTimeCut (context.times.val[i.val]'h) m := by
   constructor
   · rintro (h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨d, i', _, same, _⟩ |
-      ⟨i', hi', same, holds⟩ | ⟨i', _, same, _⟩)
+      ⟨i', hi', same, holds⟩ | ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩)
     · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_time i))
     · exact absurd h'.symm (data_ne_time i)
     · exact absurd same.symm (kind_ne_time k i)
@@ -749,14 +798,15 @@ theorem node_time (i : Usize) (h : i.val < context.times.val.length) (v : Value)
       subst this
       exact holds
     · exact absurd same (time_ne_length i i')
+    · exact absurd same (time_ne_range i i')
   · intro holds
     exact .inr (.inr (.inr (.inr (.inr (.inr (.inl ⟨i, h, rfl, holds⟩))))))
 
 theorem node_length (i : Usize) (h : i.val < context.lengths.val.length) (v : Value) :
-    NodeClass context I lit num mom size (lengthClass i) v ↔ ∃ m, size v m ∧ (context.lengths.val[i.val]'h).val ≤ m := by
+    NodeClass context I lit num mom size tag (lengthClass i) v ↔ ∃ m, size v m ∧ (context.lengths.val[i.val]'h).val ≤ m := by
   constructor
   · rintro (h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨d, i', _, same, _⟩ |
-      ⟨i', _, same, _⟩ | ⟨i', hi', same, holds⟩)
+      ⟨i', _, same, _⟩ | ⟨i', hi', same, holds⟩ | ⟨i', _, same, _⟩)
     · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_length i))
     · exact absurd h'.symm (data_ne_length i)
     · exact absurd same.symm (kind_ne_length k i)
@@ -767,12 +817,34 @@ theorem node_length (i : Usize) (h : i.val < context.lengths.val.length) (v : Va
     · have := length_class_injective same
       subst this
       exact holds
+    · exact absurd same (length_ne_range i i')
   · intro holds
-    exact .inr (.inr (.inr (.inr (.inr (.inr (.inr ⟨i, h, rfl, holds⟩))))))
+    exact .inr (.inr (.inr (.inr (.inr (.inr (.inr (.inl ⟨i, h, rfl, holds⟩)))))))
+
+theorem node_range (i : Usize) (h : i.val < context.ranges.val.length) (v : Value) :
+    NodeClass context I lit num mom size tag (rangeClass i) v ↔
+      ∃ l, tag v l ∧ Rowl.LangRanges.Matches (context.ranges.val[i.val]'h).val l := by
+  constructor
+  · rintro (h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨d, i', _, same, _⟩ |
+      ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨i', hi', same, holds⟩)
+    · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_range i))
+    · exact absurd h'.symm (data_ne_range i)
+    · exact absurd same.symm (kind_ne_range k i)
+    · exact absurd same.symm (bit_ne_range j i)
+    · exact absurd same.symm (cut_ne_range i' i)
+    · exact absurd same.symm (edge_ne_range d i' i)
+    · exact absurd same.symm (time_ne_range i' i)
+    · exact absurd same.symm (length_ne_range i' i)
+    · have := range_class_injective same
+      subst this
+      exact holds
+  · intro holds
+    exact .inr (.inr (.inr (.inr (.inr (.inr (.inr (.inr ⟨i, h, rfl, holds⟩)))))))
 
 theorem node_plain {c : Class} (plain : ¬ Reserved c.iri.spelling.val) (notThing : c ≠ thing) (v : Value) :
-    ¬ NodeClass context I lit num mom size c v := by
-  rintro (h | h | ⟨k, h, _⟩ | ⟨j, i, _, h, _⟩ | ⟨i, _, h, _⟩ | ⟨d, i, _, h, _⟩ | ⟨i, _, h, _⟩ | ⟨i, _, h, _⟩)
+    ¬ NodeClass context I lit num mom size tag c v := by
+  rintro (h | h | ⟨k, h, _⟩ | ⟨j, i, _, h, _⟩ | ⟨i, _, h, _⟩ | ⟨d, i, _, h, _⟩ | ⟨i, _, h, _⟩ | ⟨i, _, h, _⟩ |
+    ⟨i, _, h, _⟩)
   · exact notThing h
   · exact class_ne_of_reserved plain reserved_data h
   · exact class_ne_of_reserved plain (reserved_kind k) h
@@ -781,11 +853,12 @@ theorem node_plain {c : Class} (plain : ¬ Reserved c.iri.spelling.val) (notThin
   · exact class_ne_of_reserved plain (reserved_edge d i) h
   · exact class_ne_of_reserved plain (reserved_time i) h
   · exact class_ne_of_reserved plain (reserved_length i) h
+  · exact class_ne_of_reserved plain (reserved_range i) h
 
 theorem lifted_data_role (noBottom : ∀ z z', ¬ I.objectProperties bottomObject z z')
     (noBottomData : ∀ z v, ¬ I.dataProperties bottomData z v) {p : DataProperty} {role : ObjectPropertyExpression}
     (run : data_ontology.data_role context p = .ok (some role)) (z : Object) (y : Object ⊕ Value) :
-    objectRelation (lifted context I lit num mom size x0) role (.inl z) y ↔ ∃ v, y = .inr v ∧ I.dataProperties p z v := by
+    objectRelation (lifted context I lit num mom size tag x0) role (.inl z) y ↔ ∃ v, y = .inr v ∧ I.dataProperties p z v := by
   obtain ⟨res, run', facts⟩ := data_role_correct context p
   rw [run] at run'
   cases Result.ok_injective run'
@@ -847,6 +920,14 @@ def NativeLength (N : Normative D) (y : Native) (m : ℕ) : Prop :=
 /-- The values of an OWL interpretation with a length. -/
 def sizeOf (N : Normative D) (embed : ValueEmbedding D Value) (x : Value) (m : ℕ) : Prop :=
   ∃ y, NativeLength N y m ∧ embed y = x
+
+/-- The language tag in lower case of a plain literal with a language tag. -/
+def NativeTag (N : Normative D) (y : Native) (l : List U8) : Prop :=
+  ∃ s, XmlText s ∧ TagValue l ∧ y = N.tagged s l
+
+/-- The values of an OWL interpretation with a language tag. -/
+def tagOf (N : Normative D) (embed : ValueEmbedding D Value) (x : Value) (l : List U8) : Prop :=
+  ∃ y, NativeTag N y l ∧ embed y = x
 
 theorem real_datatype (N : Normative D) (r : ℝ) : isDatatypeValue D (N.real r) :=
   ⟨typeOf .Real, Rowl.Datatypes.normative_supported N _,
@@ -1072,9 +1153,54 @@ theorem size_lit (N : Normative D) {w : datatypes.DataValue} (cw : Canonical w) 
   · intro hy
     exact ⟨_, hy, rfl⟩
 
+theorem native_tag_datatype (N : Normative D) {y : Native} {l : List U8} (h : NativeTag N y l) :
+    isDatatypeValue D y := by
+  obtain ⟨s, xs, tl, rfl⟩ := h
+  exact ⟨plainType, N.plain_supported, (N.plain_space _).mpr (.inr ⟨s, l, xs, tl, rfl⟩)⟩
+
+theorem tag_unique (N : Normative D) {x : Value} {l l' : List U8} (h : tagOf N embed x l)
+    (h' : tagOf N embed x l') : l = l' := by
+  obtain ⟨y, hy, rfl⟩ := h
+  obtain ⟨y', hy', same⟩ := h'
+  have := embed.injectiveValues _ _ (native_tag_datatype N hy') (native_tag_datatype N hy) same
+  subst this
+  obtain ⟨s, xs, tl, e⟩ := hy
+  obtain ⟨s', xs', tl', e'⟩ := hy'
+  exact (N.tagged_injective _ _ _ _ xs xs' tl tl' (e.symm.trans e')).2
+
+theorem native_tag_lit (N : Normative D) {w : datatypes.DataValue} (cw : Canonical w) (l : List U8) :
+    NativeTag N (valueOf N w) l ↔ ∃ s t, w = .Tagged s t ∧ t.val = l := by
+  constructor
+  · rintro ⟨s, xs, tl, e⟩
+    have hm : NativeLength N (valueOf N w) _ :=
+      .inr (.inl ⟨s, l, Rowl.LengthCounts.xml_text_length xs, tl, e⟩)
+    have vl := (native_lit N cw _).mp hm
+    cases w with
+    | Text t => exact absurd e (N.text_tagged _ _ _ cw xs tl)
+    | Tagged t t' =>
+      have := N.tagged_injective _ _ _ _ cw.1 xs cw.2 tl e
+      exact ⟨t, t', rfl, this.2⟩
+    | Uri t => exact absurd e.symm (N.tagged_coded _ _ (.uri t.val) xs tl cw)
+    | Hex o => exact absurd e.symm (N.tagged_coded _ _ (.hex o.val) xs tl trivial)
+    | Base64 o => exact absurd e.symm (N.tagged_coded _ _ (.base64 o.val) xs tl trivial)
+    | _ => simp [Rowl.LengthCounts.ValueLength] at vl
+  · rintro ⟨s, t, rfl, rfl⟩
+    exact ⟨s.val, cw.1, cw.2, rfl⟩
+
+theorem tag_lit (N : Normative D) {w : datatypes.DataValue} (cw : Canonical w) (l : List U8) :
+    tagOf N embed (litOf N embed w) l ↔ ∃ s t, w = .Tagged s t ∧ t.val = l := by
+  rw [← native_tag_lit N cw l]
+  constructor
+  · rintro ⟨y, hy, same⟩
+    have := embed.injectiveValues _ _ (native_tag_datatype N hy) (value_datatype N cw) same
+    subst this
+    exact hy
+  · intro hy
+    exact ⟨_, hy, rfl⟩
+
 theorem lifted_node (N : Normative D) (x0 : Object) (good : Good context) (v : Value) :
-    NodeValue context I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) (litOf N embed)
-      (numOf N embed) (momOf N embed) (sizeOf N embed) (.inr v) v where
+    NodeValue context I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) (litOf N embed)
+      (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (.inr v) v where
   kinds := fun k _ => node_kind k v
   values := fun i h => by
     rw [lifted_value i h]
@@ -1087,6 +1213,7 @@ theorem lifted_node (N : Normative D) (x0 : Object) (good : Good context) (v : V
     ⟨fun ⟨m', hm', _, holds⟩ => moment_at_unique N hm' hm ▸ holds, fun holds => ⟨m, hm, zone.symm, holds⟩⟩
   lengths := fun m hm i h => (node_length i h v).trans
     ⟨fun ⟨m', hm', le⟩ => size_unique N hm hm' ▸ le, fun le => ⟨m, hm, le⟩⟩
+  ranges := fun i h => node_range i h v
 
 theorem facetOf_some {iri : Iri} {F : datatypes.Facet} (h : Rowl.Datatypes.facetOf iri = some F) :
     iri = Rowl.Datatypes.facetIri F := by
@@ -1320,6 +1447,64 @@ theorem lifted_sized_kinds (N : Normative D) (interp : IsInterpretation D embed 
   subst this
   exact native_kind N hy inSpace
 
+/-- A plain literal with a language tag is only of `rdf:PlainLiteral`. -/
+theorem tagged_kind (N : Normative D) {s l : List U8} (xs : XmlText s) (tl : TagValue l) {k : datatypes.Kind}
+    (inSpace : D.valueSpace (typeOf k) (N.tagged s l)) : k = .Plain := by
+  have len := native_kind N (.inr (.inl ⟨s, l, Rowl.LengthCounts.xml_text_length xs, tl, rfl⟩)) inSpace
+  cases k <;> simp [Rowl.Datatypes.LengthKind] at len
+  · obtain ⟨t, xt, e⟩ := (N.string_space _).mp inSpace
+    exact absurd e.symm (N.text_tagged _ _ _ xt xs tl)
+  · rfl
+  · obtain ⟨t, xt, e⟩ := (N.uri_space _).mp inSpace
+    exact absurd e (N.tagged_coded _ _ (.uri t) xs tl xt)
+  · obtain ⟨o, e⟩ := (N.hex_space _).mp inSpace
+    exact absurd e (N.tagged_coded _ _ (.hex o) xs tl trivial)
+  · obtain ⟨o, e⟩ := (N.base64_space _).mp inSpace
+    exact absurd e (N.tagged_coded _ _ (.base64 o) xs tl trivial)
+  all_goals
+    obtain ⟨t, form, e⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inSpace
+    exact absurd e.symm (N.text_tagged _ _ _ (Rowl.Strings.form_xml form) xs tl)
+
+/-- Only values of `rdf:PlainLiteral` have a language tag. -/
+theorem lifted_tag_kinds (N : Normative D) (interp : IsInterpretation D embed V I) (x : Value) (l : List U8)
+    (ht : tagOf N embed x l) (k : datatypes.Kind) (inK : I.datatypes (typeOf k) x) : k = .Plain := by
+  obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
+  obtain ⟨y', inSpace, same⟩ := (types (typeOf k) (Rowl.Datatypes.normative_supported N k) x).mp inK
+  obtain ⟨y, hy, rfl⟩ := ht
+  have := embed.injectiveValues _ _ ⟨typeOf k, Rowl.Datatypes.normative_supported N k, inSpace⟩
+    (native_tag_datatype N hy) same
+  subst this
+  obtain ⟨s, xs, tl, rfl⟩ := hy
+  exact tagged_kind N xs tl inSpace
+
+/-- A facet `rdf:langRange` holds of the values with a language tag that its
+    range matches. -/
+theorem lifted_range_facets (N : Normative D) (vocab : IsVocabulary D V) (interp : IsInterpretation D embed V I)
+    (f : FacetRestriction) (bytes : alloc.vec.Vec U8) (facet : f.facet = Rowl.DatatypeMap.langRangeFacet)
+    (run : datatypes.literal_value f.value = .ok (some (.Text bytes)))
+    (basic : Rowl.DatatypeMap.BasicRange bytes.val) (x : Value) :
+    I.facets f x ↔ ∃ l, tagOf N embed x l ∧ Rowl.DatatypeMap.RangeMatch bytes.val l := by
+  obtain ⟨r, run', facts, _⟩ := Rowl.Datatypes.literal_value_correct f.value
+  rw [run] at run'
+  cases Result.ok_injective run'
+  obtain ⟨canonical, _, _, _, rest⟩ := facts _ rfl
+  obtain ⟨supported, lexical, value⟩ := rest D N
+  have lexValue : D.lexicalValue f.value.datatype f.value.lexical.val = N.text bytes.val := by
+    rw [value]; rfl
+  have inV : V.facets f := by
+    obtain ⟨_, _, _, _, _, _, _, _, literals, facetsV⟩ := vocab
+    refine (facetsV f).mpr ⟨(literals _).mpr ⟨supported, lexical⟩, plainType, N.plain_supported, ?_⟩
+    rw [facet, N.lang_range_space, lexValue]
+    exact ⟨rfl, bytes.val, basic, rfl⟩
+  obtain ⟨_, _, _, _, _, _, _, _, _, facetsI, _⟩ := interp
+  rw [facetsI f inV x, lexValue, facet]
+  simp only [N.lang_range_value bytes.val _ basic]
+  constructor
+  · rintro ⟨y, ⟨s, l, xs, tl, m, rfl⟩, rfl⟩
+    exact ⟨l, ⟨_, ⟨s, xs, tl, rfl⟩, rfl⟩, m⟩
+  · rintro ⟨l, ⟨y, ⟨s, xs, tl, rfl⟩, rfl⟩, m⟩
+    exact ⟨_, ⟨s, l, xs, tl, m, rfl⟩, rfl⟩
+
 theorem lifted_length_facets (N : Normative D) (vocab : IsVocabulary D V) (interp : IsInterpretation D embed V I)
     (f : FacetRestriction) (F : datatypes.LengthFacet) (w : datatypes.DataValue) (n : ℕ)
     (facet : Rowl.Datatypes.lengthFacetOf f.facet = some F) (run : datatypes.literal_value f.value = .ok (some w))
@@ -1352,7 +1537,7 @@ theorem lifted_length_facets (N : Normative D) (vocab : IsVocabulary D V) (inter
 
 theorem lifted_range_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) :
-    RangeFrame I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) where
+    RangeFrame I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) where
   literal := interp.2.2.2.2.2.2.2.1
   thing := fun y => by
     cases y with
@@ -1417,6 +1602,8 @@ theorem lifted_range_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary
   sizedKinds := fun x m hs k inK => lifted_sized_kinds N interp x m hs k inK
   lengthFacets := fun f F w n facet run number bound x =>
     lifted_length_facets N vocab interp f F w n facet run number bound x
+  tagKinds := fun x l ht k inK => lifted_tag_kinds N interp x l ht k inK
+  rangeFacets := fun f bytes facet run basic x => lifted_range_facets N vocab interp f bytes facet run basic x
   momentReal := fun m x r hm same => by
     obtain ⟨vm, rfl⟩ := hm
     exact N.real_moment r m vm (embed.injectiveValues _ _ (real_datatype N r) (moment_datatype N vm) same.symm)
@@ -1453,15 +1640,15 @@ theorem lifted_filler (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) {range : Option DataRange}
     {filler : Option ClassExpression}
     (run : data_ontology.encode_optional_range context range = .ok (some filler)) (v : Value) :
-    Rowl.Concepts.FillerHolds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) filler (.inr v) ↔ RangeHolds I range v := by
+    Rowl.Concepts.FillerHolds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) filler (.inr v) ↔ RangeHolds I range v := by
   rcases optional_range_meaning.{u,v,max u v,v} context range filler run with ⟨rfl, rfl⟩ | ⟨r, c, rfl, rfl, means⟩
   · simp [Rowl.Concepts.FillerHolds, RangeHolds]
   · simp only [Rowl.Concepts.FillerHolds, RangeHolds]
-    exact (means I _ _ _ _ _ (lifted_range_frame N x0 vocab interp) (.inr v) v (lifted_node N x0 good v)).symm
+    exact (means I _ _ _ _ _ _ (lifted_range_frame N x0 vocab interp) (.inr v) v (lifted_node N x0 good v)).symm
 
 theorem lifted_simulates (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) (atoms : List (DataProperty × Option DataRange × Nat)) :
-    Simulates context I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) Sum.inl Plain atoms where
+    Simulates context I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) Sum.inl Plain atoms where
   injective := Sum.inl_injective
   objects := fun y => by
     cases y with
@@ -1506,7 +1693,7 @@ theorem lifted_simulates (N : Normative D) (x0 : Object) (vocab : IsVocabulary D
 
 theorem lifted_placed (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) :
-    Placed context I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) Sum.inl (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed)
+    Placed context I (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) Sum.inl (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed)
       (fun _ v d => d = .inr v) where
   functional := fun _ _ _ _ h h' => h.trans h'.symm
   injective := fun _ _ _ _ h h' => Sum.inr_injective (h.symm.trans h')
@@ -1529,7 +1716,7 @@ theorem lifted_placed (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
   top := fun z v => interp.2.2.2.2.1 z v
 
 theorem lifted_inert (N : Normative D) (x0 : Object) (interp : IsInterpretation D embed V I) :
-    Inert context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) Sum.inl (fun _ v d => d = .inr v) where
+    Inert context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) Sum.inl (fun _ v d => d = .inr v) where
   classes := fun c y plain notThing dataNode => by
     cases y with
     | inl z => exact absurd dataNode.1 (by simp [reserved_data])
@@ -1562,13 +1749,13 @@ variable {Object : Type u} {Value : Type v} {Native : Type w} {D : DatatypeMap N
 
 theorem lifted_included (N : Normative D) (x0 : Object) (interp : IsInterpretation D embed V I)
     {a b : datatypes.Kind} (sub : ∀ y, D.valueSpace (typeOf a) y → D.valueSpace (typeOf b) y) (y : Object ⊕ Value) :
-    (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes (kindClass a) y →
-      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes (kindClass b) y := by
+    (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes (kindClass a) y →
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes (kindClass b) y := by
   obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
   cases y with
   | inl z => exact fun h => absurd (reserved_kind a) h.1
   | inr v =>
-    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass a) v → NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass b) v
+    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass a) v → NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass b) v
     rw [node_kind, node_kind, types _ (Rowl.Datatypes.normative_supported N a),
       types _ (Rowl.Datatypes.normative_supported N b)]
     rintro ⟨y0, inSpace, rfl⟩
@@ -1577,13 +1764,13 @@ theorem lifted_included (N : Normative D) (x0 : Object) (interp : IsInterpretati
 theorem lifted_apart (N : Normative D) (x0 : Object) (interp : IsInterpretation D embed V I)
     {a b : datatypes.Kind} (disjoint : ∀ y, ¬ (D.valueSpace (typeOf a) y ∧ D.valueSpace (typeOf b) y))
     (y : Object ⊕ Value) :
-    ¬ ((lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes (kindClass a) y ∧
-      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes (kindClass b) y) := by
+    ¬ ((lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes (kindClass a) y ∧
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes (kindClass b) y) := by
   obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
   cases y with
   | inl z => exact fun h => absurd (reserved_kind a) h.1.1
   | inr v =>
-    change ¬ (NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass a) v ∧ NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass b) v)
+    change ¬ (NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass a) v ∧ NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass b) v)
     rw [node_kind, node_kind, types _ (Rowl.Datatypes.normative_supported N a),
       types _ (Rowl.Datatypes.normative_supported N b)]
     rintro ⟨⟨y1, s1, e1⟩, ⟨y2, s2, e2⟩⟩
@@ -1597,7 +1784,7 @@ theorem cut_value_number (good : Good context) {i : Nat} (h : i < context.cuts.v
   Rowl.Regions.number_of_canonical (good.2.2.2.1.1 _ (List.getElem_mem h))
 
 theorem lifted_cut_node (N : Normative D) (x0 : Object) {i : Usize} (h : i.val < context.cuts.val.length)
-    {y : Object ⊕ Value} (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes (cutClass i) y) :
+    {y : Object ⊕ Value} (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes (cutClass i) y) :
     ∃ r, y = .inr (numOf N embed r) ∧ InCut context.cuts.val[i.val] r := by
   cases y with
   | inl z => exact absurd (reserved_cut i) holds.1
@@ -1609,7 +1796,7 @@ theorem lifted_cut_node (N : Normative D) (x0 : Object) {i : Usize} (h : i.val <
 theorem lifted_regions (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) (capacity : Nat) (order : List Usize)
     (sorted : context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val))) :
-    RegionFacts context capacity order (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) := by
+    RegionFacts context capacity order (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) := by
   refine ⟨fun ordered => ?_, fun _ k hk _ role run y y' rel => ?_⟩
   obtain ⟨_, inside, _, chain⟩ := sorted ordered
   have frame := lifted_range_frame (context := context) N x0 vocab interp
@@ -1623,7 +1810,7 @@ theorem lifted_regions (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V
   refine ⟨fun first head y holds => ?_, fun p h _ pos => ?_⟩
   · have firstIn : first.val < context.cuts.val.length := orderIn first (List.mem_of_mem_head? head)
     obtain ⟨r, rfl, _⟩ := lifted_cut_node N x0 firstIn holds
-    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass .Real) (numOf N embed r)
+    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass .Real) (numOf N embed r)
     rw [node_kind, frame.numeric .Real (by simp [Rowl.Datatypes.IsNumeric])]
     exact ⟨r, rfl, by simp [Rowl.Datatypes.RealIn]⟩
   · have hl := orderIn _ (List.getElem_mem (show p - 1 < order.length by omega))
@@ -1650,12 +1837,12 @@ theorem lifted_regions (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V
       have canonical : ∀ v ∈ context.values.val, Rowl.Datatypes.IsNumber v → Rowl.Datatypes.CanonicalNumeric v :=
         fun v m number => canonical_numeric (good.1.1 v m) number
       -- the integer of a node of the run
-      have integerOf : ∀ y, InRun (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) order[p - 1] order[p] y →
+      have integerOf : ∀ y, InRun (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) order[p - 1] order[p] y →
           ∃ z : ℤ, y = .inr (numOf N embed z) ∧ z ∈ Finset.Icc (firstIn (cutAt context.cuts.val order[p - 1].val))
             (lastOutside (cutAt context.cuts.val order[p].val)) := by
         intro y ⟨integerY, inLow, notHigh⟩
         obtain ⟨r, rfl, inLow'⟩ := lifted_cut_node N x0 hl inLow
-        change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass .Integer) (numOf N embed r) at integerY
+        change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass .Integer) (numOf N embed r) at integerY
         rw [node_kind, frame.numeric .Integer (by simp [Rowl.Datatypes.IsNumeric])] at integerY
         obtain ⟨r', same, z, rfl⟩ := integerY
         have := frame.injective same
@@ -1668,7 +1855,7 @@ theorem lifted_regions (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V
       -- the node of a literal value of the run
       have namedOf : ∀ z : ℤ, z ∈ namedIntegers context.values.val (cutAt context.cuts.val order[p - 1].val)
           (cutAt context.cuts.val order[p].val) →
-          RunNamed context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) order[p - 1] order[p]
+          RunNamed context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) order[p - 1] order[p]
             (.inr (numOf N embed z)) := by
         intro z mem
         obtain ⟨v, vmem, run, same⟩ := (named_in_run canonical).mp mem
@@ -1707,13 +1894,13 @@ theorem lifted_regions (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V
       obtain ⟨v, rfl, holds⟩ := (lifted_data_role interp.2.2.2.1 interp.2.2.2.2.2.1 run z y').mp rel
       exact .inr (.inr ⟨rfl, _, inData, holds⟩)
     | inr v =>
-      exact absurd (show NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) dataClass v from .inr (.inl rfl))
+      exact absurd (show NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) dataClass v from .inr (.inl rfl))
         ((lifted_inert N x0 interp).sources _ role run _ _ rel)
 
 /-- A node of the lifted interpretation in the class of an edge is a value of
     the format at or above the edge. -/
 theorem lifted_edge_class (N : Normative D) {double : Bool} {i : Usize} {y : Object ⊕ Value} {x0 : Object}
-    (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes (edgeClass double i) y) :
+    (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes (edgeClass double i) y) :
     ∃ (v : Value) (b : datatypes.Binary) (h : i.val < (edgesOf context double).val.length), y = .inr v ∧
       FloatAt (litOf N embed) double v b ∧
       ((edgesOf context double).val[i.val]'h).val ≤
@@ -1722,7 +1909,7 @@ theorem lifted_edge_class (N : Normative D) {double : Bool} {i : Usize} {y : Obj
   | inl z => exact absurd (reserved_edge double i) holds.1
   | inr v =>
     rcases holds with h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨d, i', hi', same, b, hb, le⟩ |
-      ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩
+      ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩
     · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_edge double i))
     · exact absurd h' (data_ne_edge double i).symm
     · exact absurd same.symm (kind_ne_edge k double i)
@@ -1732,6 +1919,7 @@ theorem lifted_edge_class (N : Normative D) {double : Bool} {i : Usize} {y : Obj
       exact ⟨v, b, hi', rfl, hb, le⟩
     · exact absurd same (edge_ne_time double i i')
     · exact absurd same (edge_ne_length double i i')
+    · exact absurd same (edge_ne_range double i i')
 
 /-- A node of the lifted interpretation in the class of a slot of a format is
     a value of the format with its place in the slot. -/
@@ -1743,7 +1931,7 @@ theorem lifted_in_slot (N : Normative D) (interp : IsInterpretation D embed V I)
     (highAt : ∀ j, high = some j → ∃ h : j.val < (edgesOf context double).val.length,
       ((edgesOf context double).val[j.val]'h).val = hi)
     (highNone : high = none → hi = Rowl.DataEdges.placesEnd double) {y : Object ⊕ Value}
-    (inSlot : Rowl.DataEdges.InSlotClass (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) double low high y) :
+    (inSlot : Rowl.DataEdges.InSlotClass (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) double low high y) :
     ∃ v b, y = .inr v ∧ FloatAt (litOf N embed) double v b ∧
       Rowl.Floats.binaryOf b ∈ Rowl.FloatOrder.Slot (Rowl.Floats.fmt double)
         (Rowl.DataEdges.clamp double lo) (Rowl.DataEdges.clamp double hi) := by
@@ -1751,7 +1939,7 @@ theorem lifted_in_slot (N : Normative D) (interp : IsInterpretation D embed V I)
   cases y with
   | inl z => exact absurd (reserved_kind _) kind.1
   | inr v =>
-    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass (floatKind double)) v at kind
+    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass (floatKind double)) v at kind
     rw [node_kind, lifted_binaries N interp] at kind
     obtain ⟨b, hb⟩ := kind
     have below := Rowl.DataEdges.position_lt_end hb.2.1
@@ -1771,7 +1959,7 @@ theorem lifted_in_slot (N : Normative D) (interp : IsInterpretation D embed V I)
         obtain ⟨h', at_j⟩ := highAt j rfl
         by_contra not
         apply highs j rfl
-        change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (edgeClass double j) v
+        change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (edgeClass double j) v
         rw [node_edge double j h']
         exact ⟨b, hb, by rw [at_j]; omega⟩
     exact ⟨v, b, rfl, hb, hb.2.1, by unfold Rowl.DataEdges.clamp; omega, by unfold Rowl.DataEdges.clamp; omega⟩
@@ -1786,13 +1974,13 @@ theorem lifted_slot (N : Normative D) (interp : IsInterpretation D embed V I) (g
     (highAt : ∀ j, high = some j → ∃ h : j.val < (edgesOf context double).val.length,
       ((edgesOf context double).val[j.val]'h).val = hi)
     (highNone : high = none → hi = Rowl.DataEdges.placesEnd double) :
-    Rowl.DataEdges.SlotFact context capacity (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) double
-      (Rowl.DataEdges.InSlotClass (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) double low high) lo hi := by
+    Rowl.DataEdges.SlotFact context capacity (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) double
+      (Rowl.DataEdges.InSlotClass (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) double low high) lo hi := by
   have named : ∀ v b, FloatAt (litOf N embed) double v b →
       Rowl.Floats.binaryOf b ∈ Rowl.FloatOrder.Slot (Rowl.Floats.fmt double)
         (Rowl.DataEdges.clamp double lo) (Rowl.DataEdges.clamp double hi) →
       Rowl.Floats.binaryOf b ∈ Rowl.DataEdges.literalBinaries context.values.val double →
-      Rowl.DataEdges.SlotNamed context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) double
+      Rowl.DataEdges.SlotNamed context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) double
         (Rowl.DataEdges.clamp double lo) (Rowl.DataEdges.clamp double hi) (.inr v) := by
     rintro v b hb ⟨vb, l, u⟩ ⟨b', mem, same⟩
     have cb' := Rowl.DataEdges.canonical_lit (good.1.1 _ mem)
@@ -1829,7 +2017,7 @@ theorem lifted_slot (N : Normative D) (interp : IsInterpretation D embed V I) (g
     interpretation. -/
 theorem lifted_edges (N : Normative D) (interp : IsInterpretation D embed V I) (good : Good context)
     (capacity : Nat) (x0 : Object) (double : Bool) :
-    Rowl.DataEdges.EdgeFacts context capacity double (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) := by
+    Rowl.DataEdges.EdgeFacts context capacity double (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) := by
   intro _
   refine ⟨fun _ => lifted_slot N interp good capacity (low := none) (high := none) (by simp) (fun _ => rfl)
     (by simp) (fun _ => rfl), fun i => ⟨fun j => ?_, ?_, ?_⟩⟩
@@ -1837,14 +2025,14 @@ theorem lifted_edges (N : Normative D) (interp : IsInterpretation D embed V I) (
     refine ⟨fun _ le y holds => ?_, fun _ _ => lifted_slot N interp good capacity (low := some i) (high := some j)
       (fun i' e h' => by cases e; rfl) (by simp) (fun j' e => by cases e; exact ⟨hj, rfl⟩) (by simp)⟩
     obtain ⟨v, b, h', rfl, hb, le'⟩ := lifted_edge_class N holds
-    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (edgeClass double j) v
+    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (edgeClass double j) v
     rw [node_edge double j hj]
     exact ⟨b, hb, le_trans le le'⟩
   · intro hi _
     refine ⟨fun y holds => ?_, lifted_slot N interp good capacity (low := none) (high := some i) (by simp)
       (fun _ => rfl) (fun j' e => by cases e; exact ⟨hi, rfl⟩) (by simp)⟩
     obtain ⟨v, b, h', rfl, hb, _⟩ := lifted_edge_class N holds
-    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass (floatKind double)) v
+    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass (floatKind double)) v
     rw [node_kind, lifted_binaries N interp]
     exact ⟨b, hb⟩
   · intro hi _
@@ -1854,7 +2042,7 @@ theorem lifted_edges (N : Normative D) (interp : IsInterpretation D embed V I) (
 /-- A node of the lifted interpretation in the class of a time cut is a time
     instant of the cut's line in the cut. -/
 theorem lifted_time_class (N : Normative D) {i : Usize} {y : Object ⊕ Value} {x0 : Object}
-    (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes (timeClass i) y) :
+    (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes (timeClass i) y) :
     ∃ (v : Value) (m : Moment) (h : i.val < context.times.val.length), y = .inr v ∧
       MomentAt (momOf N embed) v m ∧ m.zone.isSome = (context.times.val[i.val]'h).zoned ∧
       InTimeCut (context.times.val[i.val]'h) m := by
@@ -1862,7 +2050,7 @@ theorem lifted_time_class (N : Normative D) {i : Usize} {y : Object ⊕ Value} {
   | inl z => exact absurd (reserved_time i) holds.1
   | inr v =>
     rcases holds with h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨d, i', _, same, _⟩ |
-      ⟨i', hi', same, m, hm, zone, inCut⟩ | ⟨i', _, same, _⟩
+      ⟨i', hi', same, m, hm, zone, inCut⟩ | ⟨i', _, same, _⟩ | ⟨i', _, same, _⟩
     · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_time i))
     · exact absurd h' (data_ne_time i).symm
     · exact absurd same.symm (kind_ne_time k i)
@@ -1873,26 +2061,27 @@ theorem lifted_time_class (N : Normative D) {i : Usize} {y : Object ⊕ Value} {
       subst this
       exact ⟨v, m, hi', rfl, hm, zone, inCut⟩
     · exact absurd same (time_ne_length i i')
+    · exact absurd same (time_ne_range i i')
 
 /-- The axioms of the time cuts hold in the lifted interpretation: the values
     at an instant are the OWL model's time instants there. -/
 theorem lifted_times (N : Normative D) (interp : IsInterpretation D embed V I) (good : Good context)
     (capacity : Nat) (x0 : Object) :
     Rowl.DataTimes.TimeFacts context capacity
-      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) := by
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) := by
   intro i _
   refine ⟨fun hi y holds => ?_, fun j => ?_⟩
   · obtain ⟨v, m, h', rfl, hm, zone, _⟩ := lifted_time_class N holds
     unfold Rowl.DataTimes.OnLine
     split_ifs with z
-    · change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass .DateTimeStamp) v
+    · change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass .DateTimeStamp) v
       rw [node_kind, lifted_stamps N interp]
       exact ⟨m, hm, by rw [zone, z]⟩
     · refine ⟨?_, ?_⟩
-      · change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass .DateTime) v
+      · change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass .DateTime) v
         rw [node_kind, lifted_moments N interp]
         exact ⟨m, hm⟩
-      · change ¬ NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass .DateTimeStamp) v
+      · change ¬ NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass .DateTimeStamp) v
         rw [node_kind, lifted_stamps N interp]
         rintro ⟨m', hm', z'⟩
         rw [moment_at_unique N hm' hm, zone] at z'
@@ -1900,7 +2089,7 @@ theorem lifted_times (N : Normative D) (interp : IsInterpretation D embed V I) (
   · intro hi hj zoned ne
     refine ⟨fun within y holds => ?_, fun same closed opened => ?_⟩
     · obtain ⟨v, m, h', rfl, hm, zone, inCut⟩ := lifted_time_class N holds
-      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (timeClass j) v
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (timeClass j) v
       rw [node_time j hj]
       refine ⟨m, hm, by rw [zone, zoned], ?_⟩
       unfold InTimeCut at inCut ⊢
@@ -1917,7 +2106,7 @@ theorem lifted_times (N : Normative D) (interp : IsInterpretation D embed V I) (
         ⟨gc.1, gc.2.1, by have := gc.2.2; omega⟩
       -- a node of the class of the instant is a time instant there
       have atPoint : ∀ y, Rowl.DataTimes.InPointClass
-            (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) i j y →
+            (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) i j y →
           ∃ v m, y = .inr v ∧ MomentAt (momOf N embed) v m ∧
             m ∈ Rowl.DataTimes.PointMoments (context.times.val[i.val]'hi).zoned
               (context.times.val[i.val]'hi).instant := by
@@ -1927,7 +2116,7 @@ theorem lifted_times (N : Normative D) (interp : IsInterpretation D embed V I) (
         have notB : ¬ InTimeCut (context.times.val[j.val]'hj) m := by
           intro inB
           apply notJ
-          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (timeClass j) v
+          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (timeClass j) v
           rw [node_time j hj]
           exact ⟨m, hm, by rw [zone, zoned], inB⟩
         unfold InTimeCut at inA notB
@@ -1940,7 +2129,7 @@ theorem lifted_times (N : Normative D) (interp : IsInterpretation D embed V I) (
           m ∈ Rowl.DataTimes.PointMoments (context.times.val[i.val]'hi).zoned
             (context.times.val[i.val]'hi).instant →
           m ∈ Rowl.DataTimes.literalMoments context.values.val →
-          Rowl.DataTimes.PointNamed context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0)
+          Rowl.DataTimes.PointNamed context (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0)
             (context.times.val[i.val]'hi).zoned (context.times.val[i.val]'hi).instant (.inr v) := by
         rintro v m hm ⟨_, zm, km⟩ ⟨y', mem, rfl⟩
         obtain ⟨k, hk, at_k⟩ := List.getElem_of_mem mem
@@ -1971,7 +2160,7 @@ theorem lifted_times (N : Normative D) (interp : IsInterpretation D embed V I) (
 /-- A node of the lifted interpretation in the class of a length is a value
     at least that long. -/
 theorem lifted_length_class (N : Normative D) {i : Usize} {y : Object ⊕ Value} {x0 : Object}
-    (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes
+    (holds : (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes
       (lengthClass i) y) :
     ∃ (v : Value) (h : i.val < context.lengths.val.length), y = .inr v ∧
       ∃ m, sizeOf N embed v m ∧ (context.lengths.val[i.val]'h).val ≤ m := by
@@ -1979,7 +2168,7 @@ theorem lifted_length_class (N : Normative D) {i : Usize} {y : Object ⊕ Value}
   | inl z => exact absurd (reserved_length i) holds.1
   | inr v =>
     rcases holds with h' | h' | ⟨k, same, _⟩ | ⟨j, i', _, same, _⟩ | ⟨i', _, same, _⟩ | ⟨d, i', _, same, _⟩ |
-      ⟨i', _, same, _⟩ | ⟨i', hi', same, m, hm, le⟩
+      ⟨i', _, same, _⟩ | ⟨i', hi', same, m, hm, le⟩ | ⟨i', _, same, _⟩
     · exact absurd h'.symm (class_ne_of_reserved thing_plain (reserved_length i))
     · exact absurd h' (data_ne_length i).symm
     · exact absurd same.symm (kind_ne_length k i)
@@ -1990,6 +2179,7 @@ theorem lifted_length_class (N : Normative D) {i : Usize} {y : Object ⊕ Value}
     · have := length_class_injective same
       subst this
       exact ⟨v, hi', rfl, m, hm, le⟩
+    · exact absurd same (length_ne_range i i')
 
 /-- The values of `kind` and not of `below`, if any, with a length from `low`
     on and before `high`. -/
@@ -2059,7 +2249,7 @@ theorem lifted_sized_fact (N : Normative D) (interp : IsInterpretation D embed V
     (highSome : highIndex ≠ none)
     (counted : FamilyCounted N kind below octets first last low high) :
     Rowl.DataLengths.SizedFact context capacity
-      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0)
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0)
       kind below octets first last lowIndex highIndex low high := by
   obtain ⟨finite, card⟩ := counted
   obtain ⟨litsFinite, litsCard⟩ := family_lits_card N good.1 kind below low high
@@ -2074,20 +2264,20 @@ theorem lifted_sized_fact (N : Normative D) (interp : IsInterpretation D embed V
       familyLits N context.values.val kind below low high).Finite := finite.subset Set.sdiff_subset
   -- a node of the class of the slot is a value of the family
   have inFamily : ∀ y, Rowl.DataLengths.InSized
-      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0)
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0)
       kind below lowIndex highIndex y → ∃ v y', y = .inr v ∧ embed y' = v ∧ y' ∈ FamilySet N kind below low high := by
     rintro y ⟨inK, outB, inLow, outHigh⟩
     cases y with
     | inl z => exact absurd (reserved_kind kind) inK.1
     | inr v =>
-      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass kind) v
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass kind) v
         at inK
       rw [node_kind] at inK
       obtain ⟨y', inSpace, rfl⟩ := (types _ (Rowl.Datatypes.normative_supported N kind) _).mp inK
       obtain ⟨m, hm⟩ := native_sized N len inSpace
       refine ⟨_, y', rfl, rfl, inSpace, fun b hb inB => ?_, m, hm, ?_, ?_⟩
       · apply outB b hb
-        change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass b) _
+        change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass b) _
         rw [node_kind, types _ (Rowl.Datatypes.normative_supported N b)]
         exact ⟨y', inB, rfl⟩
       · cases hl : lowIndex with
@@ -2095,7 +2285,7 @@ theorem lifted_sized_fact (N : Normative D) (interp : IsInterpretation D embed V
         | some i =>
           obtain ⟨h, at_i⟩ := lowIs i hl
           have inI := inLow i hl
-          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed)
+          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed)
             (lengthClass i) _ at inI
           rw [node_length i h] at inI
           obtain ⟨m', ⟨y'', hy'', same⟩, le⟩ := inI
@@ -2109,14 +2299,14 @@ theorem lifted_sized_fact (N : Normative D) (interp : IsInterpretation D embed V
           obtain ⟨h, at_j⟩ := highIs j hh
           by_contra not
           apply outHigh j hh
-          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed)
+          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed)
             (lengthClass j) _
           rw [node_length j h]
           exact ⟨m, ⟨y', hm, rfl⟩, by rw [at_j]; omega⟩
   -- the individual of a literal value of the family
   have named : ∀ y', y' ∈ familyLits N context.values.val kind below low high →
       Rowl.DataLengths.SizedNamed context
-        (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0)
+        (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0)
         kind below low high (.inr (embed y')) := by
     rintro y' ⟨w, mem, sized, rfl⟩
     obtain ⟨k, hk, at_k⟩ := List.getElem_of_mem mem
@@ -2259,7 +2449,7 @@ theorem lifted_slot_facts (N : Normative D) (interp : IsInterpretation D embed V
       (context.lengths.val[j.val]'h).val = high)
     (highSome : highIndex ≠ none) :
     Rowl.DataLengths.SlotFacts context capacity
-      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0)
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0)
       lowIndex highIndex low high := by
   refine ⟨fun r _ hr _ => ?_, fun _ => ?_, fun _ => ?_, fun _ => ?_⟩
   · exact lifted_sized_fact N interp good capacity x0 (rank_length_kind r) lowIs lowNone highIs highSome
@@ -2275,11 +2465,11 @@ theorem lifted_slot_facts (N : Normative D) (interp : IsInterpretation D embed V
 theorem lifted_lengths (N : Normative D) (interp : IsInterpretation D embed V I) (good : Good context)
     (capacity : Nat) (x0 : Object) :
     Rowl.DataLengths.LengthFacts context capacity
-      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) := by
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) := by
   intro first _
   refine ⟨fun second _ => ⟨fun h1 h2 lt y holds => ?_, fun h1 h2 _ _ => ?_⟩, fun h _ _ => ?_⟩
   · obtain ⟨v, h', rfl, m, hm, le⟩ := lifted_length_class N holds
-    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (lengthClass second) v
+    change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (lengthClass second) v
     rw [node_length second h2]
     exact ⟨m, hm, by omega⟩
   · exact lifted_slot_facts N interp good capacity x0 (lowIndex := some first) (highIndex := some second)
@@ -2287,11 +2477,104 @@ theorem lifted_lengths (N : Normative D) (interp : IsInterpretation D embed V I)
   · exact lifted_slot_facts N interp good capacity x0 (lowIndex := none) (highIndex := some first) (by simp)
       (fun _ => rfl) (fun j e => by cases e; exact ⟨h, rfl⟩) (by simp)
 
+/-- A value of `rdf:PlainLiteral` that is no string has a language tag. -/
+theorem lifted_tagged (N : Normative D) (interp : IsInterpretation D embed V I) (v : Value)
+    (plain : I.datatypes (typeOf .Plain) v) (notString : ¬ I.datatypes (typeOf .String) v) :
+    ∃ l, tagOf N embed v l := by
+  obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
+  obtain ⟨y, inSpace, rfl⟩ := (types (typeOf .Plain) (Rowl.Datatypes.normative_supported N .Plain) _).mp plain
+  rcases (N.plain_space y).mp inSpace with ⟨s, xs, rfl⟩ | ⟨s, l, xs, tl, rfl⟩
+  · exact absurd ((types (typeOf .String) (Rowl.Datatypes.normative_supported N .String) _).mpr
+      ⟨_, (N.string_space _).mpr ⟨s, xs, rfl⟩, rfl⟩) notString
+  · exact ⟨l, _, ⟨s, xs, tl, rfl⟩, rfl⟩
+
+/-- A value with a language tag is of `rdf:PlainLiteral` and no string. -/
+theorem lifted_tag_plain (N : Normative D) (interp : IsInterpretation D embed V I) {v : Value} {l : List U8}
+    (ht : tagOf N embed v l) : I.datatypes (typeOf .Plain) v ∧ ¬ I.datatypes (typeOf .String) v := by
+  refine ⟨?_, fun inString => absurd (lifted_tag_kinds N interp v l ht .String inString) (by simp)⟩
+  obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
+  obtain ⟨y, ⟨s, xs, tl, rfl⟩, rfl⟩ := ht
+  exact (types (typeOf .Plain) (Rowl.Datatypes.normative_supported N .Plain) _).mpr
+    ⟨_, (N.plain_space _).mpr (.inr ⟨s, l, xs, tl, rfl⟩), rfl⟩
+
+/-- The axioms of the language ranges hold in the lifted interpretation: the
+    class of a range holds at the values with a language tag that it matches. -/
+theorem lifted_range_facts (N : Normative D) (interp : IsInterpretation D embed V I) (x0 : Object) :
+    Rowl.DataRanges.RangeFacts context
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) := by
+  -- the class of a range holds only at data nodes
+  have rangeAt : ∀ (i : Usize) (hi : i.val < context.ranges.val.length) (y : Object ⊕ Value),
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes
+        (rangeClass i) y ↔
+        ∃ v, y = .inr v ∧ ∃ l, tagOf N embed v l ∧ Rowl.LangRanges.Matches (context.ranges.val[i.val]'hi).val l := by
+    intro i hi y
+    cases y with
+    | inl z => exact ⟨fun h => absurd (reserved_range i) h.1, fun ⟨v, e, _⟩ => nomatch e⟩
+    | inr v =>
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed)
+        (rangeClass i) v ↔ _
+      rw [node_range i hi]
+      exact ⟨fun h => ⟨v, rfl, h⟩, fun ⟨v', e, h⟩ => by cases e; exact h⟩
+  have kindAt : ∀ (k : datatypes.Kind) (v : Value),
+      (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes
+        (kindClass k) (.inr v) ↔ I.datatypes (typeOf k) v := fun k v => node_kind k v
+  -- the index of a range among the ranges
+  have indexOf : ∀ r ∈ context.ranges.val.map (·.val), ∃ (j : Usize) (hj : j.val < context.ranges.val.length),
+      (context.ranges.val[j.val]'hj).val = r := by
+    intro r mem
+    obtain ⟨q, qm, rfl⟩ := List.mem_map.mp mem
+    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem qm
+    obtain ⟨u, rfl⟩ := usize_of_index context.ranges j hj
+    exact ⟨u, hj, rfl⟩
+  refine ⟨fun i hi _ => ⟨fun y holds => ?_, fun s hs hi' hs' ne => ⟨fun m y inS => ?_, fun m m' _ y inI inS => ?_⟩,
+    fun noFree y holds => ?_⟩, fun _ y plain notString => ⟨fun s hs star => ?_, fun _ noRoot => ?_⟩⟩
+  · obtain ⟨v, rfl, l, ht, _⟩ := (rangeAt i hi y).mp holds
+    obtain ⟨p, ns⟩ := lifted_tag_plain N interp ht
+    exact ⟨(kindAt .Plain v).mpr p, fun h => ns ((kindAt .String v).mp h)⟩
+  · obtain ⟨v, rfl, l, ht, ml⟩ := (rangeAt s hs y).mp inS
+    exact (rangeAt i hi' _).mpr ⟨v, rfl, l, ht, Rowl.LangRanges.matches_trans m ml⟩
+  · obtain ⟨v, rfl, l, ht, ml⟩ := (rangeAt i hi' y).mp inI
+    obtain ⟨v', e, l', ht', ml'⟩ := (rangeAt s hs _).mp inS
+    cases e
+    have := tag_unique N ht ht'
+    subst this
+    rcases Rowl.LangRanges.matches_comparable ml ml' with h | h
+    · exact absurd h m
+    · exact absurd h m'
+  · obtain ⟨v, rfl, l, ht, ml⟩ := (rangeAt i hi y).mp holds
+    obtain ⟨y', ⟨s', xs, tl, rfl⟩, rfl⟩ := ht
+    have lower := (Rowl.LangRanges.tag_value_iff l).mp tl
+    have notFree : ¬ Rowl.LangRanges.Free (context.ranges.val[i.val]'hi).val (context.ranges.val.map (·.val)) l :=
+      fun f => noFree ⟨l, f⟩
+    simp only [Rowl.LangRanges.Free, lower, ml, true_and, not_forall, not_not, exists_prop] at notFree
+    obtain ⟨r, mem, cont, mr⟩ := notFree
+    obtain ⟨j, hj, rfl⟩ := indexOf r mem
+    exact .inl ⟨j, ⟨hj, hi, cont⟩, (rangeAt j hj _).mpr ⟨_, rfl, l, ⟨_, ⟨s', xs, tl, rfl⟩, rfl⟩, mr⟩⟩
+  · cases y with
+    | inl z => exact absurd (reserved_kind .Plain) plain.1
+    | inr v =>
+      obtain ⟨l, ht⟩ := lifted_tagged N interp v ((kindAt .Plain v).mp plain)
+        (fun h => notString ((kindAt .String v).mpr h))
+      exact (rangeAt s hs _).mpr ⟨v, rfl, l, ht, .inl star⟩
+  · cases y with
+    | inl z => exact absurd (reserved_kind .Plain) plain.1
+    | inr v =>
+      obtain ⟨l, ht⟩ := lifted_tagged N interp v ((kindAt .Plain v).mp plain)
+        (fun h => notString ((kindAt .String v).mpr h))
+      have lower : Rowl.LangRanges.LowerTag l := by
+        obtain ⟨y', ⟨s', xs, tl, rfl⟩, rfl⟩ := ht
+        exact (Rowl.LangRanges.tag_value_iff l).mp tl
+      simp only [not_exists, not_and, not_forall, not_not, exists_prop] at noRoot
+      obtain ⟨r, mem, notStar, mr⟩ := noRoot l lower
+      obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem mem
+      obtain ⟨u, rfl⟩ := usize_of_index context.ranges j hj
+      exact .inl ⟨u, ⟨hj, notStar⟩, (rangeAt u hj _).mpr ⟨v, rfl, l, ht, mr⟩⟩
+
 theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) (known : TruthsKnown context) (capacity : Nat)
     (bits : Usize) (order : List Usize)
     (sorted : context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val))) :
-    Frame context capacity bits order (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) where
+    Frame context capacity bits order (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) where
   roles := (lifted_simulates N x0 vocab interp good []).closed
   data := fun p _ role run y y' related => by
     cases y with
@@ -2299,7 +2582,7 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
       obtain ⟨v, rfl, _⟩ := (lifted_data_role interp.2.2.2.1 interp.2.2.2.2.2.1 run z y').mp related
       exact ⟨fun h => absurd reserved_data h.1, .inr (.inl rfl)⟩
     | inr v =>
-      exact absurd (show NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) dataClass v from .inr (.inl rfl))
+      exact absurd (show NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) dataClass v from .inr (.inl rfl))
         ((lifted_inert N x0 interp).sources p role run _ _ related)
   kinds := by
     have apart := kinds_apart N
@@ -2345,22 +2628,22 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
       plainBoolean := fun _ _ y => lifted_apart N x0 interp (a := .Plain) (b := .Boolean) (fun y => (apart y).2.2.2.2.2.2.2) y
       sequences := by
         have coded : ∀ {a b : datatypes.Kind}, IsCoded a → a ≠ b →
-            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) a b :=
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) a b :=
           fun ca ne _ _ y => lifted_apart N x0 interp (coded_apart N ca ne) y
         refine ⟨⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_⟩ <;>
           exact coded trivial (by simp)
       moments := by
         have apartM : ∀ {b : datatypes.Kind}, ¬ IsMomentKind b →
-            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) .DateTime b :=
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) .DateTime b :=
           fun mb _ _ y => lifted_apart N x0 interp (moment_apart N (a := .DateTime) trivial mb) y
         refine ⟨fun _ _ y => lifted_included N x0 interp (a := .DateTimeStamp) (b := .DateTime) (stamp_datetime N) y,
           ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_⟩ <;> exact apartM (by simp [IsMomentKind])
       floats := by
         have apartD : ∀ {b : datatypes.Kind}, b ≠ .Double →
-            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) .Double b :=
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) .Double b :=
           fun ne _ _ y => lifted_apart N x0 interp (double_apart N ne) y
         have apartF : ∀ {b : datatypes.Kind}, b ≠ .Float →
-            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) .Float b :=
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) .Float b :=
           fun ne _ _ y => lifted_apart N x0 interp (float_apart N ne) y
         refine ⟨⟨⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_, ?_⟩, ⟨⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_, ?_⟩, ?_⟩
         all_goals first
@@ -2371,7 +2654,7 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
         cases y with
         | inl z => exact absurd (reserved_kind _) holds.1
         | inr v =>
-          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (kindClass .Boolean) v at holds
+          change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (kindClass .Boolean) v at holds
           rw [node_kind, types _ (Rowl.Datatypes.normative_supported N .Boolean)] at holds
           obtain ⟨y0, inSpace, rfl⟩ := holds
           obtain ⟨b, rfl⟩ := (N.boolean_space y0).mp inSpace
@@ -2383,13 +2666,13 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
   values := fun i h => by
     have canonical := good.1.1 _ (List.getElem_mem h)
     refine ⟨?_, fun k _ => ?_, fun j _ => ?_, fun _ number a ha => ?_, fun double n place e he => ?_,
-      fun y ey c hc zone => ?_, fun m hm c hc => ?_⟩
+      fun y ey c hc zone => ?_, fun m hm c hc => ?_, fun s t e c hc => ?_⟩
     · rw [lifted_value i h]
       exact .inr (.inl rfl)
     · rw [lifted_value i h]
       exact (node_kind k _).trans (lit_kind N interp canonical k)
     · rw [lifted_value i h]
-      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (bitClass j) _ ↔ _
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (bitClass j) _ ↔ _
       rw [node_bit]
       constructor
       · rintro ⟨i', h', same, bitHolds⟩
@@ -2401,7 +2684,7 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
         exact ⟨i, h, rfl, bitHolds⟩
     · have frame := lifted_range_frame (context := context) N x0 vocab interp
       rw [lifted_value i h]
-      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (cutClass a) _ ↔ _
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (cutClass a) _ ↔ _
       rw [node_cut a ha, frame.numbers _ number]
       constructor
       · rintro ⟨r, same, inCut⟩
@@ -2410,7 +2693,7 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
       · intro inCut
         exact ⟨_, rfl, inCut⟩
     · rw [lifted_value i h]
-      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (edgeClass double e) _ ↔ _
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (edgeClass double e) _ ↔ _
       rw [node_edge double e he]
       obtain ⟨b, at_i, rfl⟩ := Rowl.DataEdges.format_place_some place
       have cb := Rowl.DataEdges.canonical_lit (at_i ▸ canonical)
@@ -2421,7 +2704,7 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
         rw [float_at_unique N hb hy]; exact le
       · intro le; exact ⟨b, hb, le⟩
     · rw [lifted_value i h]
-      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (timeClass c) _ ↔ _
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (timeClass c) _ ↔ _
       rw [node_time c hc, ey, lit_moment]
       have cy : Rowl.Moments.CanonicalMoment y := by
         have c' := canonical
@@ -2436,7 +2719,7 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
       · intro holds
         exact ⟨_, hm, by rw [momentOf_zoned, zone], holds⟩
     · rw [lifted_value i h]
-      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (lengthClass c) _ ↔ _
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (lengthClass c) _ ↔ _
       rw [node_length c hc]
       constructor
       · rintro ⟨m', hm', le⟩
@@ -2444,15 +2727,28 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
         exact le
       · intro le
         exact ⟨m, (size_lit N canonical m).mpr hm, le⟩
+    · rw [lifted_value i h]
+      change NodeClass context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) (rangeClass c) _ ↔ _
+      rw [node_range c hc]
+      constructor
+      · rintro ⟨l, hl, m⟩
+        obtain ⟨s', t', e', tl⟩ := (tag_lit N canonical l).mp hl
+        have same := e.symm.trans e'
+        injection same with _ h2
+        subst h2
+        rw [tl]; exact m
+      · intro m
+        exact ⟨t.val, (tag_lit N canonical t.val).mpr ⟨s, t, e, rfl⟩, m⟩
   object := by
     rw [lifted_object]
     exact fun h => absurd reserved_data h.1
   edges := fun double => lifted_edges N interp good capacity x0 double
   times := lifted_times N interp good capacity x0
   lengths := lifted_lengths N interp good capacity x0
+  ranges := lifted_range_facts N interp x0
 
 theorem lifted_interpretation (N : Normative D) (x0 : Object) (interp : IsInterpretation D embed V I) :
-    IsInterpretation D embed V (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) := by
+    IsInterpretation D embed V (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) := by
   obtain ⟨hThing, hNothing, hTop, hBottom, hTopData, hBottomData, hTypes, hLiteral, hLiterals, hFacets, _⟩ := interp
   have notTop : bottomObject ≠ topObject := by
     rw [Ne, Rowl.Tableau.property_eq_iff]; simp [bottomObject, topObject]
@@ -2489,14 +2785,14 @@ theorem lifted_satisfies (N : Normative D) (x0 : Object) (vocab : IsVocabulary D
     (interp : IsInterpretation D embed V I) (good : Good context) (capacity : Usize)
     (capSmall : capacity.val < Usize.max / 16) (items enc : alloc.vec.Vec AnnotatedAxiom)
     (run : data_ontology.encode context capacity items = .ok (some enc)) (satisfied : satisfiesClosure I items.val) :
-    ∀ b ∈ enc.val, satisfies (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) b.axiom := by
+    ∀ b ∈ enc.val, satisfies (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) b.axiom := by
   obtain ⟨res, run', facts⟩ := encode_meaning.{u,v,max u v,v} context good capacity capSmall items
   rw [run] at run'
   cases Result.ok_injective run'
-  obtain ⟨_, _, new, bits, order, means, _, sorted, _, known, iff⟩ := facts enc rfl
+  obtain ⟨_, _, _, new, bits, order, means, _, sorted, _, known, iff⟩ := facts enc rfl
   rw [iff]
   refine ⟨?_, lifted_frame N x0 vocab interp good known capacity.val bits order (fun o => (sorted o).1)⟩
-  exact (means.1 I _ Sum.inl Plain (items.val.flatMap (fun i => axiomAtoms i.axiom)) (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) _
+  exact (means.1 I _ Sum.inl Plain (items.val.flatMap (fun i => axiomAtoms i.axiom)) (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) _
     (lifted_simulates N x0 vocab interp good _) (lifted_placed N x0 vocab interp good)
     (lifted_range_frame N x0 vocab interp)
     (fun item mem a inside => List.mem_flatMap.mpr ⟨item, mem, inside⟩) means.2.1).2
@@ -2507,7 +2803,7 @@ theorem lifted_satisfies (N : Normative D) (x0 : Object) (vocab : IsVocabulary D
 theorem lifted_class (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) {c c' : ClassExpression}
     (run : data_ontology.encode_class context c = .ok (some c')) (plain : ∀ a ∈ classIndividuals c, Plain a)
-    (z : Object) : classDenote I c z ↔ classDenote (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0) c' (.inl z) := by
+    (z : Object) : classDenote I c z ↔ classDenote (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0) c' (.inl z) := by
   obtain ⟨res, run', means⟩ := encode_class_meaning.{u,v,max u v,v} context c
   rw [run] at run'
   cases Result.ok_injective run'
@@ -2515,7 +2811,7 @@ theorem lifted_class (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (fun _ h => h) plain z
 
 theorem lifted_element (N : Normative D) (x0 : Object) (z : Object) :
-    ¬ (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0).classes dataClass (.inl z) :=
+    ¬ (lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0).classes dataClass (.inl z) :=
   fun h => absurd reserved_data h.1
 
 end Satisfaction

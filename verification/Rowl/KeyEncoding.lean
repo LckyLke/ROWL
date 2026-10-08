@@ -1412,10 +1412,11 @@ decreasing_by omega
 
 /-- Whether the data values of a context let keys with data properties be
     answered: its numbers are not ordered, no floating-point numbers are in
-    use, no range facets cut the time lines and no length facets the lengths. -/
+    use, no range facets cut the time lines, no length facets the lengths and no
+    facets `rdf:langRange` the language tags. -/
 def PlainValues (context : data_ontology.Context) : Prop :=
   context.kinds.ordered = false ∧ context.kinds.double = false ∧ context.kinds.float = false ∧
-    context.times.val = [] ∧ context.lengths.val = []
+    context.times.val = [] ∧ context.lengths.val = [] ∧ context.ranges.val = []
 
 theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
     (objects : alloc.vec.Vec ObjectPropertyExpression) (data : alloc.vec.Vec DataProperty)
@@ -1439,8 +1440,9 @@ theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
     | true => exact ⟨none, by simp [notEmpty, run], by simp⟩
     | false =>
       have noTop : ∀ r ∈ objects.val, RoleOf r ≠ topObject := by simpa using facts rfl
-      by_cases blocked : ¬ data.val = [] ∧ ((((context.kinds.ordered = true ∨ context.kinds.double = true) ∨
-          context.kinds.float = true) ∨ ¬ context.times.val = []) ∨ ¬ context.lengths.val = [])
+      by_cases blocked : ¬ data.val = [] ∧ (((((context.kinds.ordered = true ∨ context.kinds.double = true) ∨
+          context.kinds.float = true) ∨ ¬ context.times.val = []) ∨ ¬ context.lengths.val = []) ∨
+          ¬ context.ranges.val = [])
       · exact ⟨none, by simp [notEmpty, run, blocked.1, blocked.2], by simp⟩
       · obtain ⟨r1, run1, facts1⟩ := data_key_roles_spec context data 0#usize (alloc.vec.Vec.new ObjectPropertyExpression)
         cases r1 with
@@ -1460,7 +1462,7 @@ theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
           refine ⟨res, by simp [notEmpty, run, blocked, run1, run2], fun out' h => ?_⟩
           obtain ⟨new, c, means⟩ := facts2 out' h
           refine ⟨fun hasData => ?_, datas.val, roles0, new, c, ?_⟩
-          · refine ⟨?_, ?_, ?_, ?_, ?_⟩
+          · refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
             all_goals first
               | (rw [Bool.eq_false_iff]; intro h; exact blocked ⟨hasData, by simp [h]⟩)
               | (by_contra h; exact blocked ⟨hasData, by simp [h]⟩)
@@ -1836,7 +1838,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
     (capSmall : capacity.val < Usize.max / 16) (items : alloc.vec.Vec AnnotatedAxiom)
     (nodes : alloc.vec.Vec Individual) (counting : Bool) :
     ∃ res, key_ontology.encode context capacity items nodes counting = .ok res ∧ ∀ enc, res = some enc →
-      FineCuts context.cuts.val ∧ ValuesFit context ∧
+      FineCuts context.cuts.val ∧ ValuesFit context ∧ (context.ranges.val ≠ [] → context.lengths.val = []) ∧
       ∃ (new0 newU newK : List AnnotatedAxiom) (bits : Usize) (order : List Usize),
         ItemsMeans.{u,v,w,x} context [] new0 ∧ ItemsMeans.{u,v,w,x} context (unkeyedItems items.val) newU ∧
         context.values.val.length ≤ 2 ^ bits.val ∧
@@ -1860,7 +1862,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   cases r0 with
   | none => exact ⟨none, by simp [run0], by simp⟩
   | some out =>
-  obtain ⟨fine, fit, new0, bits, order, means0, enough, sorted, roles, known, iff0⟩ := facts0 out rfl
+  obtain ⟨fine, fit, alone, new0, bits, order, means0, enough, sorted, roles, known, iff0⟩ := facts0 out rfl
   obtain ⟨r1, run1, facts1⟩ := unkeyed_spec.{u,v,w,x} context items 0#usize out
   cases r1 with
   | none => exact ⟨none, by simp [run0, run1], by simp⟩
@@ -1884,7 +1886,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   refine ⟨r5, by simp [run0, run1, named_class_eq, object_class_eq, run2, run3, run4, run5], fun enc h => ?_⟩
   obtain ⟨newK, c5, meansK⟩ := facts5 enc h
   simp only [zero_val, List.drop_zero] at meansU plainN meansN meansK
-  refine ⟨fine, fit, new0, newU, newK, bits, order, by simpa [new_val] using means0, meansU, enough, sorted, roles,
+  refine ⟨fine, fit, alone, new0, newU, newK, bits, order, by simpa [new_val] using means0, meansU, enough, sorted, roles,
     known, plainN, meansK, fun J => ?_⟩
   have apartIff : (∀ b ∈ [bare (.SubClassOf (.Class keyClass) (.ObjectComplementOf (.Class dataClass)))],
       satisfies J b.axiom) ↔ ∀ y, J.classes keyClass y → ¬ J.classes dataClass y := by

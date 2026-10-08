@@ -220,4 +220,13 @@ ClassAssertion(:Patient :a)"
         ),
         None
     );
+    // Language ranges: a range may leave only finitely many language tags.
+    assert_eq!(
+        consistent(
+            "HasKey(:Patient () (:name))
+DataPropertyRange(:name DatatypeRestriction(rdf:PlainLiteral rdf:langRange \"en\"))
+ClassAssertion(:Patient :a)"
+        ),
+        None
+    );
 }

@@ -1263,6 +1263,40 @@ formats are future work.
   private-use language tags `x-a-…-a` serve the plain literals
   (`privateTag_value`). For keys with a data property while there are lengths,
   the queries give no answer.
+- M5 language ranges: Normative also specifies the facet `rdf:langRange` of
+  `rdf:PlainLiteral` (rdf:PlainLiteral §4, RFC 4647 §2.1, §3.3.1): its facet
+  space is the basic language ranges, `*` or subtags of one to eight ASCII
+  letters, the first, or letters and digits, joined by `-` (`BasicRange`,
+  `Rowl.LangTag.BasicRangeLanguage`), and its facet values are the plain
+  literals with a language tag that the range matches by basic filtering,
+  ignoring case: every tag for `*`, otherwise the range itself and the tags that
+  continue it after a `-` (`RangeMatch`). The kernel checks a range against its
+  grammar (`lang_ranges::basic_range`, `basic_range_spec`), lowers it
+  (`lowered_spec`) and matches it against tags in lower case
+  (`range_matches_spec`). The ontology queries take datatype restrictions of
+  `rdf:PlainLiteral` by `rdf:langRange` with a basic language range: each range,
+  in lower case, becomes a range of the context with the class of the values
+  with a language tag that it matches (`lang_facet_class_meaning`), and the
+  facet on another datatype leaves no values. Each range's class lies inside
+  the values with a language tag, inside the class of every range that matches
+  it and apart from the class of every range that neither matches it nor is
+  matched by it; when no well-formed tag in lower case is matched by a range
+  and by none of the ranges that continue it, its class lies inside the classes
+  of those ranges; the values with a language tag lie in the class of `*`, or,
+  without `*` and when every tag matches a range, in the classes of the ranges;
+  and each literal value with a language tag is in the classes of exactly the
+  ranges that match its tag (`range_axioms_spec`, `RangeFacts`,
+  `range_memberships_spec`). Whether such free tags exist is decided by a search
+  along the derivatives of the grammar of well-formed tags, over the 37
+  letters of tags in lower case, past the ranges that continue the range
+  (`free_tags_spec`, `root_free_spec`, `avoids_spec`), proved against the
+  grammar and its closure under lower case (`Rowl.LangTag.well_formed_lower`,
+  `tag_value_iff`). An OWL model lifts to a model of the encoding
+  (`lifted_range_facts`), and a model of the encoding gives each node with a
+  language tag a free tag of the deepest range whose class holds there, or a
+  tag that no range matches (`Rowl.DataRanges.choose_tag`), with infinitely
+  many strings. A context with both language ranges and lengths gets no answer,
+  and neither do keys with a data property while there are language ranges.
 - M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
   unfolded before the data queries (`unfolding`): each defined datatype in a
   data range of an axiom or of a question becomes the data range of its
@@ -1325,10 +1359,12 @@ formats are future work.
   above) and values outside every datatype. Under every datatype map that is the OWL 2 map on the
   datatypes of `literal_value` an answer is therefore the Direct Semantics
   answer. Datatype restrictions other than the range facets on the numeric,
-  floating-point and time datatypes and the length facets on the string, IRI
-  and binary datatypes, keys with a data property while numbers are ordered,
-  floating-point numbers are in use, range facets cut the time lines or length
-  facets the lengths (see the keys below), data
+  floating-point and time datatypes, the length facets on the string, IRI
+  and binary datatypes and `rdf:langRange` on `rdf:PlainLiteral`, a context with
+  both lengths and language ranges, keys with a data property while numbers are
+  ordered, floating-point numbers are in use, range facets cut the time lines,
+  length facets the lengths or language ranges the language tags (see the keys
+  below), data
   ranges of the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
@@ -1503,8 +1539,8 @@ formats are future work.
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
   over thirty-two datatypes, with the range facets on the numeric,
-  floating-point and time ones and the length facets on the string, IRI and
-  binary ones, and data
+  floating-point and time ones, the length facets on the string, IRI and
+  binary ones and `rdf:langRange` on `rdf:PlainLiteral`, and data
   assertions with their literals under the OWL 2 datatype map, datatype
   definitions, and keys with object and data properties;
   EL ontologies are also classified and checked for consistency by a proved
@@ -1608,11 +1644,11 @@ catalog and the import closure are assembled from the bytes of the documents
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. Agreement with the OWL 2 map on thirty-two datatypes, the four
-range facets and the three length facets is specified
+range facets, the three length facets and `rdf:langRange` is specified
 (Rowl.DatatypeMap.Normative) and satisfiable, and the data queries, these
 facets included, are proved under every such map; the complete normative OWL
-map, its other datatype (`rdf:XMLLiteral`) and facets (`xsd:pattern`,
-`rdf:langRange`) are unimplemented. Semantic
+map, its other datatype (`rdf:XMLLiteral`) and facet (`xsd:pattern`) are
+unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
 validity and canonical structure; `import_closure` assembles the complete import
 closure. The structural,

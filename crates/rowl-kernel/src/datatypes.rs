@@ -1431,6 +1431,13 @@ pub fn length_facet_of(iri: &Iri) -> Option<LengthFacet> {
         None
     }
 }
+/// Whether an IRI is the facet `rdf:langRange`.
+pub fn is_lang_range(iri: &Iri) -> bool {
+    same_pattern(
+        &iri.spelling,
+        b"http://www.w3.org/1999/02/22-rdf-syntax-ns#langRange",
+    )
+}
 /// Whether an order of a value against a bound meets the facet.
 fn facet_order(facet: Facet, order: u8) -> bool {
     match facet {

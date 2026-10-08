@@ -7257,3 +7257,88 @@ This block adds 292 public theorems (179 in the new modules
 definitions of the old regions of strings, tagged strings, IRIs and octets.
 Totals are 6506 audited theorems, 2156 definitions, 699 Rust regressions,
 24 Python binding tests and 6698 ledger obligations.
+
+## Language ranges
+
+`rdf:langRange` now restricts `rdf:PlainLiteral`. Of the facets, only
+`xsd:pattern` remains.
+
+Specification. `Rowl.DatatypeMap` gives the facet's space on
+`rdf:PlainLiteral`, the basic language ranges of RFC 4647 §2.1, `*` or subtags
+of one to eight ASCII letters, the first, or letters and digits, joined by `-`
+(`BasicRange`, `Rowl.LangTag.BasicRangeLanguage`), and its values: the plain
+literals with a language tag that the range matches by basic filtering
+(§3.3.1), ignoring case, every tag for `*` and otherwise the range itself and
+the tags that continue it after a `-` (`RangeMatch`). The model map satisfies
+the new laws (`model_lang_range_facet`).
+
+Tags. The well-formed language tags are closed under lower case
+(`Rowl.LangTag.well_formed_lower`, `LowerClosed`), so the tags of the values,
+the well-formed tags in lower case, are the words of the grammar of BCP 47 of
+the letters `-`, the digits and `a` to `z` (`Rowl.LangRanges.tag_value_iff`).
+The kernel module `lang_ranges` checks a range against its grammar
+(`basic_range_spec`), lowers it (`lowered_spec`) and matches it against a tag
+(`range_matches_spec`). Whether some well-formed tag in lower case is matched by
+a range and by none of the ranges that continue it (a free tag) is decided by a
+search along the derivatives of the grammar over those 37 letters, past the
+ranges that block a word by being it or by being continued by it after a `-`
+(`free_tags_spec`, `root_free_spec`, `avoids_spec`): each letter shortens the
+blocks that go on with it and drops the others, so the search ends
+(`size_after_lt`), and a word passes the blocks when it is empty and no block
+is, or when its first letter is no `-` after an ended block and the rest passes
+the blocks that go on with it (`avoids_step`).
+
+Encoding. Each range, in lower case, becomes a range of the context
+(`add_range_good`, `GoodRanges`), with the class of the values with a language
+tag that it matches (`rangeClass`, `lang_facet_class_meaning`); the facet on
+another datatype leaves no values. The kernel adds (`range_axioms`) each class
+inside the values with a language tag, those of `rdf:PlainLiteral` and not of
+`xsd:string`, both in use whenever there are ranges (`RangesUsed`); the class of
+each range inside the class of every range that matches it, and the classes of
+two ranges of which neither matches the other apart (`PairFact`); the class of
+a range without free tags inside the classes of the ranges that continue it
+(`IndexFact`, `Covered`); the values with a language tag inside the class of
+`*`, or, without `*` and when every tag matches a range, inside the classes of
+the ranges (`RootFact`); and each literal value with a language tag in exactly
+the classes of the ranges that match its tag (`range_memberships_spec`,
+`RangeMemberFact`). A context with both lengths and language ranges gets no
+answer, and neither do keys with a data property while there are language
+ranges.
+
+Values. A range frame now carries the language tags of the model's values
+(`tag`): only values of `rdf:PlainLiteral` have one (`tagKinds`), and a facet
+`rdf:langRange` holds of the values whose tag its range matches
+(`rangeFacets`).
+
+Proofs. An OWL model lifts as before: a node is in a range's class exactly
+when its value has a tag that the range matches, and the axioms hold since two
+ranges that match one tag match one another one way
+(`Rowl.LangRanges.matches_comparable`, `matches_trans`) and a tag that a range
+without free tags matches is matched by a range that continues it
+(`lifted_range_facts`). From a model of the encoding, a node of
+`rdf:PlainLiteral` that is no string takes a free tag of the deepest range
+whose class holds there, which has one since otherwise a deeper range's class
+would hold, or a tag that no range matches; the classes of the ranges hold
+there exactly when the ranges match the tag (`Rowl.DataRanges.choose_tag`), and
+with no lengths in the context the strings with that tag are infinitely many
+(`written_room`). Written values carry their tags (`Written.Tag`,
+`RangeSlot`), and the classes of the ranges at the nodes of the other values do
+not hold (`no_range`).
+
+The regressions check the grammar of basic ranges, matching by basic
+filtering ignoring case, the search for free tags along the grammar, and in the
+queries the ranges against tagged literals, subsumption between ranges, and the
+thirteen grandfathered `i-` tags that a range `i` leaves when the others are
+ranges too.
+
+Kernel changes. The search for free tags needs no fuel: each letter shortens
+the blocks that go on with it and drops the others, so a range of any length
+gets an exact answer (`size_after_lt`), where a fuel counter at `usize::MAX`
+would have answered no. `lang_context` puts `rdf:PlainLiteral` in use as well
+as `xsd:string`, which the model of the encoding needs to give each tagged node
+a tagged value.
+
+This block adds 107 public theorems (63 in the new modules `Rowl.LangRanges`
+and `Rowl.DataRanges`) and 39 definitions. Totals are 6613 audited theorems,
+2195 definitions, 705 Rust regressions, 24 Python binding tests and 6806 ledger
+obligations.

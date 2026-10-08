@@ -337,7 +337,7 @@ properties:
   with the same `:ssn` value are the same patient.
 - **Not yet:** keys with data properties next to datatype restrictions,
   subtypes of `xsd:integer`, floating-point numbers, range facets on time
-  instants or length facets, `owl:topDataProperty`
+  instants, length facets or language ranges, `owl:topDataProperty`
   other than as a superproperty, and a few corner cases that
   [docs/status.md](docs/status.md) lists. They are answered "unknown".
 
@@ -379,8 +379,15 @@ properties:
   values of each length are counted exactly: an element can speak at most 52
   `xsd:language` tags of one letter, and only three strings of one character
   are no `xsd:normalizedString` (tab, line feed and carriage return).
-- **Not yet:** `rdf:XMLLiteral`, and the facets `xsd:pattern` and
-  `rdf:langRange`.
+- **Language ranges:** `rdf:langRange` on `rdf:PlainLiteral` with a basic
+  language range (RFC 4647): `"en"` matches the tags `en`, `en-GB` and
+  `EN-us`, ignoring case, but not `eng`, and `"*"` matches every tag. Ranges
+  that leave a tag over are told apart from those that do not: with the ranges
+  `"i"` and `"i-ami"`, a plain literal tagged under `i` but not `i-ami` must be
+  one of the twelve other grandfathered `i-` tags, while with `"i"` and the
+  thirteen grandfathered `i-` tags as ranges it cannot exist.
+- **Not yet:** `rdf:XMLLiteral`, the facet `xsd:pattern`, and language ranges
+  together with length facets in one ontology.
 
 ### Questions
 

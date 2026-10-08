@@ -60,6 +60,17 @@
 //!   `lengths` (the strings by the deepest subtype of `xsd:string` in use), are
 //!   none or at most their number at any element along `U` when there are at
 //!   most the capacity of them;
+//! - when a facet `rdf:langRange` is in use, its basic language range, in lower
+//!   case, becomes a range of the context, with a class of the values with a
+//!   language tag that it matches: each class lies inside the values with a
+//!   language tag, inside the class of every range that matches its range and
+//!   apart from the class of every range that neither matches it nor is matched
+//!   by it, and, when no well-formed language tag in lower case is matched by
+//!   its range and by none of the ranges that continue it (`lang_ranges`),
+//!   inside the classes of those ranges; the values with a language tag lie in
+//!   the class of `*`, or, without `*` and when every tag matches a range, in
+//!   the classes of the ranges, and a literal value with a language tag is in
+//!   the classes of exactly the ranges that match its tag;
 //! - every object property relates only elements that are no data nodes, and
 //!   the individuals are no data nodes; a class expression that a data node
 //!   could satisfy, on the left of an inclusion or in a list of equivalent or
@@ -69,7 +80,8 @@
 //!
 //! The context of the encoding (`Context`) lists the distinct literal values,
 //! the datatypes in use, the object properties, the data properties, the cuts,
-//! the edges, the time cuts and the lengths; the encoding gives no answer for
+//! the edges, the time cuts, the lengths and the language ranges; the encoding
+//! gives no answer for
 //! anything outside it, so a context
 //! prepared from a closure also encodes the questions about it. A model of the encoding has,
 //! at every element that is no data node, a value for each of finitely many
@@ -87,8 +99,10 @@
 //! `None` means that the closure or the question uses a datatype restriction
 //! other than the four range facets with a numeric bound on a numeric
 //! datatype, a bound of the format on `xsd:double` or `xsd:float` or a time
-//! instant on the time datatypes, and the three length facets with a natural
-//! number below `lengths::LENGTHS` as bound, a datatype definition, a key that `key_ontology` declines, another
+//! instant on the time datatypes, the three length facets with a natural number
+//! below `lengths::LENGTHS` as bound, and `rdf:langRange` with a basic language
+//! range on `rdf:PlainLiteral`, a context with both lengths and language ranges,
+//! a datatype definition, a key that `key_ontology` declines, another
 //! datatype, a literal outside its lexical space, `owl:topDataProperty` outside
 //! an inclusion into it, `owl:Thing` as a disjoint union, a number restriction
 //! along the universal role, the universal role included in another role (alone
@@ -115,11 +129,12 @@
 use crate::alc_ontology::{intern, position};
 use crate::concepts::copy_individual;
 use crate::datatypes::{
-    facet_of, in_kind, kind_of, length_facet_of, literal_value, lower_bound, numeric, same_value,
-    upper_bound, Binary, DataValue, Facet, Kind, LengthFacet, Moment,
+    facet_of, in_kind, is_lang_range, kind_of, length_facet_of, literal_value, lower_bound,
+    numeric, same_value, upper_bound, Binary, DataValue, Facet, Kind, LengthFacet, Moment,
 };
 use crate::floats;
 use crate::key_ontology;
+use crate::lang_ranges::{basic_range, free_tags, lowered, range_matches, root_free, star};
 use crate::lengths::{length_bound, slot_size, value_length};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange,
@@ -176,7 +191,8 @@ pub struct TimeCut {
 /// literal values make, the edges that facets make among the places of
 /// the values of `xsd:double` and of `xsd:float`, the cuts that facets
 /// make on the time lines of the time instants with and without a time zone,
-/// and the lengths at which the values of the length facets begin or end.
+/// the lengths at which the values of the length facets begin or end, and the
+/// basic language ranges of the facets `rdf:langRange`, in lower case.
 pub struct Context {
     pub values: Vec<DataValue>,
     pub kinds: Kinds,
@@ -187,6 +203,7 @@ pub struct Context {
     pub float_edges: Vec<u128>,
     pub times: Vec<TimeCut>,
     pub lengths: Vec<usize>,
+    pub ranges: Vec<Vec<u8>>,
 }
 
 fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
@@ -400,6 +417,11 @@ fn time_class(index: usize) -> ClassExpression {
 /// `index`.
 fn length_class(index: usize) -> ClassExpression {
     class_named(tagged_name(b'S', bytes(index, 0, Vec::new())))
+}
+/// The class `R` of the values with a language tag that the language range at
+/// `index` matches.
+fn range_class(index: usize) -> ClassExpression {
+    class_named(tagged_name(b'R', bytes(index, 0, Vec::new())))
 }
 fn edge_class(double: bool, index: usize) -> ClassExpression {
     let mut rest = Vec::new();
@@ -1033,6 +1055,66 @@ fn length_context(mut context: Context, restriction: &FacetRestriction) -> Conte
         _ => context,
     }
 }
+/// The index of `range` in `ranges[index..]`.
+fn range_index(ranges: &Vec<Vec<u8>>, range: &Vec<u8>, index: usize) -> Option<usize> {
+    if index < ranges.len() {
+        if same_bytes(&ranges[index], range) {
+            Some(index)
+        } else {
+            range_index(ranges, range, index + 1)
+        }
+    } else {
+        None
+    }
+}
+/// `ranges` with `range`, once.
+fn add_range(mut ranges: Vec<Vec<u8>>, range: Vec<u8>) -> Vec<Vec<u8>> {
+    match range_index(&ranges, &range, 0) {
+        Some(_) => ranges,
+        None => {
+            if ranges.len() < usize::MAX {
+                ranges.push(range);
+            }
+            ranges
+        }
+    }
+}
+/// The context with the language range of a facet `rdf:langRange` whose value
+/// is a basic language range, in lower case, and with `rdf:PlainLiteral` and
+/// `xsd:string` in use, which sets the strings apart from the values with a
+/// language tag.
+fn lang_context(context: Context, restriction: &FacetRestriction) -> Context {
+    if is_lang_range(&restriction.facet) {
+        match literal_value(&restriction.value) {
+            Some(DataValue::Text(bytes)) => {
+                if basic_range(&bytes) {
+                    let mut context =
+                        kind_context(kind_context(context, Kind::Plain), Kind::String);
+                    context.ranges = add_range(context.ranges, lowered(&bytes));
+                    context
+                } else {
+                    context
+                }
+            }
+            _ => context,
+        }
+    } else {
+        context
+    }
+}
+/// The context with the language ranges of the facet restrictions
+/// `restrictions[index..]`.
+fn langs_context(context: Context, restrictions: &Vec<FacetRestriction>, index: usize) -> Context {
+    if index < restrictions.len() {
+        langs_context(
+            lang_context(context, &restrictions[index]),
+            restrictions,
+            index + 1,
+        )
+    } else {
+        context
+    }
+}
 /// The context with the lengths of the facet restrictions
 /// `restrictions[index..]`.
 fn lengths_context(
@@ -1100,7 +1182,14 @@ fn range_context(mut context: Context, range: &DataRange) -> Context {
                 } else if length_kind(kind) {
                     let context = kind_context(context, kind);
                     let context = length_context(context, &restrictions.first);
-                    lengths_context(context, &restrictions.rest, 0)
+                    let context = lengths_context(context, &restrictions.rest, 0);
+                    match kind {
+                        Kind::Plain => {
+                            let context = lang_context(context, &restrictions.first);
+                            langs_context(context, &restrictions.rest, 0)
+                        }
+                        _ => context,
+                    }
                 } else {
                     context.kinds = with_order(context.kinds);
                     let context = kind_context(context, kind);
@@ -1278,6 +1367,7 @@ fn closure_context(items: &Vec<AnnotatedAxiom>) -> Context {
             float_edges: Vec::new(),
             times: Vec::new(),
             lengths: Vec::new(),
+            ranges: Vec::new(),
         },
         items,
         0,
@@ -1755,9 +1845,34 @@ fn facet_class(
     kind: Kind,
     restriction: &FacetRestriction,
 ) -> Option<ClassExpression> {
-    match length_facet_of(&restriction.facet) {
-        Some(facet) => length_facet_class(context, kind, facet, &restriction.value),
-        None => range_facet_class(context, kind, restriction),
+    if is_lang_range(&restriction.facet) {
+        lang_facet_class(context, kind, &restriction.value)
+    } else {
+        match length_facet_of(&restriction.facet) {
+            Some(facet) => length_facet_class(context, kind, facet, &restriction.value),
+            None => range_facet_class(context, kind, restriction),
+        }
+    }
+}
+/// The class expression of a facet `rdf:langRange` on the values of a kind:
+/// on `rdf:PlainLiteral` the class of its range, a range of the context; none
+/// on another kind. The value must be a basic language range.
+fn lang_facet_class(context: &Context, kind: Kind, value: &Literal) -> Option<ClassExpression> {
+    match literal_value(value) {
+        Some(DataValue::Text(bytes)) => {
+            if basic_range(&bytes) {
+                match kind {
+                    Kind::Plain => match range_index(&context.ranges, &lowered(&bytes), 0) {
+                        Some(index) => Some(range_class(index)),
+                        None => None,
+                    },
+                    _ => Some(nothing()),
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
 /// The class expression of a range facet on the values of a kind.
@@ -3493,12 +3608,39 @@ fn length_memberships(
         Some(out)
     }
 }
+/// `out` with the literal value at `index`, when it has a language tag, in the
+/// class of every language range of `context.ranges[range..]` that matches
+/// its tag, and outside the others.
+fn range_memberships(
+    context: &Context,
+    index: usize,
+    range: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (index < context.values.len()) & (range < context.ranges.len()) {
+        match &context.values[index] {
+            DataValue::Tagged(_, tag) => match member(
+                range_class(range),
+                range_matches(&context.ranges[range], tag),
+                value_individual(index),
+                out,
+            ) {
+                Some(out) => range_memberships(context, index, range + 1, out),
+                None => None,
+            },
+            _ => Some(out),
+        }
+    } else {
+        Some(out)
+    }
+}
 /// `out` with the classes of the literal values from `index` on: `D`, each
 /// kind class in use or its complement, the classes of the numbers at and
 /// above a numeric value, the classes of the edges at and below the place of
 /// a floating-point value, the classes of the time cuts of a time instant,
-/// the classes of the lengths at or below a value's length, and each bit
-/// class or its complement.
+/// the classes of the lengths at or below a value's length, the classes of the
+/// language ranges that match a value's language tag, and each bit class or
+/// its complement.
 fn value_axioms(
     context: &Context,
     index: usize,
@@ -3582,6 +3724,10 @@ fn value_axioms(
             None => return None,
         };
         let out = match length_memberships(context, index, 0, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match range_memberships(context, index, 0, out) {
             Some(out) => out,
             None => return None,
         };
@@ -3873,7 +4019,9 @@ fn values_fit(context: &Context, index: usize) -> bool {
 /// Whether the cuts are of numbers short enough to compare, and every number
 /// among the literal values has both its cuts.
 fn encodable(context: &Context) -> bool {
-    cuts_fit(&context.cuts, 0) & values_fit(context, 0)
+    cuts_fit(&context.cuts, 0)
+        & values_fit(context, 0)
+        & ((context.ranges.len() == 0) | (context.lengths.len() == 0))
 }
 /// Whether the encoding bounds the data nodes of an element along `U`: the
 /// integers are in use while numbers are ordered, floating-point numbers or
@@ -4994,12 +5142,188 @@ pub fn encode(
         Some(out) => out,
         None => return None,
     };
+    let out = match range_axioms(context, out) {
+        Some(out) => out,
+        None => return None,
+    };
     match value_axioms(context, 0, bits_for(context.values.len(), 0, 1), out) {
         Some(out) => push(
             out,
             Axiom::ClassAssertion(object_class(), object_individual()),
         ),
         None => None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The language ranges
+// ---------------------------------------------------------------------------
+
+/// The class of the values of `rdf:PlainLiteral` with a language tag: the
+/// plain literals that are no strings.
+fn tagged_class() -> ClassExpression {
+    and(kind_class(Kind::Plain), not(kind_class(Kind::String)))
+}
+/// Whether the language range at `second` continues the one at `first`: any
+/// range but `*` continues `*`, and otherwise a range continues another that
+/// matches it and is shorter. With no `first`, whether it is a range but `*`.
+fn continues(context: &Context, first: Option<usize>, second: usize) -> bool {
+    if second < context.ranges.len() {
+        let other = !star(&context.ranges[second]);
+        match first {
+            Some(first) => {
+                if first < context.ranges.len() {
+                    if star(&context.ranges[first]) {
+                        other
+                    } else if context.ranges[first].len() < context.ranges[second].len() {
+                        range_matches(&context.ranges[first], &context.ranges[second])
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            None => other,
+        }
+    } else {
+        false
+    }
+}
+/// `found` joined to the union of the classes of the language ranges of
+/// `context.ranges[index..]` that continue the range at `first`.
+fn continuing(
+    context: &Context,
+    first: Option<usize>,
+    index: usize,
+    found: Option<ClassExpression>,
+) -> Option<ClassExpression> {
+    if index < context.ranges.len() {
+        if continues(context, first, index) {
+            let next = match found {
+                Some(class) => or(class, range_class(index)),
+                None => range_class(index),
+            };
+            continuing(context, first, index + 1, Some(next))
+        } else {
+            continuing(context, first, index + 1, found)
+        }
+    } else {
+        found
+    }
+}
+/// The class of the values of a range without free tags: the union of the
+/// classes of the ranges that continue it, or nothing.
+fn cover(context: &Context, first: Option<usize>) -> ClassExpression {
+    match continuing(context, first, 0, None) {
+        Some(class) => class,
+        None => nothing(),
+    }
+}
+/// `out` with the axioms of the language range at `first` and each range of
+/// `context.ranges[second..]`: the class of the other inside its class when the
+/// other continues it, and the two classes apart when neither matches the
+/// other.
+fn range_pairs(
+    context: &Context,
+    first: usize,
+    second: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (first < context.ranges.len()) & (second < context.ranges.len()) {
+        let out = if first == second {
+            Some(out)
+        } else if range_matches(&context.ranges[first], &context.ranges[second]) {
+            push(
+                out,
+                Axiom::SubClassOf(range_class(second), range_class(first)),
+            )
+        } else if range_matches(&context.ranges[second], &context.ranges[first]) {
+            Some(out)
+        } else if first < second {
+            push(
+                out,
+                Axiom::SubClassOf(and(range_class(first), range_class(second)), nothing()),
+            )
+        } else {
+            Some(out)
+        };
+        match out {
+            Some(out) => range_pairs(context, first, second + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the axioms of the language ranges of `context.ranges[index..]`:
+/// each class inside the values with a language tag, the axioms of its pairs,
+/// and, when it has no free tags, its class inside the classes of the ranges
+/// that continue it.
+fn range_axioms_from(
+    context: &Context,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if index < context.ranges.len() {
+        let out = match push(out, Axiom::SubClassOf(range_class(index), tagged_class())) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match range_pairs(context, index, 0, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = if free_tags(&context.ranges[index], &context.ranges) {
+            out
+        } else {
+            match push(
+                out,
+                Axiom::SubClassOf(range_class(index), cover(context, Some(index))),
+            ) {
+                Some(out) => out,
+                None => return None,
+            }
+        };
+        range_axioms_from(context, index + 1, out)
+    } else {
+        Some(out)
+    }
+}
+/// The index of `*` in `ranges[index..]`.
+fn star_index(ranges: &Vec<Vec<u8>>, index: usize) -> Option<usize> {
+    if index < ranges.len() {
+        if star(&ranges[index]) {
+            Some(index)
+        } else {
+            star_index(ranges, index + 1)
+        }
+    } else {
+        None
+    }
+}
+/// `out` with the axioms of the language ranges, when there are any: those of
+/// each range, and every value with a language tag in the class of `*` when
+/// it is a range, or else in the classes of the ranges when every tag matches
+/// one of them.
+fn range_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    if context.ranges.len() == 0 {
+        Some(out)
+    } else {
+        let out = match range_axioms_from(context, 0, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        match star_index(&context.ranges, 0) {
+            Some(index) => push(out, Axiom::SubClassOf(tagged_class(), range_class(index))),
+            None => {
+                if root_free(&context.ranges) {
+                    Some(out)
+                } else {
+                    push(out, Axiom::SubClassOf(tagged_class(), cover(context, None)))
+                }
+            }
+        }
     }
 }
 

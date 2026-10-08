@@ -132,6 +132,15 @@ pub fn grammar() -> Expression {
 pub fn normal_grammar() -> Expression {
     langtag()
 }
+/// RFC 4647 §2.1 basic language ranges: `*`, or one to eight ASCII letters
+/// followed by subtags of one to eight ASCII letters and digits, each after a
+/// `-`.
+pub fn range_grammar() -> Expression {
+    alt(
+        ch(42),
+        cat(between(alpha(), 1, 7), star(dashed(between(alnum(), 1, 7)))),
+    )
+}
 pub fn well_formed(bytes: &Vec<u8>) -> bool {
     matches!(matches_utf8(grammar(), bytes), MatchResult::Matched(true))
 }

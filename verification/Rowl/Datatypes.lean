@@ -5160,6 +5160,13 @@ theorem length_facet_of_correct (iri : Iri) : datatypes.length_facet_of iri = .o
   by_cases c : iri.spelling.val = maxLengthFacet.spelling.val <;>
     simp_all [same_pattern_total, Array.to_slice, Array.make, lift, lengthFacet, minLengthFacet, maxLengthFacet]
 
+/-- The kernel recognizes the facet `rdf:langRange` by its IRI. -/
+theorem is_lang_range_correct (iri : Iri) : datatypes.is_lang_range iri = .ok (decide (iri = langRangeFacet)) := by
+  rw [datatypes.is_lang_range]
+  simp only [iri_eq_iff iri langRangeFacet]
+  by_cases a : iri.spelling.val = langRangeFacet.spelling.val <;>
+    simp_all [same_pattern_total, Array.to_slice, Array.make, lift, langRangeFacet]
+
 theorem lengthFacetOf_iri (F : datatypes.LengthFacet) : lengthFacetOf (lengthFacetIri F) = some F := by
   cases F <;> simp [lengthFacetOf, lengthFacetIri, iri_eq_iff, lengthFacet, minLengthFacet, maxLengthFacet]
 
@@ -5716,7 +5723,7 @@ def ModelSpace : datatypes.Kind → ModelValue → Prop
 def ModelFacetSpace (k : datatypes.Kind) (f : Iri) (v : ModelValue) : Prop :=
   match k with
   | .String => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
-  | .Plain => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
+  | .Plain => (f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n) ∨ (f = langRangeFacet ∧ ∃ r, BasicRange r ∧ v = .text r)
   | .Boolean => False
   | .AnyUri => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
   | .HexBinary => f ∈ lengthFacets ∧ ∃ n : ℕ, v = .real n
@@ -5767,7 +5774,9 @@ def ModelFacetValue (f : Iri) (v y : ModelValue) : Prop :=
   (∃ b x, v = .double b ∧ y = .double x ∧ x.Valid doubleFormat ∧ BinaryFacet f b x) ∨
   (∃ b x, v = .float b ∧ y = .float x ∧ x.Valid floatFormat ∧ BinaryFacet f b x) ∨
   (∃ b x, v = .moment b ∧ y = .moment x ∧ x.Valid ∧ MomentFacet f b x) ∨
-  (∃ (n : ℕ) (m : ℕ), v = .real n ∧ LengthFacet f n m ∧ ModelLength y m)
+  (∃ (n : ℕ) (m : ℕ), v = .real n ∧ LengthFacet f n m ∧ ModelLength y m) ∨
+  (∃ r s l, v = .text r ∧ f = langRangeFacet ∧ BasicRange r ∧ XmlText s ∧ TagValue l ∧ RangeMatch r l ∧
+    y = .tagged s l)
 
 private theorem integer_of_form {text : List U8} {q : ℚ} (form : NumberForm true text q) : IsInteger q := by
   obtain ⟨sign, w, _, _, _, _, rfl⟩ := form
@@ -6133,12 +6142,14 @@ theorem model_real_facet (f : Iri) (notLength : f ∉ lengthFacets) (r : ℝ) (y
         (f = minExclusiveFacet ∧ r < s) ∨ (f = maxExclusiveFacet ∧ s < r)) := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨r', s, h, rfl, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, _, facet, _⟩)
+  · rintro (⟨r', s, h, rfl, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, _, facet, _⟩ |
+      ⟨_, _, _, h, _⟩)
     · cases h; exact ⟨s, rfl, facet⟩
     · cases h
     · cases h
     · cases h
     · exact absurd (length_facet_mem facet) notLength
+    · cases h
   · rintro ⟨s, rfl, facet⟩
     exact .inl ⟨r, s, rfl, rfl, facet⟩
 
@@ -6146,7 +6157,8 @@ theorem model_length_facet (f : Iri) (hf : f ∈ lengthFacets) (n : ℕ) (y : Mo
     ModelFacetValue f (.real n) y ↔ ∃ m, LengthFacet f n m ∧ ModelLength y m := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, _, _, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨n', m, h, facet, len⟩)
+  · rintro (⟨_, _, _, _, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨n', m, h, facet, len⟩ |
+      ⟨_, _, _, h, _⟩)
     · exact absurd (range_facet_mem facet) (length_not_range f hf)
     · cases h
     · cases h
@@ -6155,16 +6167,19 @@ theorem model_length_facet (f : Iri) (hf : f ∈ lengthFacets) (n : ℕ) (y : Mo
       have : n = n' := by exact_mod_cast this
       subst this
       exact ⟨m, facet, len⟩
+    · cases h
   · rintro ⟨m, facet, len⟩
-    exact .inr (.inr (.inr (.inr ⟨n, m, rfl, facet, len⟩)))
+    exact .inr (.inr (.inr (.inr (.inl ⟨n, m, rfl, facet, len⟩))))
 
 theorem model_double_facet (f : Iri) (b : Binary) (y : ModelValue) :
     ModelFacetValue f (.double b) y ↔ ∃ x, x.Valid doubleFormat ∧ BinaryFacet f b x ∧ y = .double x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ |
+      ⟨_, _, _, h, _⟩)
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
     · cases h
     · cases h
     · cases h
@@ -6175,10 +6190,12 @@ theorem model_float_facet (f : Iri) (b : Binary) (y : ModelValue) :
     ModelFacetValue f (.float b) y ↔ ∃ x, x.Valid floatFormat ∧ BinaryFacet f b x ∧ y = .float x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ |
+      ⟨_, _, _, h, _⟩)
     · cases h
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
+    · cases h
     · cases h
     · cases h
   · rintro ⟨x, valid, facet, rfl⟩
@@ -6188,14 +6205,40 @@ theorem model_moment_facet (f : Iri) (b : Moment) (y : ModelValue) :
     ModelFacetValue f (.moment b) y ↔ ∃ x, x.Valid ∧ MomentFacet f b x ∧ y = .moment x := by
   simp only [ModelFacetValue]
   constructor
-  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩)
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨b', x, h, rfl, valid, facet⟩ | ⟨_, _, h, _⟩ |
+      ⟨_, _, _, h, _⟩)
     · cases h
     · cases h
     · cases h
     · cases h; exact ⟨x, valid, facet, rfl⟩
     · cases h
+    · cases h
   · rintro ⟨x, valid, facet, rfl⟩
     exact .inr (.inr (.inr (.inl ⟨b, x, rfl, rfl, valid, facet⟩)))
+
+/-- `rdf:langRange` is none of the length facets and none of the range facets. -/
+theorem lang_range_not_length : langRangeFacet ∉ lengthFacets := by
+  simp [lengthFacets, iri_eq_iff, langRangeFacet, lengthFacet, minLengthFacet, maxLengthFacet]
+
+theorem lang_range_not_range : langRangeFacet ∉ rangeFacets := by
+  simp [rangeFacets, iri_eq_iff, langRangeFacet, minInclusiveFacet, maxInclusiveFacet, minExclusiveFacet,
+    maxExclusiveFacet]
+
+theorem model_lang_range_facet (r : List U8) (y : ModelValue) :
+    ModelFacetValue langRangeFacet (.text r) y ↔
+      BasicRange r ∧ ∃ s l, XmlText s ∧ TagValue l ∧ RangeMatch r l ∧ y = .tagged s l := by
+  simp only [ModelFacetValue]
+  constructor
+  · rintro (⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ | ⟨_, _, h, _⟩ |
+      ⟨r', s, l, h, _, basic, xs, tl, hm, rfl⟩)
+    · cases h
+    · cases h
+    · cases h
+    · cases h
+    · cases h
+    · cases h; exact ⟨basic, s, l, xs, tl, hm, rfl⟩
+  · rintro ⟨basic, s, l, xs, tl, hm, rfl⟩
+    exact .inr (.inr (.inr (.inr (.inr ⟨r, s, l, rfl, trivial, basic, xs, tl, hm, rfl⟩))))
 
 theorem binary_facet_min_inclusive (b x : Binary) : BinaryFacet minInclusiveFacet b x ↔ b.Le x := by
   obtain ⟨a, c, d, _, _, _⟩ := facets_apart
@@ -6583,7 +6626,8 @@ noncomputable def modelNormative : Normative modelMap where
     · exact (model_facets .NmToken f v).trans (by simp [ModelFacetSpace, hf])
     · exact (model_facets .Name f v).trans (by simp [ModelFacetSpace, hf])
     · exact (model_facets .NcName f v).trans (by simp [ModelFacetSpace, hf])
-    · exact (model_facets .Plain f v).trans (by simp [ModelFacetSpace, hf])
+    · have notRange : f ≠ langRangeFacet := fun e => lang_range_not_length (e ▸ hf)
+      exact (model_facets .Plain f v).trans (by simp [ModelFacetSpace, hf, notRange])
     · exact (model_facets .AnyUri f v).trans (by simp [ModelFacetSpace, hf])
     · exact (model_facets .HexBinary f v).trans (by simp [ModelFacetSpace, hf])
     · exact (model_facets .Base64Binary f v).trans (by simp [ModelFacetSpace, hf])
@@ -6591,5 +6635,21 @@ noncomputable def modelNormative : Normative modelMap where
     simp only [modelMap]
     rw [model_length_facet f hf n]
     rfl
+  lang_range_space := fun dt v => by
+    constructor
+    · rintro ⟨k, kind, space⟩
+      have := kindOf_some kind
+      subst this
+      cases k <;> simp only [ModelFacetSpace, lang_range_not_length, lang_range_not_range, false_and,
+        false_or, and_false] at space
+      case Plain =>
+        obtain ⟨_, r, basic, rfl⟩ := space
+        exact ⟨rfl, r, basic, rfl⟩
+    · rintro ⟨rfl, r, basic, rfl⟩
+      exact ⟨.Plain, kindOf_typeOf .Plain, .inr ⟨rfl, r, basic, rfl⟩⟩
+  lang_range_value := fun r y basic => by
+    simp only [modelMap]
+    rw [model_lang_range_facet]
+    simp [basic]
 
 end Rowl.Datatypes

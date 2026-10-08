@@ -172,6 +172,7 @@ import Rowl.WordCounts
 import Rowl.StringCounts
 import Rowl.LengthCounts
 import Rowl.Datatypes
+import Rowl.LangRanges
 import Rowl.Regions
 import Rowl.DataEncoding
 import Rowl.DataMeaning
@@ -180,6 +181,7 @@ import Rowl.DataRegions
 import Rowl.DataEdges
 import Rowl.DataTimes
 import Rowl.DataLengths
+import Rowl.DataRanges
 import Rowl.DataReals
 import Rowl.DataStructure
 import Rowl.DataComplete
@@ -339,6 +341,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.LangTag.well_formed_nonempty
 #print axioms Rowl.LangTag.two_letters_well_formed
 #print axioms Rowl.LangTag.private_use_well_formed
+#print axioms Rowl.LangTag.range_grammar_total_correct
+#print axioms Rowl.LangTag.well_formed_lower
+#print axioms Rowl.LangTag.range_letters
 #print axioms Rowl.NTriples.at_total_correct
 #print axioms Rowl.NTriples.required_total_correct
 #print axioms Rowl.NTriples.expect_total_correct
@@ -2110,6 +2115,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Datatypes.facetOf_facetIri
 #print axioms Rowl.Datatypes.facetIri_range
 #print axioms Rowl.Datatypes.length_facet_of_correct
+#print axioms Rowl.Datatypes.is_lang_range_correct
 #print axioms Rowl.Datatypes.lengthFacetOf_iri
 #print axioms Rowl.Datatypes.lengthFacetOf_some
 #print axioms Rowl.Datatypes.lengthFacetIri_mem
@@ -2146,6 +2152,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Datatypes.model_double_facet
 #print axioms Rowl.Datatypes.model_float_facet
 #print axioms Rowl.Datatypes.model_moment_facet
+#print axioms Rowl.Datatypes.lang_range_not_length
+#print axioms Rowl.Datatypes.lang_range_not_range
+#print axioms Rowl.Datatypes.model_lang_range_facet
 #print axioms Rowl.Datatypes.binary_facet_min_inclusive
 #print axioms Rowl.Datatypes.binary_facet_max_inclusive
 #print axioms Rowl.Datatypes.binary_facet_min_exclusive
@@ -2154,6 +2163,52 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Datatypes.moment_facet_max_inclusive
 #print axioms Rowl.Datatypes.moment_facet_min_exclusive
 #print axioms Rowl.Datatypes.moment_facet_max_exclusive
+#print axioms Rowl.LangRanges.star_spec
+#print axioms Rowl.LangRanges.basic_range_spec
+#print axioms Rowl.LangRanges.lowered_spec
+#print axioms Rowl.LangRanges.matches_iff
+#print axioms Rowl.LangRanges.range_matches_spec
+#print axioms Rowl.LangRanges.lowered_unique
+#print axioms Rowl.LangRanges.lowered_star
+#print axioms Rowl.LangRanges.range_match_iff
+#print axioms Rowl.LangRanges.nonempty_spec
+#print axioms Rowl.LangRanges.derive_spec
+#print axioms Rowl.LangRanges.mem_suffixes
+#print axioms Rowl.LangRanges.mem_after
+#print axioms Rowl.LangRanges.size_after_le
+#print axioms Rowl.LangRanges.size_after_lt
+#print axioms Rowl.LangRanges.size_pos
+#print axioms Rowl.LangRanges.blocked_nil_right
+#print axioms Rowl.LangRanges.blocked_cons
+#print axioms Rowl.LangRanges.avoids_step
+#print axioms Rowl.LangRanges.lowerNat_fixed
+#print axioms Rowl.LangRanges.lowerNat_lower
+#print axioms Rowl.LangRanges.lower_tag_letter
+#print axioms Rowl.LangRanges.closed_suffixes
+#print axioms Rowl.LangRanges.avoids_nil
+#print axioms Rowl.LangRanges.tag_letter_spec
+#print axioms Rowl.LangRanges.tagLetter_lower
+#print axioms Rowl.LangRanges.lower_tagLetter
+#print axioms Rowl.LangRanges.ended_spec
+#print axioms Rowl.LangRanges.copy_from_spec
+#print axioms Rowl.LangRanges.after_cons
+#print axioms Rowl.LangRanges.blocks_after_spec
+#print axioms Rowl.LangRanges.avoids_spec
+#print axioms Rowl.LangRanges.byte_of
+#print axioms Rowl.LangRanges.bytes_of
+#print axioms Rowl.LangRanges.vals_injective
+#print axioms Rowl.LangRanges.blocked_vals
+#print axioms Rowl.LangRanges.continued_not_star
+#print axioms Rowl.LangRanges.plain_ranges_spec
+#print axioms Rowl.LangRanges.root_free_spec
+#print axioms Rowl.LangRanges.continuations_spec
+#print axioms Rowl.LangRanges.free_tags_spec
+#print axioms Rowl.LangRanges.utf8_ascii
+#print axioms Rowl.LangRanges.utf8_of_ascii
+#print axioms Rowl.LangRanges.tag_value_iff
+#print axioms Rowl.LangRanges.lowered_basic
+#print axioms Rowl.LangRanges.matches_trans
+#print axioms Rowl.LangRanges.matches_comparable
 #print axioms Rowl.DataEncoding.new_val
 #print axioms Rowl.DataEncoding.same_pattern_total
 #print axioms Rowl.DataEncoding.same_bytes_correct
@@ -2186,6 +2241,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataEncoding.length_class_correct
 #print axioms Rowl.DataEncoding.length_class_eq
 #print axioms Rowl.DataEncoding.lengthClass_name
+#print axioms Rowl.DataEncoding.range_class_correct
+#print axioms Rowl.DataEncoding.range_class_eq
+#print axioms Rowl.DataEncoding.rangeClass_name
 #print axioms Rowl.DataEncoding.data_super_correct
 #print axioms Rowl.DataEncoding.data_super_eq
 #print axioms Rowl.DataEncoding.dataSuper_name
@@ -2222,6 +2280,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataEncoding.with_kind_eq
 #print axioms Rowl.DataEncoding.add_bound_good
 #print axioms Rowl.DataEncoding.kind_context_good
+#print axioms Rowl.DataEncoding.kind_context_flags
 #print axioms Rowl.DataEncoding.facet_context_good
 #print axioms Rowl.DataEncoding.facets_context_good
 #print axioms Rowl.DataEncoding.has_edge_correct
@@ -2247,6 +2306,10 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataEncoding.facet_lengths_good
 #print axioms Rowl.DataEncoding.length_context_good
 #print axioms Rowl.DataEncoding.lengths_context_good
+#print axioms Rowl.DataEncoding.range_index_spec
+#print axioms Rowl.DataEncoding.add_range_good
+#print axioms Rowl.DataEncoding.lang_context_good
+#print axioms Rowl.DataEncoding.langs_context_good
 #print axioms Rowl.DataEncoding.ranges_context_good
 #print axioms Rowl.DataEncoding.range_context_good
 #print axioms Rowl.DataEncoding.optional_range_context_good
@@ -2320,6 +2383,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataMeaning.range_facet_class_meaning
 #print axioms Rowl.DataMeaning.at_length_spec
 #print axioms Rowl.DataMeaning.length_facet_class_meaning
+#print axioms Rowl.DataMeaning.lang_facet_class_meaning
 #print axioms Rowl.DataMeaning.facet_class_meaning
 #print axioms Rowl.DataMeaning.facet_classes_meaning
 #print axioms Rowl.DataMeaning.encode_range_meaning
@@ -2477,6 +2541,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataStructure.edge_memberships_spec
 #print axioms Rowl.DataStructure.time_memberships_spec
 #print axioms Rowl.DataStructure.length_memberships_spec
+#print axioms Rowl.DataStructure.range_memberships_spec
 #print axioms Rowl.DataStructure.value_axioms_spec
 #print axioms Rowl.DataStructure.encode_meaning
 #print axioms Rowl.DataStructure.value_individuals_apart
@@ -2523,6 +2588,15 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataComplete.cut_ne_length
 #print axioms Rowl.DataComplete.edge_ne_length
 #print axioms Rowl.DataComplete.time_ne_length
+#print axioms Rowl.DataComplete.reserved_range
+#print axioms Rowl.DataComplete.range_class_injective
+#print axioms Rowl.DataComplete.data_ne_range
+#print axioms Rowl.DataComplete.kind_ne_range
+#print axioms Rowl.DataComplete.bit_ne_range
+#print axioms Rowl.DataComplete.cut_ne_range
+#print axioms Rowl.DataComplete.edge_ne_range
+#print axioms Rowl.DataComplete.time_ne_range
+#print axioms Rowl.DataComplete.length_ne_range
 #print axioms Rowl.DataComplete.reserved_super
 #print axioms Rowl.DataComplete.super_ne_top
 #print axioms Rowl.DataComplete.super_ne_bottom
@@ -2562,6 +2636,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataComplete.node_edge
 #print axioms Rowl.DataComplete.node_time
 #print axioms Rowl.DataComplete.node_length
+#print axioms Rowl.DataComplete.node_range
 #print axioms Rowl.DataComplete.node_plain
 #print axioms Rowl.DataComplete.lifted_data_role
 #print axioms Rowl.DataComplete.real_datatype
@@ -2588,6 +2663,10 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataComplete.native_not_number
 #print axioms Rowl.DataComplete.native_lit
 #print axioms Rowl.DataComplete.size_lit
+#print axioms Rowl.DataComplete.native_tag_datatype
+#print axioms Rowl.DataComplete.tag_unique
+#print axioms Rowl.DataComplete.native_tag_lit
+#print axioms Rowl.DataComplete.tag_lit
 #print axioms Rowl.DataComplete.lifted_node
 #print axioms Rowl.DataComplete.facetOf_some
 #print axioms Rowl.DataComplete.facet_reals
@@ -2604,6 +2683,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataComplete.native_sized
 #print axioms Rowl.DataComplete.lifted_sized
 #print axioms Rowl.DataComplete.lifted_sized_kinds
+#print axioms Rowl.DataComplete.tagged_kind
+#print axioms Rowl.DataComplete.lifted_tag_kinds
+#print axioms Rowl.DataComplete.lifted_range_facets
 #print axioms Rowl.DataComplete.lifted_length_facets
 #print axioms Rowl.DataComplete.lifted_range_frame
 #print axioms Rowl.DataComplete.optional_range_meaning
@@ -2633,6 +2715,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataComplete.octets_counted
 #print axioms Rowl.DataComplete.lifted_slot_facts
 #print axioms Rowl.DataComplete.lifted_lengths
+#print axioms Rowl.DataComplete.lifted_tagged
+#print axioms Rowl.DataComplete.lifted_tag_plain
+#print axioms Rowl.DataComplete.lifted_range_facts
 #print axioms Rowl.DataComplete.lifted_frame
 #print axioms Rowl.DataComplete.lifted_interpretation
 #print axioms Rowl.DataComplete.lifted_satisfies
@@ -2833,6 +2918,8 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataSound.moment_free_pos
 #print axioms Rowl.DataSound.moment_peers_bound
 #print axioms Rowl.DataSound.written_set_ok
+#print axioms Rowl.DataSound.no_range
+#print axioms Rowl.DataSound.untagged_slot
 #print axioms Rowl.DataSound.family_written
 #print axioms Rowl.DataSound.written_infinite
 #print axioms Rowl.DataSound.written_card
@@ -2846,6 +2933,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataSound.interval_cut
 #print axioms Rowl.DataSound.sound_types
 #print axioms Rowl.DataSound.realValue_injective
+#print axioms Rowl.DataSound.sound_tag_lit
+#print axioms Rowl.DataSound.sound_tag_written
+#print axioms Rowl.DataSound.tagged_of_plain
 #print axioms Rowl.DataSound.value_node
 #print axioms Rowl.DataSound.peers_same
 #print axioms Rowl.DataSound.nodeValue_injective
@@ -3635,6 +3725,23 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataLengths.length_lowest_spec
 #print axioms Rowl.DataLengths.length_axioms_spec
 #print axioms Rowl.DataLengths.length_facts_spec
+#print axioms Rowl.DataRanges.tagged_class_eq
+#print axioms Rowl.DataRanges.tagged_class_iff
+#print axioms Rowl.DataRanges.continues_iff
+#print axioms Rowl.DataRanges.continues_spec
+#print axioms Rowl.DataRanges.continuing_spec
+#print axioms Rowl.DataRanges.cover_spec
+#print axioms Rowl.DataRanges.range_pairs_spec
+#print axioms Rowl.DataRanges.range_axioms_from_spec
+#print axioms Rowl.DataRanges.star_index_spec
+#print axioms Rowl.DataRanges.range_axioms_spec
+#print axioms Rowl.DataRanges.en_tag
+#print axioms Rowl.DataRanges.depth_continues
+#print axioms Rowl.DataRanges.continues_of_matches
+#print axioms Rowl.DataRanges.range_facts_apart
+#print axioms Rowl.DataRanges.range_facts_inside
+#print axioms Rowl.DataRanges.range_index_injective
+#print axioms Rowl.DataRanges.choose_tag
 #print axioms Rowl.DataReals.integer_decimal
 #print axioms Rowl.DataReals.decimal_rational
 #print axioms Rowl.DataReals.fraction_between
@@ -5767,6 +5874,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyModels.edge_not_key
 #print axioms Rowl.KeyModels.time_not_key
 #print axioms Rowl.KeyModels.length_not_key
+#print axioms Rowl.KeyModels.range_not_key
 #print axioms Rowl.KeyModels.super_not_mark
 #print axioms Rowl.KeyModels.super_not_share
 #print axioms Rowl.KeyModels.thing_not_key
@@ -5790,6 +5898,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyModels.liftedN_edge_class
 #print axioms Rowl.KeyModels.liftedN_time_class
 #print axioms Rowl.KeyModels.liftedN_length_class
+#print axioms Rowl.KeyModels.liftedN_range_class
 #print axioms Rowl.KeyModels.liftedN_super
 #print axioms Rowl.KeyModels.liftedN_plain_role
 #print axioms Rowl.KeyModels.liftedN_relation
@@ -8861,3 +8970,42 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataSound.heldLengths
 #print axioms Rowl.DataSound.failedLengths
 #print axioms Rowl.DataSound.soundSize
+#print axioms Rowl.LangTag.BasicRangeLanguage
+#print axioms Rowl.LangTag.lowerNat
+#print axioms Rowl.LangTag.TagLetter
+#print axioms Rowl.LangTag.LowerClosed
+#print axioms Rowl.DatatypeMap.langRangeFacet
+#print axioms Rowl.DatatypeMap.BasicRange
+#print axioms Rowl.DatatypeMap.RangeMatch
+#print axioms Rowl.LangRanges.LowerLetter
+#print axioms Rowl.LangRanges.LowerTag
+#print axioms Rowl.LangRanges.Matches
+#print axioms Rowl.LangRanges.Continues
+#print axioms Rowl.LangRanges.Free
+#print axioms Rowl.LangRanges.codes
+#print axioms Rowl.LangRanges.lowerByte
+#print axioms Rowl.LangRanges.Blocked
+#print axioms Rowl.LangRanges.Avoids
+#print axioms Rowl.LangRanges.suffixes
+#print axioms Rowl.LangRanges.after
+#print axioms Rowl.LangRanges.size
+#print axioms Rowl.LangRanges.tagLetter
+#print axioms Rowl.LangRanges.Branch
+#print axioms Rowl.DataEncoding.GoodRanges
+#print axioms Rowl.DataEncoding.RangesUsed
+#print axioms Rowl.DataEncoding.rangeName
+#print axioms Rowl.DataEncoding.rangeClass
+#print axioms Rowl.DataRanges.taggedClass
+#print axioms Rowl.DataRanges.ContinuesAt
+#print axioms Rowl.DataRanges.Covered
+#print axioms Rowl.DataRanges.PairFact
+#print axioms Rowl.DataRanges.IndexFact
+#print axioms Rowl.DataRanges.RootFact
+#print axioms Rowl.DataRanges.RangeFacts
+#print axioms Rowl.DataRanges.depth
+#print axioms Rowl.DataStructure.RangeMemberFact
+#print axioms Rowl.DataComplete.NativeTag
+#print axioms Rowl.DataComplete.tagOf
+#print axioms Rowl.DataSound.Written.Tag
+#print axioms Rowl.DataSound.RangeSlot
+#print axioms Rowl.DataSound.soundTag

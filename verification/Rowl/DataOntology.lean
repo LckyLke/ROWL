@@ -781,7 +781,7 @@ theorem keyed_plain {context : data_ontology.Context} (good : Good context) {cap
     counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, plainNodes, _⟩ := facts enc rfl
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, plainNodes, _⟩ := facts enc rfl
   exact plainNodes a mem
 
 theorem named_known_spec (nodes : alloc.vec.Vec Individual) (a : NamedIndividual) :
@@ -983,8 +983,8 @@ theorem interpretation_anonymous {Native : Type w} {D : DatatypeMap Native} {emb
     (g : AnonymousIndividual → Object) : IsInterpretation D embed V (withAnonymous I g) := interp
 
 theorem lifted_anonymous (context : data_ontology.Context) (I : Interpretation Object Value)
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop) (x0 : Object) (g : AnonymousIndividual → Object) :
-    withAnonymous (lifted context I lit num mom size x0) (Sum.inl ∘ g) = lifted context (withAnonymous I g) lit num mom size x0 := rfl
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop) (tag : Value → List U8 → Prop) (x0 : Object) (g : AnonymousIndividual → Object) :
+    withAnonymous (lifted context I lit num mom size tag x0) (Sum.inl ∘ g) = lifted context (withAnonymous I g) lit num mom size tag x0 := rfl
 
 theorem class_denote_named (J : Interpretation Object Value) (c : Class) (y : Object) :
     classDenote J (.Class c) y ↔ J.classes c y := by
@@ -1063,7 +1063,7 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
       have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good capacity capSmall items enc
         encRun sat
       apply (encodedComplete answer h D V vocab).mpr
-      exact ⟨Object ⊕ Value, Value, embed, lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0, vocab,
+      exact ⟨Object ⊕ Value, Value, embed, lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0, vocab,
         lifted_interpretation N x0 interp, Sum.inl ∘ g, by rw [lifted_anonymous]; exact sat'⟩
 
 /-- The individuals of a question that a prepared closure names are named
@@ -1076,7 +1076,7 @@ theorem known_plain {context : data_ontology.Context} (good : Good context) {cap
   obtain ⟨res, run, facts⟩ := encode_meaning.{0,0,0,0} context good capacity capSmall items
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, _, new, _, _, means, _⟩ := facts enc rfl
+  obtain ⟨_, _, _, new, _, _, means, _⟩ := facts enc rfl
   rcases nodesAdd a known.2 with absurdity | inside
   · simp [new_val] at absurdity
   · obtain ⟨item, mem, inAxiom⟩ := List.mem_flatMap.mp inside
@@ -1154,9 +1154,10 @@ theorem lifted_model {Object : Type u} {Value : Type (max w v)} {Native : Type w
   obtain ⟨x0⟩ := I.objectsNonempty
   have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good capacity capSmall items enc encRun
     sat
-  refine ⟨lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) x0,
+  refine ⟨lifted context I (litOf N embed) (numOf N embed) (momOf N embed) (sizeOf N embed) (tagOf N embed) x0,
     ⟨vocab, lifted_interpretation N x0 interp, Sum.inl ∘ g, ?_⟩,
-    fun z => lifted_element N x0 z, fun a plainA => lifted_plain_name (num := numOf N embed) (mom := momOf N embed) (size := sizeOf N embed) plainA,
+    fun z => lifted_element N x0 z, fun a plainA => lifted_plain_name (num := numOf N embed) (mom := momOf N embed) (size := sizeOf N embed)
+      (tag := tagOf N embed) plainA,
     fun e mem e' run z => lifted_class N x0 vocab interp good run (plain e mem) z⟩
   rw [lifted_anonymous]
   exact sat'

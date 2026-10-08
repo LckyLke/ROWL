@@ -195,6 +195,8 @@ def xsdNumericTypes : List Datatype := integerType :: decimalType :: integerSubt
 def rangeFacets : List Iri := [minInclusiveFacet, maxInclusiveFacet, minExclusiveFacet, maxExclusiveFacet]
 /-- The three length facets. -/
 def lengthFacets : List Iri := [lengthFacet, minLengthFacet, maxLengthFacet]
+/-- The facet `rdf:langRange` of `rdf:PlainLiteral`. -/
+def langRangeFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 108#u8, 97#u8, 110#u8, 103#u8, 82#u8, 97#u8, 110#u8, 103#u8, 101#u8] (by simp; scalar_tac)⟩
 /-- The datatypes whose facet spaces have the length facets (OWL 2 §4.3–4.6,
     rdf:PlainLiteral §4): `xsd:string` and its six subtypes, `rdf:PlainLiteral`,
     `xsd:anyURI`, `xsd:hexBinary` and `xsd:base64Binary`. -/
@@ -217,6 +219,16 @@ def Lowered (bytes lowered : List U8) : Prop :=
   lowered.map (·.val) = bytes.map fun byte => if 65 ≤ byte.val ∧ byte.val ≤ 90 then byte.val + 32 else byte.val
 /-- A well-formed language tag in lower case. -/
 def TagValue (tag : List U8) : Prop := ∃ written, LanguageTag written ∧ Lowered written tag
+/-- A basic language range (RFC 4647 §2.1): `*`, or subtags of one to eight
+    ASCII letters, the first, or letters and digits, joined by `-`. -/
+def BasicRange (bytes : List U8) : Prop :=
+  ∃ word, Rowl.Regular.Utf8From bytes 0 word ∧ word ∈ Rowl.LangTag.BasicRangeLanguage
+/-- A language tag in lower case that a basic language range matches by basic
+    filtering (RFC 4647 §3.3.1), ignoring case: every tag for `*`, and
+    otherwise the range in lower case and the tags that continue it after a
+    `-`. -/
+def RangeMatch (range tag : List U8) : Prop :=
+  range = [42#u8] ∨ ∃ lower, Lowered range lower ∧ (tag = lower ∨ ∃ rest, tag = lower ++ 45#u8 :: rest)
 /-- `lexical` is `text@tag` with no `@` in `tag`. -/
 def PlainSplit (lexical text tag : List U8) : Prop := lexical = text ++ 64#u8 :: tag ∧ 64#u8 ∉ tag
 /-- `text` is a lexical form of `xsd:boolean` for the truth value `b`. -/
@@ -600,7 +612,11 @@ def BinaryForm (f : FloatFormat) (text : List U8) (b : Binary) : Prop :=
     datatypes, `rdf:PlainLiteral`, `xsd:anyURI` and the binary datatypes have
     the length facets with every natural number as constraining value, whose
     facet values are the strings, plain literals, IRIs and octet sequences
-    whose length is that number, at least it or at most it (`LengthFacet`). -/
+    whose length is that number, at least it or at most it (`LengthFacet`);
+    and the facet space of `rdf:PlainLiteral`, and of no other datatype, has
+    the facet `rdf:langRange` with the basic language ranges as constraining
+    values, whose facet values are the plain literals with a language tag that
+    the range matches (`RangeMatch`). -/
 structure Normative {Native : Type w} (D : DatatypeMap Native) where
   number : ℚ → Native
   text : List U8 → Native
@@ -764,5 +780,8 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
     ((∃ s, TextLength s m ∧ y = text s) ∨ (∃ s l, TextLength s m ∧ TagValue l ∧ y = tagged s l) ∨
       (∃ s, TextLength s m ∧ y = coded (.uri s)) ∨
       ∃ o : List U8, o.length = m ∧ (y = coded (.hex o) ∨ y = coded (.base64 o)))
+  lang_range_space : ∀ dt v, D.facetSpace dt langRangeFacet v ↔ dt = plainType ∧ ∃ r, BasicRange r ∧ v = text r
+  lang_range_value : ∀ r y, BasicRange r → (D.facetValue langRangeFacet (text r) y ↔
+    ∃ s l, XmlText s ∧ TagValue l ∧ RangeMatch r l ∧ y = tagged s l)
 
 end Rowl.DatatypeMap

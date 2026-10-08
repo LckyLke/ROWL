@@ -198,6 +198,7 @@ import Rowl.WordCounts
 import Rowl.StringCounts
 import Rowl.LengthCounts
 import Rowl.Datatypes
+import Rowl.LangRanges
 import Rowl.Regions
 import Rowl.DataEncoding
 import Rowl.DataMeaning
@@ -206,6 +207,7 @@ import Rowl.DataRegions
 import Rowl.DataEdges
 import Rowl.DataTimes
 import Rowl.DataLengths
+import Rowl.DataRanges
 import Rowl.DataReals
 import Rowl.DataStructure
 import Rowl.DataComplete

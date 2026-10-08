@@ -724,3 +724,146 @@ fn length_facets_count_their_values() {
     let pairs = sized("xsd:string", "minLength", 2);
     assert_eq!(at_least(60, &pairs), Some(true));
 }
+
+/// A datatype restriction of `rdf:PlainLiteral` to a language range.
+fn ranged(range: &str) -> String {
+    format!("DatatypeRestriction(rdf:PlainLiteral rdf:langRange \"{range}\")")
+}
+
+/// Whether a value of `:label` fits the language range.
+fn labelled(range: &str, value: &str) -> Option<bool> {
+    consistent(&format!(
+        "DataPropertyRange(:label {})\nDataPropertyAssertion(:label :a {value})",
+        ranged(range)
+    ))
+}
+
+#[test]
+fn language_ranges_match_tags_by_basic_filtering() {
+    // rdf:PlainLiteral §4, RFC 4647 §3.3.1: a range matches the tags that are
+    // the range or continue it after a `-`, ignoring case.
+    assert_eq!(
+        labelled("en", "\"colour@en-GB\"^^rdf:PlainLiteral"),
+        Some(true)
+    );
+    assert_eq!(
+        labelled("en", "\"colour@EN\"^^rdf:PlainLiteral"),
+        Some(true)
+    );
+    assert_eq!(
+        labelled("EN-gb", "\"colour@en-GB\"^^rdf:PlainLiteral"),
+        Some(true)
+    );
+    assert_eq!(
+        labelled("en", "\"Farbe@de\"^^rdf:PlainLiteral"),
+        Some(false)
+    );
+    assert_eq!(labelled("en", "\"x@eng\"^^rdf:PlainLiteral"), Some(false));
+    assert_eq!(
+        labelled("en-GB", "\"color@en\"^^rdf:PlainLiteral"),
+        Some(false)
+    );
+    // `*` matches every tag, and no range matches a string without one.
+    assert_eq!(labelled("*", "\"Farbe@de\"^^rdf:PlainLiteral"), Some(true));
+    assert_eq!(labelled("*", "\"plain\""), Some(false));
+    assert_eq!(labelled("en", "\"plain\""), Some(false));
+    // A value that is no basic language range gets no answer.
+    assert_eq!(
+        labelled("en_GB", "\"colour@en-GB\"^^rdf:PlainLiteral"),
+        None
+    );
+    // `xsd:string` has no language tags.
+    assert_eq!(
+        consistent("SubClassOf(owl:Thing DataSomeValuesFrom(:label DatatypeRestriction(xsd:string rdf:langRange \"*\")))\nClassAssertion(owl:Thing :a)"),
+        Some(false)
+    );
+}
+
+#[test]
+fn language_ranges_know_which_tags_are_well_formed() {
+    let some = |range: &str| {
+        consistent(&format!(
+            "SubClassOf(owl:Thing DataSomeValuesFrom(:label {}))\nClassAssertion(owl:Thing :a)",
+            ranged(range)
+        ))
+    };
+    // No well-formed tag is `a` or starts with `a-`; tags starting with `x-`
+    // are for private use, and `i-ami` is a grandfathered tag.
+    assert_eq!(some("a"), Some(false));
+    assert_eq!(some("x"), Some(true));
+    assert_eq!(some("i-ami"), Some(true));
+    // The tags that `i` matches are its thirteen grandfathered tags: with all
+    // of them left out, none remain.
+    let grandfathered = [
+        "i-ami",
+        "i-bnn",
+        "i-default",
+        "i-enochian",
+        "i-hak",
+        "i-klingon",
+        "i-lux",
+        "i-mingo",
+        "i-navajo",
+        "i-pwn",
+        "i-tao",
+        "i-tay",
+        "i-tsu",
+    ];
+    let without = |count: usize| {
+        let others: Vec<String> = grandfathered[..count]
+            .iter()
+            .map(|tag| format!("DataComplementOf({})", ranged(tag)))
+            .collect();
+        consistent(&format!(
+            "SubClassOf(owl:Thing DataSomeValuesFrom(:label DataIntersectionOf({} {})))\nClassAssertion(owl:Thing :a)",
+            ranged("i"),
+            others.join(" ")
+        ))
+    };
+    assert_eq!(without(12), Some(true));
+    assert_eq!(without(13), Some(false));
+    // Ranges and length facets together get no answer yet.
+    assert_eq!(
+        consistent("DataPropertyRange(:label DatatypeRestriction(rdf:PlainLiteral rdf:langRange \"en\" xsd:length \"2\"^^xsd:integer))\nDataPropertyAssertion(:label :a \"ab@en\"^^rdf:PlainLiteral)"),
+        None
+    );
+}
+
+#[test]
+fn subsumption_follows_language_ranges() {
+    let text = format!(
+        "Prefix(:=<https://example.org/d/>)
+Ontology(<https://example.org/d/onto>
+EquivalentClasses(:British DataSomeValuesFrom(:label {}))
+EquivalentClasses(:English DataSomeValuesFrom(:label {}))
+EquivalentClasses(:Labelled DataSomeValuesFrom(:label {}))
+DataPropertyAssertion(:label :a \"colour@en-GB\"^^rdf:PlainLiteral)
+DataPropertyAssertion(:label :b \"color@en-US\"^^rdf:PlainLiteral)
+)
+",
+        ranged("en-GB"),
+        ranged("en"),
+        ranged("*")
+    );
+    let Ok(reasoner) = Reasoner::from_functional(text.as_bytes(), &default_limits()) else {
+        panic!("the document must load");
+    };
+    let british = rowl::reasoner::named("https://example.org/d/British");
+    let english = rowl::reasoner::named("https://example.org/d/English");
+    let labelled = rowl::reasoner::named("https://example.org/d/Labelled");
+    assert_eq!(reasoner.subsumed(&british, &english), Some(true));
+    assert_eq!(reasoner.subsumed(&english, &labelled), Some(true));
+    assert_eq!(reasoner.subsumed(&english, &british), Some(false));
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/a", &british),
+        Some(true)
+    );
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/b", &english),
+        Some(true)
+    );
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/b", &british),
+        Some(false)
+    );
+}

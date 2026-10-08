@@ -1,4 +1,4 @@
-import Rowl.DataLengths
+import Rowl.DataRanges
 
 /-!
 The whole encoding of a closure by `data_ontology`: the axioms its axioms become
@@ -40,8 +40,8 @@ def ItemsMeans (context : data_ontology.Context) (items new : List AnnotatedAxio
   (∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
     (I : Interpretation Object Value) (J : Interpretation Object' Value') (obj : Object → Object')
     (known : Individual → Prop) (atoms : List (DataProperty × Option DataRange × Nat))
-    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop) (place : Object → Value → Object' → Prop),
-    Simulates context I J obj known atoms → Placed context I J obj lit num mom size place → RangeFrame I J lit num mom size →
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (mom : Rowl.DatatypeMap.Moment → Value) (size : Value → ℕ → Prop) (tag : Value → List U8 → Prop) (place : Object → Value → Object' → Prop),
+    Simulates context I J obj known atoms → Placed context I J obj lit num mom size tag place → RangeFrame I J lit num mom size tag →
     (∀ item ∈ items, ∀ a ∈ axiomAtoms item.axiom, a ∈ atoms) →
     (∀ item ∈ items, ∀ a ∈ axiomIndividuals item.axiom, known a) →
       ((∀ b ∈ new, satisfies J b.axiom) → ∀ item ∈ items, satisfies I item.axiom) ∧
@@ -52,7 +52,7 @@ def ItemsMeans (context : data_ontology.Context) (items new : List AnnotatedAxio
 
 theorem items_means_nil (context : data_ontology.Context) : ItemsMeans.{u,v,w,x} context [] [] := by
   refine ⟨?_, by simp, fun _ _ => by simp⟩
-  intro Object Value Object' Value' I J obj known atoms lit num mom size place _ _ _ _ _
+  intro Object Value Object' Value' I J obj known atoms lit num mom size tag place _ _ _ _ _
   exact ⟨fun _ => by simp, fun _ _ => by simp⟩
 
 theorem items_means_cons {context : data_ontology.Context} {item : AnnotatedAxiom}
@@ -63,10 +63,10 @@ theorem items_means_cons {context : data_ontology.Context} {item : AnnotatedAxio
     (tail : ItemsMeans.{u,v,w,x} context rest new2) : ItemsMeans.{u,v,w,x} context (item :: rest) (new1 ++ new2) := by
   obtain ⟨tailMeans, tailPlain, tailNames⟩ := tail
   refine ⟨?_, ?_, ?_⟩
-  · intro Object Value Object' Value' I J obj known atoms lit num mom size place sim placed frame atomsIn indsIn
-    obtain ⟨sound1, complete1⟩ := means I J obj known atoms lit num mom size place sim placed frame
+  · intro Object Value Object' Value' I J obj known atoms lit num mom size tag place sim placed frame atomsIn indsIn
+    obtain ⟨sound1, complete1⟩ := means I J obj known atoms lit num mom size tag place sim placed frame
       (atomsIn item List.mem_cons_self) (indsIn item List.mem_cons_self)
-    obtain ⟨sound2, complete2⟩ := tailMeans I J obj known atoms lit num mom size place sim placed frame
+    obtain ⟨sound2, complete2⟩ := tailMeans I J obj known atoms lit num mom size tag place sim placed frame
       (fun i m => atomsIn i (List.mem_cons_of_mem _ m)) (fun i m => indsIn i (List.mem_cons_of_mem _ m))
     constructor
     · intro holds i mem
@@ -1455,6 +1455,87 @@ theorem length_memberships_spec (context : data_ontology.Context) (good : Good c
 termination_by context.lengths.val.length - length.val
 decreasing_by all_goals omega
 
+/-- What the axioms of a literal value with a language tag say of the classes
+    of the language ranges: its individual is in the class of every range that
+    matches its tag, and outside the others. -/
+def RangeMemberFact (context : data_ontology.Context) (J : Interpretation Object' Value') (i : Usize)
+    (h : i.val < context.values.val.length) : Prop :=
+  ∀ s t, context.values.val[i.val] = .Tagged s t → ∀ (c : Usize) (hc : c.val < context.ranges.val.length),
+    (J.classes (rangeClass c) (J.namedIndividuals (valueIndividual i)) ↔
+      Rowl.LangRanges.Matches (context.ranges.val[c.val]'hc).val t.val)
+
+/-- The memberships of a literal value with a language tag in the classes of the
+    language ranges from `range` on. -/
+theorem range_memberships_spec (context : data_ontology.Context)
+    (index : Usize) (h : index.val < context.values.val.length) (range : Usize) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.range_memberships context index range out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔
+          ∀ s t, context.values.val[index.val] = .Tagged s t →
+            ∀ (c : Usize) (hc : c.val < context.ranges.val.length), range.val ≤ c.val →
+              (J.classes (rangeClass c) (J.namedIndividuals (valueIndividual index)) ↔
+                Rowl.LangRanges.Matches (context.ranges.val[c.val]'hc).val t.val)) := by
+  rw [data_ontology.range_memberships]
+  by_cases inside : range.val < context.ranges.val.length
+  · have lookupV : context.values.index_usize index = .ok context.values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem h]
+    have lookupR : context.ranges.index_usize range = .ok context.ranges.val[range.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have cond : (decide (index < alloc.vec.Vec.len context.values) &&
+        decide (range < alloc.vec.Vec.len context.ranges)) = true := by
+      simp [UScalar.lt_equiv, h, inside]
+    simp only [cond, ↓reduceIte, alloc.vec.Vec.index_slice_index, lookupV, bind_ok]
+    by_cases tagged : ∃ s t, context.values.val[index.val] = .Tagged s t
+    · obtain ⟨s, t, hv⟩ := tagged
+      simp only [hv]
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := range) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = range.val + 1 := by simpa using nextValue
+      obtain ⟨r1, run1, c1⟩ := member_spec (.Class (rangeClass range))
+        (decide (Rowl.LangRanges.Matches context.ranges.val[range.val].val t.val)) (.Named (valueIndividual index)) out
+      cases r1 with
+      | none =>
+        exact ⟨none, by simp [range_class_eq, lookupR, Rowl.LangRanges.range_matches_spec, value_individual_eq,
+          run1], by simp⟩
+      | some o1 =>
+        obtain ⟨r2, run2, f2⟩ := range_memberships_spec context index h next o1
+        refine ⟨r2, by simp [range_class_eq, lookupR, Rowl.LangRanges.range_matches_spec, value_individual_eq, run1,
+          advance, run2], fun out' hr => ?_⟩
+        obtain ⟨n2, c2, m2⟩ := f2 out' hr
+        refine ⟨bare (.ClassAssertion (if decide (Rowl.LangRanges.Matches context.ranges.val[range.val].val t.val) = true
+            then .Class (rangeClass range) else .ObjectComplementOf (.Class (rangeClass range)))
+            (.Named (valueIndividual index))) :: n2, by rw [c2, c1 o1 rfl]; simp, fun J => ?_⟩
+        simp only [List.mem_cons, forall_eq_or_imp, m2 J, nextIndex, hv]
+        have here := member_holds J (rangeClass range) (Rowl.LangRanges.Matches context.ranges.val[range.val].val t.val)
+          (.Named (valueIndividual index))
+        simp only [decide_eq_true_eq, bare] at here ⊢
+        rw [here]
+        simp only [individual, datatypes.DataValue.Tagged.injEq]
+        constructor
+        · rintro ⟨first, rest⟩ s' t' ⟨e1, e2⟩ c hc low
+          subst e1; subst e2
+          by_cases same : c = range
+          · subst same; exact first
+          · have : c.val ≠ range.val := fun e => same (UScalar.eq_of_val_eq e)
+            exact rest s t ⟨rfl, rfl⟩ c hc (by omega)
+        · intro all
+          exact ⟨all s t ⟨rfl, rfl⟩ range inside le_rfl, fun s' t' e c hc low => all s' t' e c hc (by omega)⟩
+    · have untagged : ∀ s t, context.values.val[index.val] ≠ .Tagged s t := fun s t e => tagged ⟨s, t, e⟩
+      refine ⟨some out, ?_, fun out' hr => ⟨[], by cases hr; simp, fun J => ?_⟩⟩
+      · cases hv : context.values.val[index.val] <;> simp_all
+      · simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
+        intro s t e; exact absurd e (untagged s t)
+  · have cond : (decide (index < alloc.vec.Vec.len context.values) &&
+        decide (range < alloc.vec.Vec.len context.ranges)) = false := by
+      simp [UScalar.lt_equiv, inside]
+    refine ⟨some out, by simp only [cond, Bool.false_eq_true, ↓reduceIte], fun out' hr =>
+      ⟨[], by cases hr; simp, fun J => ?_⟩⟩
+    simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
+    intro s t _ c hc low
+    omega
+termination_by context.ranges.val.length - range.val
+decreasing_by all_goals omega
+
 /-- What the axioms of one literal value say: its individual is a data node,
     in the classes of the kinds in use its value is in, with the bit classes
     of its index, in the cuts of its own number, and in the classes of the
@@ -1467,7 +1548,8 @@ def ValueFact (context : data_ontology.Context) (bits : Usize) (J : Interpretati
     (J.classes (kindClass k) (J.namedIndividuals (valueIndividual i)) ↔ InKind context.values.val[i.val] k)) ∧
   (∀ j : Usize, j.val < bits.val →
     (J.classes (bitClass j) (J.namedIndividuals (valueIndividual i)) ↔ i.val.testBit j.val = true)) ∧
-  CutFact context J i h ∧ EdgeFact context J i h ∧ TimeMemberFact context J i h ∧ LengthMemberFact context J i h
+  CutFact context J i h ∧ EdgeFact context J i h ∧ TimeMemberFact context J i h ∧ LengthMemberFact context J i h ∧
+    RangeMemberFact context J i h
 
 set_option maxRecDepth 4096 in
 theorem value_axioms_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
@@ -1587,18 +1669,24 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
         rune1, rune2, runt, runl], by simp⟩
     | some ol =>
-    obtain ⟨r7, run7, f7⟩ := bit_members_spec.{w,x} index 0#usize bits ol
+    obtain ⟨rr, runr, fr⟩ := range_memberships_spec.{w,x} context index inside 0#usize ol
+    cases rr with
+    | none =>
+      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
+        rune1, rune2, runt, runl, runr], by simp⟩
+    | some orr =>
+    obtain ⟨r7, run7, f7⟩ := bit_members_spec.{w,x} index 0#usize bits orr
     cases r7 with
     | none =>
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
-        rune1, rune2, runt, runl, run7], by simp⟩
+        rune1, rune2, runt, runl, runr, run7], by simp⟩
     | some o7 =>
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val + 1 := by simpa using nextValue
     obtain ⟨rest, restRun, restFacts⟩ := value_axioms_spec context good fine fit next bits o7
     refine ⟨rest, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
-      rune1, rune2, runt, runl, run7, advance, restRun], fun out' h => ?_⟩
+      rune1, rune2, runt, runl, runr, run7, advance, restRun], fun out' h => ?_⟩
     obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
     obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
     obtain ⟨n3, c3, m3⟩ := f3 o3 rfl
@@ -1617,16 +1705,17 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
     obtain ⟨ne2, ce2, me2⟩ := fe2 oe2 rfl
     obtain ⟨nt, ct, mt⟩ := ft ot rfl
     obtain ⟨nl, cl, ml⟩ := fl ol rfl
+    obtain ⟨nr, cr, mr⟩ := fr orr rfl
     obtain ⟨n7, c7, m7⟩ := f7 o7 rfl
     obtain ⟨n8, c8, m8⟩ := restFacts out' h
     refine ⟨bare (.ClassAssertion (.Class dataClass) (.Named (valueIndividual index))) ::
       (n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ nu ++ nh ++ nb ++ ndt ++ nds ++ ndb ++ nfl ++ ns ++ n6 ++ ne1 ++ ne2 ++ nt ++ nl ++
-        n7 ++ n8),
-      by rw [c8, c7, cl, ct, ce2, ce1, c6, cs, cfl, cdb, cds, cdt, cb, ch, cu, c5, c4, c3, c2, c1,
+        nr ++ n7 ++ n8),
+      by rw [c8, c7, cr, cl, ct, ce2, ce1, c6, cs, cfl, cdb, cds, cdt, cb, ch, cu, c5, c4, c3, c2, c1,
           contents0 o0 rfl]; simp [bare],
       fun J => ?_⟩
     simp only [List.mem_cons, forall_eq_or_imp, List.forall_mem_append, m1, m2, m3, m4, m5, mu, mh, mb, mdt, mds, mdb,
-      mfl, ms, m6, me1, me2, mt, ml, m7, m8,
+      mfl, ms, m6, me1, me2, mt, ml, mr, m7, m8,
       zero_val, Nat.zero_le, true_implies]
     simp only [bare, satisfies, classDenote, individual]
     rw [nextIndex]
@@ -1646,13 +1735,13 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
       · intro all
         exact ⟨all true, all false⟩
     constructor
-    · rintro ⟨data, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, ku⟩, kh⟩, kb⟩, kdt⟩, kds⟩, kdb⟩, kfl⟩, ks⟩,
-        ⟨k6, k7, cutsHere⟩⟩, edgeD⟩, edgeF⟩, timesHere⟩, lengthsHere⟩, bitsHere⟩, rest⟩ i low hi
+    · rintro ⟨data, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, ku⟩, kh⟩, kb⟩, kdt⟩, kds⟩, kdb⟩, kfl⟩, ks⟩,
+        ⟨k6, k7, cutsHere⟩⟩, edgeD⟩, edgeF⟩, timesHere⟩, lengthsHere⟩, rangesHere⟩, bitsHere⟩, rest⟩ i low hi
       by_cases same : i.val = index.val
       · have := UScalar.eq_of_val_eq same
         subst this
         refine ⟨data, fun k used => ?_, fun j high => bitsHere j high, cutsHere hi, edgeIff.mp ⟨edgeD, edgeF⟩,
-          timesHere, lengthsHere⟩
+          timesHere, lengthsHere, rangesHere⟩
         cases k
         case Integer => exact k1 used hi
         case Decimal => exact k2 used hi
@@ -1679,14 +1768,14 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
     · intro all
       have here := all index (le_refl _) inside
       have edges := edgeIff.mpr here.2.2.2.2.1
-      exact ⟨here.1, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
+      exact ⟨here.1, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩,
         fun i _ _ used _ => here.2.1 _ used⟩,
         ⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used, fun h => here.2.2.2.1⟩⟩, edges.1⟩, edges.2⟩,
-        here.2.2.2.2.2.1⟩, here.2.2.2.2.2.2⟩,
+        here.2.2.2.2.2.1⟩, here.2.2.2.2.2.2.1⟩, here.2.2.2.2.2.2.2⟩,
         fun j high => here.2.2.1 j high⟩, fun i low hi => all i (by omega) hi⟩
   · have inside' : ¬ index < alloc.vec.Vec.len context.values := by
       simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
@@ -1714,6 +1803,7 @@ structure Frame (context : data_ontology.Context) (capacity : Nat) (bits : Usize
   edges : ∀ double, Rowl.DataEdges.EdgeFacts context capacity double J
   times : Rowl.DataTimes.TimeFacts context capacity J
   lengths : Rowl.DataLengths.LengthFacts context capacity J
+  ranges : Rowl.DataRanges.RangeFacts context J
 
 /-- The encoding of a closure in a context: what its axioms become, and the
     encoding's own axioms, with enough bit classes to tell the literal values
@@ -1723,7 +1813,7 @@ structure Frame (context : data_ontology.Context) (capacity : Nat) (bits : Usize
 theorem encode_meaning (context : data_ontology.Context) (good : Good context) (capacity : Usize)
     (capSmall : capacity.val < Usize.max / 16) (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.encode context capacity items = .ok res ∧ ∀ enc, res = some enc →
-      FineCuts context.cuts.val ∧ ValuesFit context ∧
+      FineCuts context.cuts.val ∧ ValuesFit context ∧ (context.ranges.val ≠ [] → context.lengths.val = []) ∧
       ∃ (new : List AnnotatedAxiom) (bits : Usize) (order : List Usize), ItemsMeans.{u,v,w,x} context items.val new ∧
         context.values.val.length ≤ 2 ^ bits.val ∧
         (context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val)) ∧ PointsNamed context order 1) ∧
@@ -1737,7 +1827,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   cases ok with
   | false => exact ⟨none, by simp [okRun], by simp⟩
   | true =>
-  obtain ⟨fine, valuesFit⟩ := okFacts rfl
+  obtain ⟨fine, valuesFit, alone⟩ := okFacts rfl
   obtain ⟨r1, run1, f1⟩ := encode_items_meaning.{u,v,w,x} context items 0#usize (alloc.vec.Vec.new AnnotatedAxiom)
   cases r1 with
   | none => exact ⟨none, by simp [okRun, run1], by simp⟩
@@ -1783,32 +1873,41 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, runl], by simp⟩
   | some ol =>
   obtain ⟨nl, cl, ml⟩ := fl ol rfl
+  obtain ⟨rr, runr, fr⟩ := Rowl.DataRanges.range_axioms_spec.{w,x} context good.2.2.2.2.2.2.2.2.1 ol
+  cases rr with
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, runl, runr], by simp⟩
+  | some orr =>
+  obtain ⟨nr, cr, mr⟩ := fr orr rfl
   obtain ⟨bits, bitsRun, bitsLe⟩ := bits_for_spec (alloc.vec.Vec.len context.values) 0#usize 1#usize (by simp)
-  obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good fine valuesFit 0#usize bits ol
+  obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good fine valuesFit 0#usize bits orr
   cases r6 with
-  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, runl, bitsRun, run6], by simp⟩
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, runl, runr, bitsRun, run6],
+      by simp⟩
   | some o6 =>
   obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
   obtain ⟨r7, run7, c7⟩ := push_spec o6
     (.ClassAssertion (.ObjectComplementOf (.Class dataClass)) (.Named objectIndividual))
-  refine ⟨r7, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, runl, bitsRun, run6, object_class_eq,
-    object_individual_eq, run7], fun enc h => ?_⟩
+  refine ⟨r7, by simp [okRun, run1, run2, run3, run4, run5, rund, runf, runt, runl, runr, bitsRun, run6,
+    object_class_eq, object_individual_eq, run7], fun enc h => ?_⟩
   simp only [zero_val, List.drop_zero] at m1 roles3 m2 m3
-  refine ⟨fine, valuesFit, new, bits, order, m1, by simpa using bitsLe, sorted, roles3, known, fun J => ?_⟩
-  rw [c7 enc h, c6, cl, ct, cf, cd, c5, c4, c3, c2, c1]
-  simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, md J, mf J, mt J, ml J, m6 J,
+  refine ⟨fine, valuesFit, fun ne => alone.resolve_left ne, new, bits, order, m1, by simpa using bitsLe, sorted,
+    roles3, known, fun J => ?_⟩
+  rw [c7 enc h, c6, cr, cl, ct, cf, cd, c5, c4, c3, c2, c1]
+  simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, md J, mf J, mt J, ml J, mr J,
+    m6 J,
     zero_val, Nat.zero_le, true_implies]
   simp only [List.mem_singleton, forall_eq, bare, satisfies, classDenote, individual]
   have edgesIff : (Rowl.DataEdges.EdgeFacts context capacity.val true J ∧
       Rowl.DataEdges.EdgeFacts context capacity.val false J) ↔ ∀ double, Rowl.DataEdges.EdgeFacts context capacity.val double J :=
     ⟨fun ⟨d, f⟩ double => by cases double; exact f; exact d, fun all => ⟨all true, all false⟩⟩
   constructor
-  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨items', roles⟩, data⟩, kinds⟩, regions⟩, edgeD⟩, edgeF⟩, times⟩, lengths⟩, values⟩, object⟩
+  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨items', roles⟩, data⟩, kinds⟩, regions⟩, edgeD⟩, edgeF⟩, times⟩, lengths⟩, ranges⟩, values⟩,
+      object⟩
     exact ⟨items', ⟨roles, fun p mem role run y y' rel => data p mem role run y y' rel, kinds, regions, values,
-      object, edgesIff.mp ⟨edgeD, edgeF⟩, times, lengths⟩⟩
+      object, edgesIff.mp ⟨edgeD, edgeF⟩, times, lengths, ranges⟩⟩
   · rintro ⟨items', frame⟩
-    exact ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨items', frame.roles⟩, frame.data⟩, frame.kinds⟩, frame.regions⟩, frame.edges true⟩,
-      frame.edges false⟩, frame.times⟩, frame.lengths⟩, frame.values⟩, frame.object⟩
+    exact ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨items', frame.roles⟩, frame.data⟩, frame.kinds⟩, frame.regions⟩, frame.edges true⟩,
+      frame.edges false⟩, frame.times⟩, frame.lengths⟩, frame.ranges⟩, frame.values⟩, frame.object⟩
 
 /-- Literal values at distinct indices have distinct individuals in every
     interpretation of the encoding's own axioms. -/

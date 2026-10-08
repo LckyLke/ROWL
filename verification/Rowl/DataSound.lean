@@ -299,6 +299,11 @@ def Written.In : Written → datatypes.Kind → Prop
   | .hex _, k => k = .HexBinary
   | .base64 _, k => k = .Base64Binary
 
+/-- The language tag of a written value that has one. -/
+def Written.Tag : Written → List U8 → Prop
+  | .tagged _ l, l' => l = l'
+  | _, _ => False
+
 /-- The written value of a literal value with a length. -/
 def writtenOf : datatypes.DataValue → Option Written
   | .Text t => some (.text t.val)
@@ -1236,12 +1241,20 @@ def WrittenNode (d : Object') : Prop :=
   InUse context J .String d ∨ InUse context J .Plain d ∨ InUse context J .AnyUri d ∨
     InUse context J .HexBinary d ∨ InUse context J .Base64Binary d
 
+/-- The written values whose language tag the classes of the language ranges
+    at a node allow: a range's class holds there exactly when the range matches
+    the value's language tag. -/
+def RangeSlot (d : Object') (x : Written) : Prop :=
+  ∀ (i : Usize) (h : i.val < context.ranges.val.length),
+    (J.classes (rangeClass i) d ↔ ∃ l, x.Tag l ∧ Rowl.LangRanges.Matches (context.ranges.val[i.val]'h).val l)
+
 /-- The written values that a node's classes allow: in exactly the kinds in
     use whose classes hold there, with a length that its classes of the lengths
-    allow, and no literal value's. -/
+    allow and a language tag that its classes of the language ranges allow, and
+    no literal value's. -/
 def writtenSet (d : Object') : Set Written :=
   {x | x.Ok ∧ (∀ k, Used context.kinds k = true → (J.classes (kindClass k) d ↔ x.In k)) ∧
-    (∃ m ∈ LengthSlot context J d, x.Length m) ∧ x ∉ literalWritten context.values.val}
+    (∃ m ∈ LengthSlot context J d, x.Length m) ∧ RangeSlot context J d x ∧ x ∉ literalWritten context.values.val}
 
 /-- The written values of a node's kinds: at a node of `xsd:string`, the
     strings of a rank from its level on and before the next rank in use;
@@ -1942,6 +1955,7 @@ structure Setting (context : data_ontology.Context) (capacity : Nat) (bits : Usi
   thing : ∀ d, J.classes thing d
   top : ∀ y y', J.objectProperties topObject y y'
   bottom : ∀ y y', ¬ J.objectProperties bottomObject y y'
+  alone : context.ranges.val ≠ [] → context.lengths.val = []
 
 variable {context : data_ontology.Context} {capacity : Nat} {bits : Usize} {order : List Usize}
   {J : Interpretation Object' Value'}
@@ -2172,7 +2186,7 @@ theorem length_down (setting : Setting context capacity bits order J) {d : Objec
 theorem length_index_unique (setting : Setting context capacity bits order J) {i j : Usize}
     (hi : i.val < context.lengths.val.length) (hj : j.val < context.lengths.val.length)
     (same : (context.lengths.val[i.val]'hi).val = (context.lengths.val[j.val]'hj).val) : i = j :=
-  UScalar.eq_of_val_eq ((List.Nodup.getElem_inj_iff setting.good.2.2.2.2.2.2.2.2.1).mp (UScalar.eq_of_val_eq same))
+  UScalar.eq_of_val_eq ((List.Nodup.getElem_inj_iff setting.good.2.2.2.2.2.2.2.1.2.1).mp (UScalar.eq_of_val_eq same))
 
 /-- A node's classes of the lengths place it in a slot of lengths: from the
     longest length whose class holds there, if any, and before the shortest
@@ -2257,7 +2271,7 @@ theorem node_lengths (setting : Setting context capacity bits order J) (d : Obje
   | none =>
     have lo0 := lowNone hl
     have empty := heldNone hl
-    have pos : 0 < hi := at_j ▸ setting.good.2.2.2.2.2.2.2.2.2 _ (List.getElem_mem h2)
+    have pos : 0 < hi := at_j ▸ setting.good.2.2.2.2.2.2.2.1.2.2 _ (List.getElem_mem h2)
     refine ⟨by omega, ?_⟩
     have below : ¬ ∃ t ∈ context.lengths.val, t.val < (context.lengths.val[j.val]'h2).val := by
       rintro ⟨t, mem, lt⟩
@@ -2299,13 +2313,16 @@ theorem node_lengths (setting : Setting context capacity bits order J) (d : Obje
 theorem written_classes {d d' : Object'} {x : Written} (h : x ∈ writtenSet context J d)
     (h' : x ∈ writtenSet context J d') :
     (∀ k, Used context.kinds k = true → (J.classes (kindClass k) d ↔ J.classes (kindClass k) d')) ∧
-      ∀ (i : Usize) (_ : i.val < context.lengths.val.length),
-        (J.classes (lengthClass i) d ↔ J.classes (lengthClass i) d') := by
-  obtain ⟨_, kinds, ⟨m, slot, len⟩, _⟩ := h
-  obtain ⟨_, kinds', ⟨m', slot', len'⟩, _⟩ := h'
+      (∀ (i : Usize) (_ : i.val < context.lengths.val.length),
+        (J.classes (lengthClass i) d ↔ J.classes (lengthClass i) d')) ∧
+      ∀ (i : Usize) (_ : i.val < context.ranges.val.length),
+        (J.classes (rangeClass i) d ↔ J.classes (rangeClass i) d') := by
+  obtain ⟨_, kinds, ⟨m, slot, len⟩, ranged, _⟩ := h
+  obtain ⟨_, kinds', ⟨m', slot', len'⟩, ranged', _⟩ := h'
   have := written_length_unique len len'
   subst this
-  exact ⟨fun k used => (kinds k used).trans (kinds' k used).symm, fun i hi => (slot i hi).trans (slot' i hi).symm⟩
+  exact ⟨fun k used => (kinds k used).trans (kinds' k used).symm, fun i hi => (slot i hi).trans (slot' i hi).symm,
+    fun i hi => (ranged i hi).trans (ranged' i hi).symm⟩
 
 /-- The class of a kind and a slot of lengths holds at a node with the same
     written value as one where it holds. -/
@@ -2316,7 +2333,7 @@ theorem sized_transfer {d e : Object'} {kind : datatypes.Kind} {below : Option d
     (highIn : ∀ j, high = some j → j.val < context.lengths.val.length) {x : Written}
     (hd : x ∈ writtenSet context J d) (he : x ∈ writtenSet context J e)
     (sized : Rowl.DataLengths.InSized J kind below low high d) : Rowl.DataLengths.InSized J kind below low high e := by
-  obtain ⟨kinds, lengths⟩ := written_classes hd he
+  obtain ⟨kinds, lengths, _⟩ := written_classes hd he
   obtain ⟨inK, outB, inLow, outHigh⟩ := sized
   exact ⟨(kinds kind usedKind).mp inK, fun b hb h => outB b hb ((kinds b (usedBelow b hb)).mpr h),
     fun i hi => (lengths i (lowIn i hi)).mp (inLow i hi), fun j hj h => outHigh j hj ((lengths j (highIn j hj)).mpr h)⟩
@@ -2441,6 +2458,10 @@ noncomputable def momentValue (m : DatatypeMap.Moment) : Values.{v,w} Native := 
 
 /-- The lengths of values: those of the datatype map's values with a length. -/
 def soundSize (x : Values.{v,w} Native) (m : ℕ) : Prop := ∃ y, NativeLength N y m ∧ embedValue y = x
+
+/-- The language tags of values: those of the datatype map's values with a
+    language tag. -/
+def soundTag (x : Values.{v,w} Native) (l : List U8) : Prop := ∃ y, NativeTag N y l ∧ embedValue y = x
 
 /-- Some data nodes that witness an element's data restriction, when it has
     enough of them. -/
@@ -2681,17 +2702,19 @@ theorem written_coherent {d d' : Object'} :
   intro S S' h h' x inS inS'
   obtain ⟨_, _, rfl⟩ := region_written h
   obtain ⟨_, _, rfl⟩ := region_written h'
-  obtain ⟨kinds, lengths⟩ := written_classes inS.1 inS'.1
+  obtain ⟨kinds, lengths, ranges⟩ := written_classes inS.1 inS'.1
   have slots : LengthSlot context J d = LengthSlot context J d' := by
     ext m
     exact ⟨fun inM i hi => (lengths i hi).symm.trans (inM i hi), fun inM i hi => (lengths i hi).trans (inM i hi)⟩
+  have rangeSlots : ∀ y, RangeSlot context J d y ↔ RangeSlot context J d' y := fun y =>
+    ⟨fun r i hi => (ranges i hi).symm.trans (r i hi), fun r i hi => (ranges i hi).trans (r i hi)⟩
   ext y
-  simp only [writtenSet, Set.mem_setOf_eq, slots]
+  simp only [writtenSet, Set.mem_setOf_eq, slots, rangeSlots]
   constructor
-  · rintro ⟨ok, profile, len, lit⟩
-    exact ⟨ok, fun k used => (kinds k used).symm.trans (profile k used), len, lit⟩
-  · rintro ⟨ok, profile, len, lit⟩
-    exact ⟨ok, fun k used => (kinds k used).trans (profile k used), len, lit⟩
+  · rintro ⟨ok, profile, len, ranged, lit⟩
+    exact ⟨ok, fun k used => (kinds k used).symm.trans (profile k used), len, ranged, lit⟩
+  · rintro ⟨ok, profile, len, ranged, lit⟩
+    exact ⟨ok, fun k used => (kinds k used).trans (profile k used), len, ranged, lit⟩
 
 /-- The place of a time cut on the time line: its instant's place, past the
     instant itself when it is open. -/
@@ -3393,27 +3416,50 @@ theorem moment_peers_bound (setting : Setting context capacity bits order J) (co
 theorem written_set_ok (d : Object') : okSet (writtenSet context J d) = writtenSet context J d :=
   Set.inter_eq_left.mpr fun _ mem => mem.1
 
-/-- A written value of a node's kinds with a length in its slot that is no
-    literal value's is one of the node's own. -/
+/-- A node of `xsd:string`, or not of `rdf:PlainLiteral` in use, is in the
+    class of no language range. -/
+theorem no_range (setting : Setting context capacity bits order J) {d : Object'}
+    (h : J.classes (kindClass .String) d ∨ ¬ InUse context J .Plain d) (i : Usize)
+    (hi : i.val < context.ranges.val.length) : ¬ J.classes (rangeClass i) d := by
+  intro holds
+  obtain ⟨plain, notString⟩ := (setting.frame.ranges.1 i hi hi).1 d holds
+  have nonempty : context.ranges.val ≠ [] := fun e => by simp [e] at hi
+  have used := (setting.good.2.2.2.2.2.2.2.2.2 nonempty).1
+  rcases h with str | np
+  · exact notString str
+  · exact np ⟨by simp [Used, used], plain⟩
+
+/-- A written value with no language tag is allowed by the classes of the
+    language ranges at a node in none of them. -/
+theorem untagged_slot {d : Object'} {x : Written} (untagged : ∀ l, ¬ x.Tag l)
+    (none : ∀ (i : Usize) (_ : i.val < context.ranges.val.length), ¬ J.classes (rangeClass i) d) :
+    RangeSlot context J d x :=
+  fun i hi => ⟨fun holds => absurd holds (none i hi), fun ⟨l, tag, _⟩ => absurd tag (untagged l)⟩
+
+/-- A written value of a node's kinds with a length in its slot and a language
+    tag its classes of the ranges allow that is no literal value's is one of
+    the node's own. -/
 theorem family_written (setting : Setting context capacity bits order J) {d : Object'}
     (numeric : ¬ NumericNode context J d) (notBool : ¬ InUse context J .Boolean d) {x : Written} (ok : x.Ok)
     (fam : InFamily context J d x) {m : ℕ} (len : x.Length m) (slot : m ∈ LengthSlot context J d)
-    (notLit : x ∉ literalWritten context.values.val) : x ∈ writtenSet context J d :=
-  ⟨ok, fun k used => family_profile setting.frame.kinds numeric notBool fam k used, ⟨m, slot, len⟩, notLit⟩
+    (ranged : RangeSlot context J d x) (notLit : x ∉ literalWritten context.values.val) :
+    x ∈ writtenSet context J d :=
+  ⟨ok, fun k used => family_profile setting.frame.kinds numeric notBool fam k used, ⟨m, slot, len⟩, ranged, notLit⟩
 
 /-- Infinitely many written values of a node's kinds with lengths in its slot
     make its region infinite. -/
 theorem written_infinite (setting : Setting context capacity bits order J) {d : Object'}
     (numeric : ¬ NumericNode context J d) (notBool : ¬ InUse context J .Boolean d) {f : ℕ → Written}
     (inj : Function.Injective f)
-    (each : ∀ n, (f n).Ok ∧ InFamily context J d (f n) ∧ ∃ m ∈ LengthSlot context J d, (f n).Length m) :
+    (each : ∀ n, (f n).Ok ∧ InFamily context J d (f n) ∧ (∃ m ∈ LengthSlot context J d, (f n).Length m) ∧
+      RangeSlot context J d (f n)) :
     (okSet (writtenSet context J d)).Infinite := by
   rw [written_set_ok]
   refine Set.Infinite.mono ?_
     ((Set.infinite_range_of_injective inj).sdiff (literal_written_finite context.values.val))
   rintro x ⟨⟨n, rfl⟩, notLit⟩
-  obtain ⟨ok, fam, m, slot, len⟩ := each n
-  exact family_written setting numeric notBool ok fam len slot notLit
+  obtain ⟨ok, fam, ⟨m, slot, len⟩, ranged⟩ := each n
+  exact family_written setting numeric notBool ok fam len slot ranged notLit
 
 /-- The written values of a node in a bounded slot of lengths are, as values,
     those of its kind and slot that are no literal values, as many as the
@@ -3425,14 +3471,14 @@ theorem written_card (N : Normative D) (setting : Setting context capacity bits 
     (nodeKind : Used context.kinds kind = true ∧ J.classes (kindClass kind) d)
     (nodeBelow : ∀ b, below = some b → Used context.kinds b = true ∧ ¬ J.classes (kindClass b) d)
     (family : ∀ x : Written, x.Ok → x.In kind → (∀ b, below = some b → ¬ x.In b) → InFamily context J d x)
-    (slotIs : ∀ m, m ∈ LengthSlot context J d ↔ lo ≤ m ∧ m < hi) :
+    (slotIs : ∀ m, m ∈ LengthSlot context J d ↔ lo ≤ m ∧ m < hi) (noRanges : context.ranges.val = []) :
     (writtenSet context J d).Finite ∧
       (writtenSet context J d).ncard = Rowl.DataLengths.sizedFree context kind below octets first last lo hi := by
   have image : writtenValue N '' writtenSet context J d =
       FamilySet N kind below lo hi \ familyLits N context.values.val kind below lo hi := by
     ext y
     constructor
-    · rintro ⟨x, ⟨ok, profile, ⟨m, slot, len⟩, notLit⟩, rfl⟩
+    · rintro ⟨x, ⟨ok, profile, ⟨m, slot, len⟩, _, notLit⟩, rfl⟩
       obtain ⟨lom, mhi⟩ := (slotIs m).mp slot
       refine ⟨⟨(written_space N ok kind).mpr ((profile kind nodeKind.1).mp nodeKind.2),
         fun b hb inB => (nodeBelow b hb).2 ((profile b (nodeBelow b hb).1).mpr ((written_space N ok b).mp inB)),
@@ -3444,7 +3490,7 @@ theorem written_card (N : Normative D) (setting : Setting context capacity bits 
       have inK' := (written_space N ok kind).mp inK
       have outB' : ∀ b, below = some b → ¬ x.In b := fun b hb h => outB b hb ((written_space N ok b).mpr h)
       refine ⟨x, family_written setting numeric notBool ok (family x ok inK' outB') len ((slotIs m).mpr ⟨lom, mhi⟩)
-        ?_, rfl⟩
+        (fun i hi => absurd hi (by simp [noRanges])) ?_, rfl⟩
       rintro ⟨w, mem, hw⟩
       obtain ⟨kinds, _, lengths⟩ := written_of_some hw
       exact notLit ⟨w, mem, ⟨m, (lengths m).mpr len, (kinds kind).mpr inK',
@@ -3480,10 +3526,10 @@ theorem bounded_room (N : Normative D) (setting : Setting context capacity bits 
     (nodeBelow : ∀ b, below = some b → Used context.kinds b = true ∧ ¬ J.classes (kindClass b) d)
     (family : ∀ x : Written, x.Ok → x.In kind → (∀ b, below = some b → ¬ x.In b) → InFamily context J d x)
     (fact : Rowl.DataLengths.SizedFact context capacity J kind below octets first last low high lo hi)
-    (runs : BoundsRuns context) :
+    (runs : BoundsRuns context) (noRanges : context.ranges.val = []) :
     0 < (okSet (writtenSet context J d)).ncard ∧
       ∀ z, (peers context J order atoms z d).length ≤ (okSet (writtenSet context J d)).ncard := by
-  obtain ⟨finite, card⟩ := written_card N setting numeric notBool counted nodeKind nodeBelow family slotIs
+  obtain ⟨finite, card⟩ := written_card N setting numeric notBool counted nodeKind nodeBelow family slotIs noRanges
   rw [written_set_ok, card]
   have inSized : Rowl.DataLengths.InSized J kind below low high d :=
     ⟨nodeKind.2, fun b hb => (nodeBelow b hb).2, lowHeld, highFailed⟩
@@ -3528,9 +3574,21 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
   obtain ⟨low, high, lo, hi, lowIs, lowNone, highIs, lowHeld, highFailed, slotIff, facts⟩ := node_lengths setting d
   have loIn : lo ∈ LengthSlot context J d := (slotIff lo).mpr ⟨le_rfl, fun ne => (facts ne).1⟩
   by_cases plain : ¬ InUse context J .String d ∧ InUse context J .Plain d
-  · exact .inl (written_infinite setting numeric notBool (f := fun n => .tagged (aText lo) (privateTag n))
-      (fun a b same => privateTag_injective (by simpa using same))
-      (fun n => ⟨⟨aText_xml lo, privateTag_value n⟩, plain, lo, loIn, aText_length lo⟩))
+  · by_cases noRanges : context.ranges.val = []
+    · exact .inl (written_infinite setting numeric notBool (f := fun n => .tagged (aText lo) (privateTag n))
+        (fun a b same => privateTag_injective (by simpa using same))
+        (fun n => ⟨⟨aText_xml lo, privateTag_value n⟩, plain, ⟨lo, loIn, aText_length lo⟩,
+          fun i hi => absurd hi (by simp [noRanges])⟩))
+    · have stringUsed := (setting.good.2.2.2.2.2.2.2.2.2 noRanges).2
+      have notString : ¬ J.classes (kindClass .String) d := fun h => plain.1 ⟨by simp [Used, stringUsed], h⟩
+      obtain ⟨t, lower, tagIff⟩ := Rowl.DataRanges.choose_tag setting.frame.ranges setting.good.2.2.2.2.2.2.2.2.1
+        setting.thing plain.2.2 notString
+      have noLengths := setting.alone noRanges
+      have anySlot : ∀ m, m ∈ LengthSlot context J d := fun m i hi => absurd hi (by simp [noLengths])
+      exact .inl (written_infinite setting numeric notBool (f := fun n => .tagged (aText n) t)
+        (fun a b same => aText_injective (by simpa using same))
+        (fun n => ⟨⟨aText_xml n, (Rowl.LangRanges.tag_value_iff t).mpr lower⟩, plain, ⟨n, anySlot n, aText_length n⟩,
+          fun i hi => (tagIff i hi).trans ⟨fun m => ⟨t, rfl, m⟩, fun ⟨l, e, m⟩ => by subst e; exact m⟩⟩))
   have lowIn : ∀ i, low = some i → i.val < context.lengths.val.length := fun i hi => (lowIs i hi).1
   have highIn : ∀ j, high = some j → j.val < context.lengths.val.length := fun j hj => (highIs j hj).1
   by_cases top : high = none
@@ -3541,8 +3599,9 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
     · have level := (stringLevel context J d).isLt
       refine written_infinite setting numeric notBool
         (f := fun n => .text (Rowl.Strings.stringAt (stringLevel context J d).val (lo + n))) (fun a b same => ?_)
-        (fun n => ⟨Rowl.Strings.stringAt_xml level _, ⟨hs, Rowl.Strings.stringAt_in level _, fun lt form => ?_⟩, _,
-          slotTop _ (le_trans (by omega) (stringAt_length level (lo + n))), stringAt_text_length level _⟩)
+        (fun n => ⟨Rowl.Strings.stringAt_xml level _, ⟨hs, Rowl.Strings.stringAt_in level _, fun lt form => ?_⟩,
+          ⟨_, slotTop _ (le_trans (by omega) (stringAt_length level (lo + n))), stringAt_text_length level _⟩,
+          untagged_slot (fun _ h => h) (no_range setting (.inl hs.2))⟩)
       · simp only [Written.text.injEq] at same
         have := (Rowl.Strings.stringAt_injective level level same).2
         omega
@@ -3552,14 +3611,15 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
     have hp : ¬ InUse context J .Plain d := fun h => plain ⟨hs, h⟩
     by_cases hu : InUse context J .AnyUri d
     · refine written_infinite setting numeric notBool (f := fun n => .uri (aText (lo + n))) (fun a b same => ?_)
-        (fun n => ⟨aText_xml _, ⟨hs, hp, hu⟩, _, slotTop _ (by omega), aText_length _⟩)
+        (fun n => ⟨aText_xml _, ⟨hs, hp, hu⟩, ⟨_, slotTop _ (by omega), aText_length _⟩,
+          untagged_slot (fun _ h => h) (no_range setting (.inr hp))⟩)
       simp only [Written.uri.injEq] at same
       have := aText_injective same
       omega
     by_cases hh : InUse context J .HexBinary d
     · refine written_infinite setting numeric notBool (f := fun n => .hex (List.replicate (lo + n) 0#u8))
-        (fun a b same => ?_) (fun n => ⟨trivial, ⟨hs, hp, hu, hh⟩, _, slotTop (lo + n) (by omega), by
-          simp [Written.Length]⟩)
+        (fun a b same => ?_) (fun n => ⟨trivial, ⟨hs, hp, hu, hh⟩, ⟨_, slotTop (lo + n) (by omega), by
+          simp [Written.Length]⟩, untagged_slot (fun _ h => h) (no_range setting (.inr hp))⟩)
       simp only [Written.hex.injEq] at same
       have := congrArg List.length same
       simp at this
@@ -3568,8 +3628,8 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
       rcases written with h | h | h | h | h
       exacts [absurd h hs, absurd h hp, absurd h hu, absurd h hh, h]
     refine written_infinite setting numeric notBool (f := fun n => .base64 (List.replicate (lo + n) 0#u8))
-      (fun a b same => ?_) (fun n => ⟨trivial, ⟨hs, hp, hu, hh, hb⟩, _, slotTop (lo + n) (by omega), by
-        simp [Written.Length]⟩)
+      (fun a b same => ?_) (fun n => ⟨trivial, ⟨hs, hp, hu, hh, hb⟩, ⟨_, slotTop (lo + n) (by omega), by
+        simp [Written.Length]⟩, untagged_slot (fun _ h => h) (no_range setting (.inr hp))⟩)
     simp only [Written.base64.injEq] at same
     have := congrArg List.length same
     simp at this
@@ -3585,6 +3645,9 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
       rw [e] at this
       simp at this
     have runs : BoundsRuns context := .inr (.inr (.inr (.inr nonempty)))
+    have noRanges : context.ranges.val = [] := by
+      by_contra h
+      exact nonempty (setting.alone h)
     refine ⟨nonempty, ?_⟩
     by_cases hs : InUse context J .String d
     · have level := (stringLevel context J d).isLt
@@ -3593,7 +3656,7 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
         rw [rank_kind_chain]; exact usedL
       refine bounded_room N setting count notLiteral numeric notBool region lowIn highIn lowHeld highFailed slotIs
         (ranked_counted N context.kinds level lo hi) ⟨usedR, by rw [rank_kind_chain]; exact holdsL⟩
-        (fun b hb => ?_) (fun x ok inK outB => ?_) (slots.1 _ (Nat.zero_le _) level usedR) runs
+        (fun b hb => ?_) (fun x ok inK outB => ?_) (slots.1 _ (Nat.zero_le _) level usedR) runs noRanges
       · unfold Rowl.DataLengths.belowKind at hb
         split_ifs at hb with lt7
         cases hb
@@ -3629,7 +3692,7 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
           cases x with
           | uri t => exact ⟨hs, hp, hu⟩
           | _ => simp [Written.In, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf] at inK)
-        (slots.2.1 hu.1) runs
+        (slots.2.1 hu.1) runs noRanges
     by_cases hh : InUse context J .HexBinary d
     · exact bounded_room N setting count notLiteral numeric notBool region lowIn highIn lowHeld highFailed slotIs
         (kind := .HexBinary) (below := none) (octets_counted N true lo hi) hh (fun b hb => nomatch hb)
@@ -3637,7 +3700,7 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
           cases x with
           | hex o => exact ⟨hs, hp, hu, hh⟩
           | _ => simp [Written.In, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf] at inK)
-        (slots.2.2.1 hh.1) runs
+        (slots.2.2.1 hh.1) runs noRanges
     have hb : InUse context J .Base64Binary d := by
       rcases written with h | h | h | h | h
       exacts [absurd h hs, absurd h hp, absurd h hu, absurd h hh, h]
@@ -3647,7 +3710,7 @@ theorem written_room (N : Normative D) (setting : Setting context capacity bits 
         cases x with
         | base64 o => exact ⟨hs, hp, hu, hh, hb⟩
         | _ => simp [Written.In, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf] at inK)
-      (slots.2.2.2 hb.1) runs
+      (slots.2.2.2 hb.1) runs noRanges
 
 /-- The index of the value of a node that is placed for an element is one its
     region has a value for. -/
@@ -3832,7 +3895,7 @@ theorem region_not_literal (setting : Setting context capacity bits order J) {d 
       intro same
       simp only [regionValue, litValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       have inS : writtenAt (writtenSet context J d) _ ∈ okSet (writtenSet context J d) := pick_mem _ _ _ valid
-      exact inS.1.2.2.2 ⟨val, member, written_lit N (setting.good.1.1 val member) inS.2 same⟩
+      exact inS.1.2.2.2.2 ⟨val, member, written_lit N (setting.good.1.1 val member) inS.2 same⟩
 
 /-- Whether a real of an interval is in a cut: exactly for the cuts before the
     interval. -/
@@ -3868,10 +3931,46 @@ theorem realValue_injective (N : Normative D) : Function.Injective (realValue.{v
 
 /-- A data node's value at an index its region has a value for stands for
     it. -/
+theorem sound_tag_lit (N : Normative D) {w : datatypes.DataValue} (cw : Canonical w) (l : List U8) :
+    soundTag.{v,w} N (litValue N w) l ↔ ∃ s t, w = .Tagged s t ∧ t.val = l := by
+  rw [← native_tag_lit N cw l]
+  constructor
+  · rintro ⟨y, hy, same⟩
+    rw [embedValue_injective same] at hy
+    exact hy
+  · intro hy
+    exact ⟨_, hy, rfl⟩
+
+theorem sound_tag_written (N : Normative D) {x : Written} (ok : x.Ok) (l : List U8) :
+    soundTag.{v,w} N (embedValue (writtenValue N x)) l ↔ x.Tag l := by
+  constructor
+  · rintro ⟨y, ⟨s, xs, tl, rfl⟩, same⟩
+    have e := embedValue_injective same
+    cases x with
+    | tagged t l' => exact (N.tagged_injective _ _ _ _ xs ok.1 tl ok.2 e).2.symm
+    | text t => exact absurd e.symm (N.text_tagged _ _ _ ok xs tl)
+    | uri t => exact absurd e (N.tagged_coded _ _ (.uri t) xs tl ok)
+    | hex o => exact absurd e (N.tagged_coded _ _ (.hex o) xs tl trivial)
+    | base64 o => exact absurd e (N.tagged_coded _ _ (.base64 o) xs tl trivial)
+  · intro tag
+    cases x with
+    | tagged t l' =>
+      cases tag
+      exact ⟨_, ⟨t, ok.1, ok.2, rfl⟩, rfl⟩
+    | text t => exact tag.elim
+    | uri t => exact tag.elim
+    | hex o => exact tag.elim
+    | base64 o => exact tag.elim
+
+/-- A literal value of `rdf:PlainLiteral` that is no string has a language tag. -/
+theorem tagged_of_plain {w : datatypes.DataValue} (plain : InKind w .Plain) (notString : ¬ InKind w .String) :
+    ∃ s t, w = .Tagged s t := by
+  cases w <;> simp_all [InKind, Rowl.Strings.TextIn, Rowl.Datatypes.NumberIn]
+
 theorem value_node (setting : Setting context capacity bits order J) (o : Element J) {d : Object'} {n : ℕ}
     (valid : ¬ LiteralNode context J d → Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n)) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) d
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) (soundTag N) d
       (valueAt.{u,v,w,x} context J N order d n) where
   kinds := fun k used => by
     rw [sound_types]
@@ -4049,7 +4148,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       have canonical := setting.good.1.1 _ (List.getElem_mem h0)
       have e := embedValue_injective same
       subst e
-      exact (setting.frame.values i0 h0).2.2.2.2.2.2 m ((native_lit N canonical m).mp hy) i h
+      exact (setting.frame.values i0 h0).2.2.2.2.2.2.1 m ((native_lit N canonical m).mp hy) i h
     · have v := valid ld
       rw [region_value_at d ld] at same
       cases hr : regionOf context J order d with
@@ -4060,7 +4159,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
         subst e
         obtain ⟨_, _, rfl⟩ := region_written hr
         have inS : writtenAt (writtenSet context J d) _ ∈ okSet (writtenSet context J d) := pick_mem _ _ _ v
-        obtain ⟨_, _, ⟨m', slot, len'⟩, _⟩ := inS.1
+        obtain ⟨_, _, ⟨m', slot, len'⟩, _, _⟩ := inS.1
         have := written_length_unique len' ((written_length N inS.2 m).mp hy)
         subst this
         exact slot i h
@@ -4085,6 +4184,83 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       | other =>
         rw [hr] at same
         simp [regionValue, embedValue] at same
+  ranges := fun i h => by
+    have nonempty : context.ranges.val ≠ [] := fun e => by simp [e] at h
+    obtain ⟨plainUsed, stringUsed⟩ := setting.good.2.2.2.2.2.2.2.2.2 nonempty
+    have usedP : Used context.kinds .Plain = true := by simp [Used, plainUsed]
+    have usedS : Used context.kinds .String = true := by simp [Used, stringUsed]
+    by_cases ld : LiteralNode context J d
+    · obtain ⟨i0, h0, rfl⟩ := ld
+      rw [literal_value_at setting i0 h0 n]
+      have canonical := setting.good.1.1 _ (List.getElem_mem h0)
+      simp only [sound_tag_lit N canonical]
+      by_cases tagged : ∃ s t, context.values.val[i0.val] = .Tagged s t
+      · obtain ⟨s, t, e⟩ := tagged
+        rw [(setting.frame.values i0 h0).2.2.2.2.2.2.2 s t e i h]
+        constructor
+        · intro m
+          exact ⟨t.val, ⟨s, t, e, rfl⟩, m⟩
+        · rintro ⟨l, ⟨s', t', e', rfl⟩, m⟩
+          have same := e.symm.trans e'
+          injection same with _ h2
+          subst h2
+          exact m
+      · constructor
+        · intro holds
+          obtain ⟨plain, notString⟩ := (setting.frame.ranges.1 i h h).1 _ holds
+          have kp := ((setting.frame.values i0 h0).2.1 .Plain usedP).mp plain
+          have ks : ¬ InKind context.values.val[i0.val] .String := fun inS =>
+            notString (((setting.frame.values i0 h0).2.1 .String usedS).mpr inS)
+          exact absurd (tagged_of_plain kp ks) tagged
+        · rintro ⟨l, ⟨s, t, e, _⟩, _⟩
+          exact absurd ⟨s, t, e⟩ tagged
+    · have v := valid ld
+      rw [region_value_at d ld]
+      by_cases isWritten : ∃ S, regionOf context J order d = .written S
+      · obtain ⟨S, hr⟩ := isWritten
+        obtain ⟨_, _, rfl⟩ := region_written hr
+        rw [hr] at v ⊢
+        simp only [regionValue]
+        have inS : writtenAt (writtenSet context J d) _ ∈ okSet (writtenSet context J d) := pick_mem _ _ _ v
+        obtain ⟨ok, _, _, ranged, _⟩ := inS.1
+        rw [ranged i h]
+        simp only [sound_tag_written N ok]
+      · have apart : ¬ (NumericNode context J d ∧ InUse context J .Plain d) := by
+          rintro ⟨num | num | num | num, p⟩
+          · exact setting.frame.kinds.integerPlain num.1 p.1 d ⟨num.2, p.2⟩
+          · exact setting.frame.kinds.decimalPlain num.1 p.1 d ⟨num.2, p.2⟩
+          · exact setting.frame.kinds.rationalPlain num.1 p.1 d ⟨num.2, p.2⟩
+          · exact setting.frame.kinds.realPlain num.1 p.1 d ⟨num.2, p.2⟩
+        have notHeld : ¬ J.classes (rangeClass i) d := by
+          intro holds
+          obtain ⟨plain, _⟩ := (setting.frame.ranges.1 i h h).1 d holds
+          have inUse : InUse context J .Plain d := ⟨usedP, plain⟩
+          by_cases numeric : NumericNode context J d
+          · exact apart ⟨numeric, inUse⟩
+          · apply isWritten
+            refine ⟨writtenSet context J d, ?_⟩
+            unfold regionOf
+            simp [numeric, show WrittenNode context J d from .inr (.inl inUse)]
+        refine ⟨fun holds => absurd holds notHeld, ?_⟩
+        rintro ⟨l, ⟨y, ⟨s, xs, tl, rfl⟩, same⟩, _⟩
+        exfalso
+        cases hr : regionOf context J order d with
+        | written S => exact isWritten ⟨S, hr⟩
+        | number p ℓ =>
+          rw [hr] at same
+          simp only [regionValue] at same
+          exact N.real_tagged _ _ _ xs tl (embedValue_injective same).symm
+        | moment st S =>
+          rw [hr] at same
+          simp only [regionValue] at same
+          exact N.tagged_moment _ _ _ xs tl (momentIn_valid st S _).1 (embedValue_injective same)
+        | binary dbl A lo hi =>
+          rw [hr] at same
+          simp only [regionValue] at same
+          exact tagged_format N _ _ xs tl dbl (binaryAt_valid _ _ _ _ _) (embedValue_injective same)
+        | other =>
+          rw [hr] at same
+          simp [regionValue, embedValue] at same
 
 theorem peers_same {z d d' : Object'} (same : regionOf context J order d = regionOf context J order d') :
     peers context J order atoms z d = peers context J order atoms z d' := by
@@ -4179,7 +4355,7 @@ theorem nodeValue_shared (setting : Setting context capacity bits order J) (coun
 /-- Each data node an element has a value at stands for it. -/
 theorem place_node (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) {z d : Object'} (placed : ValuedNode context J atoms z d) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) d
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) (soundTag N) d
       (nodeValue.{u,v,w,x} context J N order atoms shift z d) :=
   value_node setting o (fun ld => placed_valid setting count shiftOk ld (placed.resolve_left ld).1
     (placed.resolve_left ld).2)
@@ -4232,7 +4408,7 @@ theorem sound_literal (o : Element J) {lt : Literal} {val : datatypes.DataValue}
   simp only [sound, litValue, value]
 
 theorem sound_range_frame (setting : Setting context capacity bits order J) (o : Element J) :
-    RangeFrame (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) where
+    RangeFrame (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) (momentValue N) (soundSize N) (soundTag N) where
   literal := fun _ => .inl rfl
   thing := setting.thing
   literals := fun _ _ run => sound_literal o run
@@ -4394,6 +4570,28 @@ theorem sound_range_frame (setting : Setting context capacity bits order J) (o :
       exact ⟨m, holds, y, shape, rfl⟩
     · rintro ⟨m, holds, y, shape, rfl⟩
       exact ⟨y, ⟨m, holds, shape⟩, rfl⟩
+  tagKinds := fun x l ht k inK => by
+    rw [sound_types] at inK
+    obtain ⟨y', inside, rfl⟩ := inK
+    obtain ⟨y, ⟨s, xs, tl, rfl⟩, same⟩ := ht
+    rw [← embedValue_injective same] at inside
+    exact tagged_kind N xs tl inside
+  rangeFacets := fun f bytes facet run basic x => by
+    obtain ⟨r, run', facts, _⟩ := Rowl.Datatypes.literal_value_correct f.value
+    rw [run] at run'
+    cases Result.ok_injective run'
+    obtain ⟨_, _, _, _, rest⟩ := facts _ rfl
+    obtain ⟨_, _, value⟩ := rest D N
+    have lexValue : D.lexicalValue f.value.datatype f.value.lexical.val = N.text bytes.val := by
+      rw [value]; rfl
+    simp only [sound]
+    rw [lexValue, facet]
+    simp only [N.lang_range_value bytes.val _ basic]
+    constructor
+    · rintro ⟨y, ⟨s, l, xs, tl, m, rfl⟩, rfl⟩
+      exact ⟨l, ⟨_, ⟨s, xs, tl, rfl⟩, rfl⟩, m⟩
+    · rintro ⟨l, ⟨y, ⟨s, xs, tl, rfl⟩, rfl⟩, m⟩
+      exact ⟨_, ⟨s, l, xs, tl, m, rfl⟩, rfl⟩
 
 theorem sound_atom (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) {p : DataProperty} {range : Option DataRange} {n : Nat} (member : (p, range, n) ∈ atoms)
@@ -4410,7 +4608,7 @@ theorem sound_atom (setting : Setting context capacity bits order J) (count : at
     rcases optional_range_meaning.{u,max v w,u,x} context range filler fillerRun with
       ⟨rfl, rfl⟩ | ⟨r, c, rfl, rfl, means⟩
     · simp [RangeHolds, Rowl.Concepts.FillerHolds]
-    · exact means _ J (litValue N) (realValue N) (momentValue N) (soundSize N) (sound_range_frame setting o) d _
+    · exact means _ J (litValue N) (realValue N) (momentValue N) (soundSize N) (soundTag N) (sound_range_frame setting o) d _
         (place_node setting count shiftOk o placed)
   constructor
   · rintro ⟨f, fInj, each⟩
@@ -4464,7 +4662,7 @@ theorem sound_simulates (setting : Setting context capacity bits order J) (count
 
 theorem sound_placed (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (shiftOk : ShiftOk context shift) (o : Element J) :
-    Placed context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (litValue N) (realValue N) (momentValue N) (soundSize N)
+    Placed context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (litValue N) (realValue N) (momentValue N) (soundSize N) (soundTag N)
       (fun z y d => Place.{u,v,w,x} context J N order atoms shift z.1 y d) where
   functional := fun z _ d d' pl pl' =>
     nodeValue_injective setting count shiftOk z.1 pl.1 pl'.1 (pl.2.trans pl'.2.symm)
@@ -4534,15 +4732,15 @@ theorem sound_satisfies (N : Normative D) {context : data_ontology.Context} (goo
   obtain ⟨res, run', facts⟩ := encode_meaning.{u,max v w,u,x} context good capacity capSmall items
   rw [run] at run'
   cases Result.ok_injective run'
-  obtain ⟨fine, valuesCut, new, bits, order, means, enough, sorted, _, _, iff⟩ := facts enc rfl
+  obtain ⟨fine, valuesCut, alone, new, bits, order, means, enough, sorted, _, _, iff⟩ := facts enc rfl
   obtain ⟨newHolds, frame⟩ := (iff J).mp holds
   let o : Element J := ⟨J.namedIndividuals objectIndividual, frame.object⟩
   have names := means.2.2 J newHolds
   have setting : Setting context capacity.val bits order J :=
-    ⟨good, frame, enough, sorted, fine, valuesCut, jThing, jTop, jBottom⟩
+    ⟨good, frame, enough, sorted, fine, valuesCut, jThing, jTop, jBottom, alone⟩
   refine ⟨bits, order, o, setting, names, fun atoms covers count => ?_⟩
   exact (means.1 (sound.{u,v,w,x} context J N order atoms (fun _ => 0) o) J Subtype.val (Known J) atoms (litValue N)
-    (realValue N) (momentValue N) (soundSize N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)
+    (realValue N) (momentValue N) (soundSize N) (soundTag N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)
     (sound_range_frame setting o)
     (fun item mem a inside => covers a (List.mem_flatMap.mpr ⟨item, mem, inside⟩)) names).1 newHolds
 
@@ -4583,18 +4781,18 @@ theorem filler_anonymous (N : Normative D) (g : AnonymousIndividual → Object')
     have node := value_node (N := N) (atoms := []) (shift := fun _ => 0) (n := 0) setting o (d := d)
       (fun ld => alone_valid setting ld)
     have frame0 : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) (withAnonymous J g)
-        (litValue N) (realValue N) (momentValue N) (soundSize N) := sound_range_frame (shift := fun _ => 0) setting o
+        (litValue N) (realValue N) (momentValue N) (soundSize N) (soundTag N) := sound_range_frame (shift := fun _ => 0) setting o
     have frameJ : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
-        (realValue N) (momentValue N) (soundSize N) :=
+        (realValue N) (momentValue N) (soundSize N) (soundTag N) :=
       ⟨frame0.literal, frame0.thing, frame0.literals, frame0.injective, frame0.numbers, frame0.numeric,
         frame0.facets, frame0.binaries, frame0.binaryFacets, frame0.binaryReal, frame0.binaryApart,
         frame0.binaryInjective, frame0.moments, frame0.stamps, frame0.momentLits, frame0.momentFacets,
         frame0.momentReal, frame0.momentBinary, frame0.momentInjective, frame0.sizeUnique, frame0.sizeLits,
-        frame0.sized, frame0.sizedKinds, frame0.lengthFacets⟩
+        frame0.sized, frame0.sizedKinds, frame0.lengthFacets, frame0.tagKinds, frame0.rangeFacets⟩
     have nodeJ : NodeValue context (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
-        (realValue N) (momentValue N) (soundSize N) d (valueAt.{u,0,w,x} context (withAnonymous J g) N order d 0) :=
-      ⟨node.kinds, node.values, node.cuts, node.edges, node.goodTimes, node.times, node.lengths⟩
-    exact (means _ _ _ _ _ _ frame0 d _ node).symm.trans (means _ J _ _ _ _ frameJ d _ nodeJ)
+        (realValue N) (momentValue N) (soundSize N) (soundTag N) d (valueAt.{u,0,w,x} context (withAnonymous J g) N order d 0) :=
+      ⟨node.kinds, node.values, node.cuts, node.edges, node.goodTimes, node.times, node.lengths, node.ranges⟩
+    exact (means _ _ _ _ _ _ _ frame0 d _ node).symm.trans (means _ J _ _ _ _ _ frameJ d _ nodeJ)
 
 /-- A correspondence with an interpretation of the encoding with other
     anonymous individuals is one with the interpretation itself, for the
